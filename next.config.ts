@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' blob: data:",
               "font-src 'self' fonts.gstatic.com fonts.googleapis.com",
               "connect-src 'self' api.github.com raw.githubusercontent.com",
