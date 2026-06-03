@@ -142,17 +142,17 @@ export default function HomePage() {
       className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface"
       data-motion-ready={motionReady ? 'true' : 'false'}
     >
-      <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+      <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <div className="home-hero-content">
           <div className="mb-6">
-            <div className="inline-flex rounded-2xl border border-white/10 bg-black/18 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.24)] backdrop-blur-sm">
+            <div className="inline-flex">
               <Image
                 src="/support-engine-logo.png"
                 alt="Support Engine"
                 width={900}
                 height={500}
                 priority
-                className="h-auto w-[220px] object-contain sm:w-[250px] lg:w-[280px]"
+                className="h-auto w-[140px] object-contain sm:w-[160px] lg:w-[180px]"
               />
             </div>
           </div>

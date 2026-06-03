@@ -54,18 +54,21 @@ export function SideNavBar() {
           </Link>
         )
       })}
+      <div className="mt-auto mb-2 flex items-center justify-center">
+        <ThemeToggle />
+      </div>
     </aside>
   )
 }
 
 export function TopNavBar() {
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-outline bg-surface-container/80 px-4 backdrop-blur-md md:ml-16 md:px-6">
+    <header className="md:hidden sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-outline bg-surface-container/80 px-4 backdrop-blur-md md:ml-16 md:px-6">
       <Link
         href="/"
-        className="flex items-center gap-2 text-base font-semibold text-on-surface md:hidden"
+        className="flex items-center gap-2 text-sm font-semibold text-on-surface md:hidden"
       >
-        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-shield-500/25 bg-black/50 p-0.5 shadow-[0_0_18px_rgba(34,197,94,0.16)]">
+        <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-shield-500/25 bg-black/50 p-0.5 shadow-[0_0_12px_rgba(34,197,94,0.16)]">
           <Image
             src="/support-engine-logo.png"
             alt="Support Engine"

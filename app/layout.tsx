@@ -61,7 +61,7 @@ export default function RootLayout({
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=optional"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block"
         />
         <script
           dangerouslySetInnerHTML={{
@@ -72,8 +72,13 @@ export default function RootLayout({
       <body className="min-h-dvh bg-surface text-on-surface">
         <SideNavBar />
         <TopNavBar />
-        <main className="pb-20 md:ml-16 md:pb-0">
-          <ToastProvider>{children}</ToastProvider>
+        <main className="flex min-h-[calc(100dvh-3.5rem)] md:min-h-dvh flex-col pb-20 md:ml-16 md:pb-0">
+          <div className="flex-1">
+            <ToastProvider>{children}</ToastProvider>
+          </div>
+          <footer className="py-6 text-center text-sm text-on-surface-secondary">
+            Made by Support Engine with ❤️ from Bangladesh.
+          </footer>
         </main>
         <BottomNavBar />
       </body>
