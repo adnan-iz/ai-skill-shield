@@ -1,0 +1,35 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, test } from 'vitest'
+
+const root = process.cwd()
+const pageSource = readFileSync(join(root, 'app', 'page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(root, 'app', 'globals.css'), 'utf8')
+
+describe('homepage motion contract', () => {
+  test('keeps GitHub repo as the default homepage tab', () => {
+    expect(pageSource).toContain("useState<Tab>('url')")
+    expect(pageSource).toContain("['url', 'GitHub Repo']")
+  })
+
+  test('exposes cinematic-lift motion hooks in homepage markup', () => {
+    expect(pageSource).toContain('home-hero-shell')
+    expect(pageSource).toContain('home-hero-badge')
+    expect(pageSource).toContain('home-hero-title')
+    expect(pageSource).toContain('home-hero-copy')
+    expect(pageSource).toContain('home-stat-grid')
+    expect(pageSource).toContain('home-stat-card home-stat-card-1')
+    expect(pageSource).toContain('home-stat-card home-stat-card-2')
+    expect(pageSource).toContain('home-stat-card home-stat-card-3')
+  })
+
+  test('defines cinematic-lift animation and reduced-motion support in global css', () => {
+    expect(globalsSource).toContain('@keyframes homeHeroBadgeIn')
+    expect(globalsSource).toContain('@keyframes homeHeroTitleIn')
+    expect(globalsSource).toContain('@keyframes homeHeroCopyIn')
+    expect(globalsSource).toContain('@keyframes homeStatCardIn')
+    expect(globalsSource).toContain('@keyframes homeHeroGlowDrift')
+    expect(globalsSource).toContain('.home-hero-shell::before')
+    expect(globalsSource).toContain('@media (prefers-reduced-motion: reduce)')
+  })
+})
