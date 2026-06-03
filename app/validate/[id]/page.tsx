@@ -9,6 +9,7 @@ import CompatibilityGrid from '@/components/report/compatibility-grid'
 import ExportBar from '@/components/report/export-bar'
 import DashboardCards from '@/components/report/dashboard-cards'
 import FileTree from '@/components/report/file-tree'
+import RepositoryAuditCard from '@/components/report/repository-audit'
 import { useToast } from '@/components/ui/toast'
 import type { ValidationResult } from '@/lib/validator/types'
 import type { AiReviewResult, FindingExplanation } from '@/lib/ai-review'
@@ -20,20 +21,51 @@ export default function ReportPage({
 }) {
   const { id } = use(params)
   const router = useRouter()
-  const [result, setResult] = useState<ValidationResult | null | undefined>(() => getValidation(id))
+  const [result, setResult] = useState<ValidationResult | null | undefined>(undefined)
+  const { toast } = useToast()
 
   useEffect(() => {
-    function handleStorage() {
-      setResult(getValidation(id))
+    let cancelled = false
+
+    async function loadResult() {
+      const localResult = getValidation(id)
+      if (localResult) {
+        if (!cancelled) setResult(localResult)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/validate?id=${encodeURIComponent(id)}`)
+        if (!response.ok) {
+          if (!cancelled) setResult(null)
+          return
+        }
+
+        const remoteResult = await response.json() as ValidationResult
+        if (!cancelled) setResult(remoteResult)
+      } catch {
+        if (!cancelled) setResult(null)
+      }
     }
+
+    function handleStorage() {
+      const localResult = getValidation(id)
+      if (localResult) {
+        setResult(localResult)
+      }
+    }
+
+    void loadResult()
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    return () => {
+      cancelled = true
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [id])
 
   const [approval, setApproval] = useState<{ id: string; scanId: string; status: string; reviewedBy: string | null; reviewNotes: string | null; createdAt: number; reviewedAt: number | null } | null>(null)
   const [aiReview, setAiReview] = useState<AiReviewResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
-  const { toast } = useToast()
 
   useEffect(() => {
     fetch(`/api/approvals?scanId=${id}`)
@@ -206,6 +238,12 @@ export default function ReportPage({
           </div>
         </div>
       </div>
+
+      {result.source?.repositoryAudit && (
+        <div className="mb-8">
+          <RepositoryAuditCard audit={result.source.repositoryAudit} />
+        </div>
+      )}
 
       <div className="mb-8">
         <div className="glass-card rounded-xl">

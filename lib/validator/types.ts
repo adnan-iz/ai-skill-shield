@@ -1,10 +1,23 @@
+import type { RepositoryAudit } from '@/lib/github/repository-audit'
+
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
+
+export interface SkillSource {
+  type: 'github' | 'upload' | 'paste' | 'url'
+  url?: string
+  owner?: string
+  repo?: string
+  path?: string
+  branch?: string
+  sha?: string
+  repositoryAudit?: RepositoryAudit
+}
 
 export interface SkillInput {
   name?: string
   files: SkillFile[]
   directoryName?: string
-  source?: { type: 'github' | 'upload' | 'paste' | 'url'; url?: string }
+  source?: SkillSource
 }
 
 export interface SkillFile {
@@ -24,7 +37,7 @@ export interface ValidationResult {
   compatibility: CompatibilityMatrix
   tokenAnalysis: TokenAnalysis
   skillPreview: SkillPreview
-  source?: SkillInput['source']
+  source?: SkillSource
 }
 
 export interface ValidationSummary {

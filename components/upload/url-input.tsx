@@ -106,6 +106,9 @@ export default function UrlInput({ onParse }: UrlInputProps) {
           />
         </div>
       )}
+      <p className="mt-2 text-xs text-on-surface-secondary">
+        Full GitHub imports now include a repository audit for install-time scripts, workflows, registries, and submodules before validation.
+      </p>
       {error && (
         <p role="alert" className="mt-1.5 text-xs text-error">{error}</p>
       )}

@@ -5,6 +5,8 @@ import "./globals.css";
 import { SideNavBar, TopNavBar, BottomNavBar } from "@/components/layout/nav";
 import { ToastProvider } from "@/components/ui/toast";
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -16,9 +18,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: {
-    default: "SkillShield — Validate Agent Skills Before You Run Them",
-    template: "%s — SkillShield",
+    default: "SkillShield - Validate Agent Skills Before You Run Them",
+    template: "%s - SkillShield",
   },
   description:
     "Pre-flight validation, security scanning, and professional reports for the open Agent Skills ecosystem.",
@@ -32,11 +35,15 @@ export const metadata: Metadata = {
     "DevSecOps",
   ],
   authors: [{ name: "SkillShield" }],
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "SkillShield — Validate Agent Skills Before You Run Them",
+    title: "SkillShield - Validate Agent Skills Before You Run Them",
     description:
       "Pre-flight validation, security scanning, and professional reports for AI agent skills.",
     type: "website",
+    url: appUrl,
   },
 };
 

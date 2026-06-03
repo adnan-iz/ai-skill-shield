@@ -31,7 +31,7 @@ export default function ExportBar({ result }: ExportBarProps) {
   }
 
   function exportPdf() {
-    window.open(`/api/report?id=${result.id}&format=pdf`, '_blank')
+    window.open(`/api/report?id=${result.id}&format=html`, '_blank')
   }
 
   async function exportSarif() {
@@ -83,7 +83,7 @@ export default function ExportBar({ result }: ExportBarProps) {
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={exportPdf} className={btnClass}>
             <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-            Export PDF
+            Print / Save PDF
           </button>
           <button onClick={exportHtml} className={btnClass}>
             <span className="material-symbols-outlined text-lg">code</span>

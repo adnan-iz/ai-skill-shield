@@ -121,7 +121,7 @@ export default function HistoryPage() {
 
       <div className="mb-4 rounded-xl border border-shield-200/30 bg-shield-50/50 px-4 py-3 text-sm text-shield-700">
         <span className="material-symbols-outlined mr-2 inline-block align-middle text-base">info</span>
-        Scan results are stored locally. Free scans are retained for 24 hours.
+        Scan results are cached locally in this browser. Server-side copies remain available by report ID until retention expiry.
       </div>
 
       {validations.length > 0 && (

@@ -224,7 +224,8 @@ Upload skill
   │                        │                         .md, .zip, .json
   ├─ GitHub URL ───────── ▶  api/github POST         UrlInput parses URL
   │                        │  → GitHub API fetch
-  │                        │  → return files[]
+  │                        │  → repository install-surface audit
+  │                        │  → return files[] + repositoryAudit
   │                        │
   ├─ Paste ────────────── ▶  api/validate POST       textarea → SKILL.md
   │                        │
@@ -715,4 +716,3 @@ lib/db/
 | `audit_logs` | Event-based audit trail |
 | `approvals` | Approval workflow state |
 | `webhooks` | Webhook registration and status |
-

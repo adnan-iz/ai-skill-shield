@@ -48,7 +48,7 @@ Export a scan report.
 
 ## POST /api/github
 
-Import a skill from GitHub.
+Import a skill from GitHub and audit the surrounding repository install surface.
 
 **Request:**
 ```json
@@ -70,9 +70,22 @@ Import a skill from GitHub.
   "owner": "user",
   "repo": "my-skills",
   "branch": "main",
-  "truncated": false
+  "path": "skills/my-skill",
+  "truncated": false,
+  "repositoryAudit": {
+    "riskLevel": "medium",
+    "summary": {
+      "totalFiles": 14,
+      "workflowCount": 1,
+      "installScriptCount": 1,
+      "installSurfaceCount": 3
+    },
+    "findings": []
+  }
 }
 ```
+
+`repositoryAudit` summarizes repo-level install and execution surfaces such as lifecycle scripts, shell installers, GitHub Actions workflows, submodules, and custom registries. If `GITHUB_TOKEN` is configured, the endpoint also works against private repositories the token can access.
 
 ## POST /api/policy
 

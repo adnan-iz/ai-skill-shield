@@ -3,20 +3,13 @@ import { validateOwnerRepo, validateBranch, validateCommitSha } from '@/lib/secu
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
-
-interface GitHubTreeNode {
-  path: string
-  type: 'tree' | 'blob'
-  sha?: string
-  mode?: string
-  size?: number
-  url?: string
-}
+import { auditRepositoryTree, isRepositoryAuditCandidatePath, type GitHubTreeNode } from '@/lib/github/repository-audit'
 
 const GITHUB_API_HOST = 'api.github.com'
 const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
 const FETCH_TIMEOUT = 15_000
 const DEFAULT_IGNORE_PATHS = ['.git', 'node_modules', '.next', 'dist', 'build', 'vendor', 'coverage', '.cache', 'venv', '__pycache__']
+const GITHUB_USER_AGENT = 'skillshield/1.0'
 
 function shouldIgnore(path: string, ignorePatterns: string[]): boolean {
   return ignorePatterns.some(pattern => {
@@ -34,11 +27,31 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal })
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...githubHeaders(),
+        ...(options.headers || {}),
+      },
+    })
     return res
   } finally {
     clearTimeout(timer)
   }
+}
+
+function githubHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    'User-Agent': GITHUB_USER_AGENT,
+    Accept: 'application/vnd.github+json',
+  }
+
+  if (process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
+  }
+
+  return headers
 }
 
 export async function POST(request: NextRequest) {
@@ -77,15 +90,35 @@ export async function POST(request: NextRequest) {
     }
 
     const treeRef = sha || resolvedBranch
-    const apiUrl = `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${treeRef}${treePath ? ':' + treePath : ''}?recursive=1`
-    const treeRes = await fetchWithTimeout(apiUrl)
+    const treeRes = await fetchWithTimeout(
+      `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${treeRef}?recursive=1`
+    )
 
     if (!treeRes.ok) {
       return notFound('Skill path not found in repository')
     }
 
     const data = await treeRes.json()
-    return addRateLimitHeaders(await fetchFiles(owner, repo, resolvedBranch, treePath, data, { sha, includeExtensions, excludeExtensions, ignorePaths }), rl)
+    const auditFiles = await fetchRepositoryAuditFiles(owner, repo, treeRef, data)
+    const repositoryAudit = auditRepositoryTree({
+      owner,
+      repo,
+      branch: resolvedBranch,
+      sha,
+      tree: data.tree || [],
+      files: auditFiles,
+      truncated: Boolean(data.truncated),
+    })
+
+    const response = await fetchFiles(owner, repo, resolvedBranch, treePath, data, {
+      sha,
+      includeExtensions,
+      excludeExtensions,
+      ignorePaths,
+      repositoryAudit,
+    })
+
+    return addRateLimitHeaders(response, rl)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return serverError('Request timed out')
@@ -106,7 +139,7 @@ async function resolvePath(owner: string, repo: string, path: string): Promise<{
 
   if (rest) {
     const testUrl = `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${first}`
-    const testRes = await fetchWithTimeout(testUrl, { headers: { 'User-Agent': 'skillshield/1.0' } })
+    const testRes = await fetchWithTimeout(testUrl)
     if (testRes.ok) {
       return { branch: first, treePath: rest }
     }
@@ -132,8 +165,7 @@ async function resolvePath(owner: string, repo: string, path: string): Promise<{
 
 async function findSkillDirectory(owner: string, repo: string, branch: string, skillName: string): Promise<string | null> {
   const rootRes = await fetchWithTimeout(
-    `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-    { headers: { 'User-Agent': 'skillshield/1.0' } }
+    `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`
   )
   if (!rootRes.ok) return null
 
@@ -154,9 +186,7 @@ async function findSkillDirectory(owner: string, repo: string, branch: string, s
 }
 
 async function getDefaultBranch(owner: string, repo: string): Promise<string> {
-  const repoRes = await fetchWithTimeout(`https://${GITHUB_API_HOST}/repos/${owner}/${repo}`, {
-    headers: { 'User-Agent': 'skillshield/1.0' },
-  })
+  const repoRes = await fetchWithTimeout(`https://${GITHUB_API_HOST}/repos/${owner}/${repo}`)
   if (repoRes.ok) {
     const repoData = await repoRes.json()
     return repoData.default_branch || 'main'
@@ -164,8 +194,7 @@ async function getDefaultBranch(owner: string, repo: string): Promise<string> {
 
   for (const candidate of ['main', 'master']) {
     const headRes = await fetchWithTimeout(
-      `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${candidate}`,
-      { headers: { 'User-Agent': 'skillshield/1.0' } }
+      `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${candidate}`
     )
     if (headRes.ok) return candidate
   }
@@ -184,9 +213,10 @@ async function fetchFiles(
     includeExtensions?: string[]
     excludeExtensions?: string[]
     ignorePaths?: string[]
+    repositoryAudit?: ReturnType<typeof auditRepositoryTree>
   }
 ) {
-  const { sha, includeExtensions, excludeExtensions, ignorePaths = DEFAULT_IGNORE_PATHS } = options || {}
+  const { sha, includeExtensions, excludeExtensions, ignorePaths = DEFAULT_IGNORE_PATHS, repositoryAudit } = options || {}
 
   const textExtensions = new Set([
     '.md', '.json', '.yaml', '.yml', '.txt', '.ts', '.tsx', '.js', '.jsx',
@@ -205,12 +235,20 @@ async function fetchFiles(
     extensions = new Set([...extensions].filter(e => !excluded.has(e)))
   }
 
+  const normalizedTreePath = treePath.replace(/^\/+|\/+$/g, '')
   const blobs = (treeData.tree || []).filter((item: GitHubTreeNode) => item.type === 'blob')
-  const filtered = blobs.filter(item => !shouldIgnore(item.path, ignorePaths))
+  const scoped = normalizedTreePath
+    ? blobs.filter((item) => item.path === normalizedTreePath || item.path.startsWith(`${normalizedTreePath}/`))
+    : blobs
+  const filtered = scoped.filter(item => !shouldIgnore(item.path, ignorePaths))
 
   const maxFiles = 200
   const MAX_TOTAL_SIZE = 10 * 1024 * 1024
   const ref = sha || branch
+
+  if (normalizedTreePath && filtered.length === 0) {
+    return notFound('Skill path not found in repository')
+  }
 
   const relevant = filtered.slice(0, maxFiles)
 
@@ -219,15 +257,13 @@ async function fetchFiles(
       const ext = '.' + blob.path.split('.').pop()?.toLowerCase()
       if (!extensions.has(ext) && !blob.path.endsWith('SKILL.md')) return null
 
-      const fullPath = treePath ? `${treePath}/${blob.path}` : blob.path
       const rawRes = await fetchWithTimeout(
-        `https://${RAW_GITHUB_HOST}/${owner}/${repo}/${ref}/${fullPath}`,
-        { headers: { 'User-Agent': 'skillshield/1.0' } }
+        `https://${RAW_GITHUB_HOST}/${owner}/${repo}/${ref}/${blob.path}`
       )
       if (!rawRes.ok) return null
       const text = await rawRes.text()
       if (text.length > 3 * 1024 * 1024) return null
-      return { path: fullPath, content: text }
+      return { path: blob.path, content: text }
     })
   )
 
@@ -247,10 +283,51 @@ async function fetchFiles(
     })
 
   const truncated = blobs.length > maxFiles || sizeTruncated
-  const response: Record<string, unknown> = { files, owner, repo, branch, truncated }
+  const response: Record<string, unknown> = {
+    files,
+    owner,
+    repo,
+    branch,
+    sha,
+    path: normalizedTreePath,
+    truncated,
+    repositoryAudit,
+  }
   if (sizeTruncated) {
     response.warning = 'Response truncated: total content exceeded 10MB limit'
   }
 
   return Response.json(response)
+}
+
+async function fetchRepositoryAuditFiles(
+  owner: string,
+  repo: string,
+  ref: string,
+  treeData: { tree: GitHubTreeNode[] }
+): Promise<Array<{ path: string; content: string }>> {
+  const candidatePaths = (treeData.tree || [])
+    .filter((item: GitHubTreeNode) => item.type === 'blob')
+    .map((item) => item.path)
+    .filter((path) => isRepositoryAuditCandidatePath(path))
+    .slice(0, 40)
+
+  const fetched = await Promise.allSettled(
+    candidatePaths.map(async (path) => {
+      const rawRes = await fetchWithTimeout(
+        `https://${RAW_GITHUB_HOST}/${owner}/${repo}/${ref}/${path}`
+      )
+
+      if (!rawRes.ok) return null
+
+      const text = await rawRes.text()
+      if (text.length > 256 * 1024) return null
+
+      return { path, content: text }
+    })
+  )
+
+  return fetched
+    .filter((result): result is PromiseFulfilledResult<{ path: string; content: string }> => result.status === 'fulfilled' && result.value !== null)
+    .map((result) => result.value)
 }

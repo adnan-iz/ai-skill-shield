@@ -55,7 +55,19 @@ export default function HomePage() {
         throw new Error(err.error || 'Failed to fetch repository')
       }
       const result = await res.json()
-      await validate({ files: result.files, source: { type: 'github', url: data.url } })
+      await validate({
+        files: result.files,
+        source: {
+          type: 'github',
+          url: data.url,
+          owner: result.owner,
+          repo: result.repo,
+          path: result.path,
+          branch: result.branch,
+          sha: result.sha,
+          repositoryAudit: result.repositoryAudit,
+        },
+      })
     } catch (err) {
       toast('Failed to fetch from GitHub: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
     } finally {
@@ -71,11 +83,15 @@ export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 bg-surface">
       <div className="mb-12">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
+          <span className="material-symbols-outlined text-sm">shield</span>
+          Pre-install skill security
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
-          Dashboard
+          Validate agent skills before they touch your environment
         </h1>
         <p className="mt-2 text-lg text-on-surface-secondary">
-          Validate agent skills before deployment
+          Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
         </p>
       </div>
 
@@ -83,24 +99,24 @@ export default function HomePage() {
         <div className="glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
           <div className="text-3xl font-bold text-shield-600">130K+</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">skills analyzed</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">skill packages reviewed</div>
         </div>
         <div className="glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
           <div className="text-3xl font-bold text-shield-600">12</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">threat categories</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">threat categories tracked</div>
         </div>
         <div className="glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
           <div className="text-3xl font-bold text-shield-600">22+</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">agents supported</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
         </div>
       </div>
 
       <section id="upload" className="scroll-mt-20 mb-12">
         <div className="glass-card">
           <div className="flex border-b border-outline">
-            {([['upload', 'Upload Files'], ['url', 'GitHub URL'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
+            {([['upload', 'Upload Files'], ['url', 'GitHub Repo'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -156,7 +172,7 @@ export default function HomePage() {
             {loading && (
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-on-surface-secondary">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-shield-200 border-t-shield-600" />
-                Running validation...
+                Running validation and repository audit...
               </div>
             )}
           </div>
@@ -170,21 +186,21 @@ export default function HomePage() {
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">cloud_upload</span>
               <h3 className="mt-2 font-semibold text-on-surface">Upload</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">
-                Drag & drop your SKILL.md, paste a GitHub URL, or type it in
+                Drop a local skill package or scan the files directly
               </p>
             </div>
             <div className="text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">travel_explore</span>
-              <h3 className="mt-2 font-semibold text-on-surface">Scan</h3>
+              <h3 className="mt-2 font-semibold text-on-surface">Audit</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">
-                Security analysis, compatibility check, and quality report
+                Review GitHub install scripts, workflows, registries, and runtime risk
               </p>
             </div>
             <div className="text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">description</span>
               <h3 className="mt-2 font-semibold text-on-surface">Report</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">
-                View score, findings, and export in PDF, JSON, or HTML
+                Inspect score, findings, repo audit evidence, and export artifacts
               </p>
             </div>
           </div>

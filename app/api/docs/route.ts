@@ -69,6 +69,7 @@ export async function GET() {
       '/api/github': {
         post: {
           summary: 'Import skill from GitHub',
+          description: 'Fetch skill files from a repository and audit repo-level install execution surfaces before validation.',
           requestBody: {
             content: {
               'application/json': {
@@ -90,7 +91,7 @@ export async function GET() {
             },
           },
           responses: {
-            '200': { description: 'Repository files fetched' },
+            '200': { description: 'Repository files and repositoryAudit fetched' },
             '404': { description: 'Path not found' },
           },
         },

@@ -206,6 +206,7 @@ Payload includes score, risk level, skill name, findings count, and source URL.
 ### 🌐 Web UI
 
 - Drag-and-drop upload, GitHub URL import, paste `SKILL.md` directly
+- GitHub repository pre-install audit for workflows, lifecycle scripts, install scripts, registries, and submodules
 - Interactive reports with animated score gauge
 - Sortable, filterable findings table
 - Agent compatibility grid with status indicators
@@ -315,6 +316,8 @@ All endpoints implement rate limiting (30 requests/min per IP by default) with `
 | `/history` | Browse and manage past validations (localStorage) |
 | `/compare` | Side-by-side comparison of two skills |
 | `/rules` | Policy configuration playground |
+
+GitHub-backed validations also include a repository audit section in the report so you can review install-time execution surfaces before trusting the imported skill.
 
 ---
 
