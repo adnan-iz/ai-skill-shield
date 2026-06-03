@@ -12,6 +12,7 @@ export default function UrlInput({ onParse }: UrlInputProps) {
   const [parsed, setParsed] = useState(false)
   const [branch, setBranch] = useState('')
   const [sha, setSha] = useState('')
+  const [focused, setFocused] = useState(false)
 
   function parseUrl(input: string) {
     setError('')
@@ -65,23 +66,34 @@ export default function UrlInput({ onParse }: UrlInputProps) {
 
   return (
     <div>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => {
-            setUrl(e.target.value)
-            setError('')
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="https://github.com/owner/repo or https://skills.sh/owner/repo/skill"
-          aria-label="GitHub or skills.sh URL"
-          className="flex-1 rounded-lg border border-outline bg-surface-container px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-        />
+      <div className="home-url-glow flex gap-2 rounded-xl">
+        <div
+          className={`home-url-shell relative flex-1 ${!url && !focused ? 'home-url-shell-demo' : ''}`}
+        >
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value)
+              setError('')
+            }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={handleKeyDown}
+            placeholder={focused || url ? "https://github.com/owner/repo or https://skills.sh/owner/repo/skill" : ""}
+            aria-label="GitHub or skills.sh URL"
+            className="home-url-input flex-1 rounded-lg border border-outline bg-surface-container px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none"
+          />
+          {!url && !focused && (
+            <div aria-hidden="true" className="home-url-demo-text">
+              https://github.com/lobehub/lobehub
+            </div>
+          )}
+        </div>
         <button
           onClick={() => parseUrl(url)}
           disabled={!url.trim()}
-          className="rounded-lg bg-shield-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-shield-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg bg-shield-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_28px_rgba(34,197,94,0.18)] hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
         >
           Parse
         </button>
