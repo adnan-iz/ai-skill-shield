@@ -109,20 +109,55 @@ export default function HomePage() {
       className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface"
       data-motion-ready={motionReady ? 'true' : 'false'}
     >
-      <div className="home-hero-orbit home-hero-orbit-a" aria-hidden="true" />
-      <div className="home-hero-orbit home-hero-orbit-b" aria-hidden="true" />
-
-      <div className="home-hero-content mb-12">
-        <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
-          <span className="material-symbols-outlined text-sm">shield</span>
-          Pre-install skill security
+      <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+        <div className="home-hero-content">
+          <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
+            <span className="material-symbols-outlined text-sm">shield</span>
+            Pre-install skill security
+          </div>
+          <h1 className="home-hero-title text-4xl font-bold text-on-surface sm:text-5xl">
+            Validate agent skills before they touch your environment
+          </h1>
+          <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
+            Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
+          </p>
         </div>
-        <h1 className="home-hero-title text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
-          Validate agent skills before they touch your environment
-        </h1>
-        <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
-          Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
-        </p>
+
+        <div className="home-scan-stage" aria-hidden="true">
+          <div className="home-scan-topbar">
+            <div className="home-scan-window-dots">
+              <span />
+              <span />
+              <span />
+            </div>
+            <span className="home-scan-path">github.com/agent/skill</span>
+            <span className="home-scan-live">LIVE</span>
+          </div>
+
+          <div className="home-scan-viewport">
+            <div className="home-scan-grid" />
+            <div className="home-scan-beam" />
+            <div className="home-scan-signal home-scan-signal-a" />
+            <div className="home-scan-signal home-scan-signal-b" />
+            <div className="home-scan-lock">
+              <span className="material-symbols-outlined">verified_user</span>
+            </div>
+          </div>
+
+          <div className="home-scan-steps">
+            {[
+              ['Read SKILL.md', 'Complete'],
+              ['Trace install scripts', 'Scanning'],
+              ['Score runtime risk', 'Ready'],
+            ].map(([label, status]) => (
+              <div key={label} className="home-scan-step">
+                <span className="home-scan-step-dot" />
+                <span>{label}</span>
+                <strong>{status}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
