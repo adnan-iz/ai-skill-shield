@@ -13,7 +13,7 @@ type Tab = 'upload' | 'url' | 'paste'
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [tab, setTab] = useState<Tab>('upload')
+  const [tab, setTab] = useState<Tab>('url')
   const [loading, setLoading] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
 
@@ -81,32 +81,32 @@ export default function HomePage() {
   }, [pasteContent, validate])
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 bg-surface">
-      <div className="mb-12">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
+    <div className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface">
+      <div className="home-hero-content mb-12">
+        <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
           <span className="material-symbols-outlined text-sm">shield</span>
           Pre-install skill security
         </div>
-        <h1 className="text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
+        <h1 className="home-hero-title text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
           Validate agent skills before they touch your environment
         </h1>
-        <p className="mt-2 text-lg text-on-surface-secondary">
+        <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
           Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
         </p>
       </div>
 
-      <div className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="glass-card p-6">
+      <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="home-stat-card home-stat-card-1 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
           <div className="text-3xl font-bold text-shield-600">130K+</div>
           <div className="mt-1 text-sm text-on-surface-secondary">skill packages reviewed</div>
         </div>
-        <div className="glass-card p-6">
+        <div className="home-stat-card home-stat-card-2 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
           <div className="text-3xl font-bold text-shield-600">12</div>
           <div className="mt-1 text-sm text-on-surface-secondary">threat categories tracked</div>
         </div>
-        <div className="glass-card p-6">
+        <div className="home-stat-card home-stat-card-3 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
           <div className="text-3xl font-bold text-shield-600">22+</div>
           <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
@@ -116,7 +116,7 @@ export default function HomePage() {
       <section id="upload" className="scroll-mt-20 mb-12">
         <div className="glass-card">
           <div className="flex border-b border-outline">
-            {([['upload', 'Upload Files'], ['url', 'GitHub Repo'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
+            {([['url', 'GitHub Repo'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}

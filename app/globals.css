@@ -78,6 +78,134 @@
     text-wrap: balance;
   }
 
+  @keyframes homeHeroBadgeIn {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes homeHeroTitleIn {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes homeHeroCopyIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes homeStatCardIn {
+    from {
+      opacity: 0;
+      transform: translateY(26px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes homeHeroGlowDrift {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: translate3d(18px, 10px, 0) scale(1.08);
+      opacity: 0.72;
+    }
+  }
+
+  .home-hero-shell {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .home-hero-shell::before {
+    content: "";
+    position: absolute;
+    top: 24px;
+    left: -40px;
+    width: 220px;
+    height: 220px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 68%);
+    filter: blur(6px);
+    pointer-events: none;
+    z-index: -1;
+    animation: homeHeroGlowDrift 12s ease-in-out infinite;
+  }
+
+  .home-hero-content,
+  .home-stat-grid {
+    position: relative;
+    z-index: 1;
+  }
+
+  .home-hero-badge {
+    opacity: 0;
+    animation: homeHeroBadgeIn 560ms cubic-bezier(0.22, 1, 0.36, 1) 120ms forwards;
+  }
+
+  .home-hero-title {
+    opacity: 0;
+    animation: homeHeroTitleIn 720ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
+  }
+
+  .home-hero-copy {
+    opacity: 0;
+    animation: homeHeroCopyIn 700ms cubic-bezier(0.22, 1, 0.36, 1) 320ms forwards;
+  }
+
+  .home-stat-card {
+    opacity: 0;
+    transform: translateY(26px);
+    animation: homeStatCardIn 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
+  }
+
+  .home-stat-card-1 {
+    animation-delay: 420ms;
+  }
+
+  .home-stat-card-2 {
+    animation-delay: 500ms;
+  }
+
+  .home-stat-card-3 {
+    animation-delay: 580ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-shell::before,
+    .home-hero-badge,
+    .home-hero-title,
+    .home-hero-copy,
+    .home-stat-card {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+
   @keyframes slideIn {
     from {
       opacity: 0;
