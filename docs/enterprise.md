@@ -1,234 +1,61 @@
-# Enterprise Features
+# Enterprise Notes
 
-SkillShield includes a suite of enterprise-grade features for policy enforcement, audit compliance, and team collaboration.
+SkillShield has a useful set of enterprise-oriented building blocks today, but it is still best described as a local-first security review app rather than a full enterprise platform.
 
----
+## Available now
 
-## Policy Engine
+### Approval workflow
 
-The policy engine lets organizations enforce security baselines across all skills.
+- scans below threshold can create pending approvals automatically
+- reports support approve and reject actions
+- approval state is included in the install decision flow
 
-| Mode | Description |
-|------|-------------|
-| Default | Standard rules; balanced security and flexibility |
-| Strict | All High and Critical findings block deployment |
-| Enterprise | Strict mode + mandatory approval workflow + audit logging |
-| Custom | Load your own `skillshield.policy.yml` with overrides |
+### Audit and webhook plumbing
 
-```yaml
-# skillshield.policy.yml
-mode: enterprise
-failOn: high
-blockSecrets: true
-blockDestructiveCommands: true
-maxFileSizeMB: 2
-maxFiles: 200
-requireApprovalBelow: 70
-```
+- audit logs are stored server-side
+- webhooks can be registered for scan events
+- report and validation actions are designed to tolerate webhook failures
 
----
+### Repository install-surface review
 
-## Approval Workflow
+For GitHub imports, the app audits:
 
-When a scan scores below the configured threshold (default 70), SkillShield auto-creates an approval request.
+- lifecycle scripts
+- install scripts
+- custom registries
+- workflows
+- submodules
+- related execution surfaces
 
-```json
-// Approval record
-{
-  "scanId": "scan_abc123",
-  "status": "pending",
-  "requester": "ci-bot",
-  "reviewer": null,
-  "score": 65,
-  "riskLevel": "high",
-  "notes": "Awaiting security team review"
-}
-```
+This is currently the strongest enterprise-facing capability because it directly supports software supply chain review before agent installation.
 
-Reviewers can approve or reject via the web UI or API:
+## Important limits
 
-```bash
-# Approve a deployment
-curl -X POST /api/approvals \
-  -d '{"scanId":"scan_abc123","action":"approve","reviewer":"admin","notes":"Looks safe"}'
-```
+These are not shipped as full product features yet:
 
----
+- SSO
+- SAML
+- RBAC
+- team workspaces
+- multi-user tenant isolation
+- Helm deployment assets
+- billing tiers
 
-## Audit Logging
+Older docs overstated some of these; the current codebase does not support them as complete features.
 
-All scan events, policy evaluations, approvals, and webhook deliveries are written to the audit log.
+## Practical enterprise setup
 
-| Event | Description |
-|-------|-------------|
-| `scan.completed` | A scan finished and produced a score |
-| `policy.violation` | A policy rule was violated |
-| `approval.created` | An approval request was generated |
-| `approval.resolved` | An approval was approved or rejected |
-| `webhook.delivered` | A webhook payload was sent |
-| `webhook.failed` | A webhook delivery failed |
+If a team wants to use the current app seriously, the best path today is:
 
-Query audit logs via the API:
+1. run it in a controlled internal environment
+2. configure `GITHUB_TOKEN` for richer repository scanning
+3. use shared report IDs plus approval records as the review trail
+4. push audit events to your own webhook target
+5. treat the app as a pre-install review gate, not as a full IAM platform
 
-```bash
-curl /api/audit?event=scan.completed&limit=50
-```
+## Recommended next enterprise steps
 
----
-
-## Webhooks
-
-Webhooks are ready for Slack and Microsoft Teams integration.
-
-```json
-// Register a webhook
-{
-  "url": "https://hooks.slack.com/services/T00/B00/XXXX",
-  "events": ["scan.completed", "approval.created"],
-  "secret": "whs_xxxxxxxx"
-}
-```
-
-Supported events:
-
-- `scan.completed`
-- `approval.created`
-- `approval.resolved`
-- `policy.violation`
-
----
-
-## Permission Manifest System
-
-Skills can declare required permissions in a `manifest.yml` file. SkillShield validates these declarations against the policy engine.
-
-```yaml
-# manifest.yml
-permissions:
-  - filesystem:read
-  - network:outbound
-  - env:access
-scope: restricted
-```
-
-Undeclared permissions detected at scan time are flagged as policy violations.
-
----
-
-## AI-Assisted Review
-
-SkillShield can send findings to OpenAI or Anthropic for natural-language remediation guidance.
-
-```bash
-# Enable AI review
-export OPENAI_API_KEY=sk-...
-export AI_REVIEW_ENABLED=true
-```
-
-The AI review produces:
-
-- Executive summary of findings
-- Per-finding explanations
-- Remediation steps
-
-```json
-// AI review response
-{
-  "executiveSummary": "This skill contains a high-risk external call...",
-  "findingExplanations": [...],
-  "remediationSteps": "Replace the dynamic import with a static, vetted dependency."
-}
-```
-
----
-
-## Rate Limiting
-
-API endpoints are rate-limited to prevent abuse. Response headers include current quota status:
-
-| Header | Description |
-|--------|-------------|
-| `X-RateLimit-Limit` | Maximum requests per window |
-| `X-RateLimit-Remaining` | Requests remaining in current window |
-| `X-RateLimit-Reset` | Unix timestamp when the window resets |
-
----
-
-## Persistent Storage
-
-SkillShield supports both SQLite (default) and PostgreSQL for production deployments.
-
-| Storage | Use Case |
-|---------|----------|
-| SQLite | Local development and small teams |
-| PostgreSQL | Production and enterprise workloads |
-
-Configure via environment variable:
-
-```env
-# SQLite (default)
-DATABASE_URL=file:./data/skillshield.db
-
-# PostgreSQL
-DATABASE_URL=postgresql://user:password@host:5432/skillshield
-```
-
----
-
-## Docker Deployment
-
-Enterprise deployments can use the provided Docker Compose configuration:
-
-```yaml
-# docker-compose.yml
-services:
-  skillshield:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: skillshield
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: skillshield
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
-      interval: 5s
-    restart: unless-stopped
-
-volumes:
-  pgdata:
-```
-
----
-
-## Future Capabilities
-
-The following enterprise features are planned or available as placeholders:
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| SAML / SSO | Future | Single sign-on via SAML 2.0 and OIDC providers |
-| RBAC | Future | Role-based access control for teams and namespaces |
-| Runtime Sandbox | Future | Isolated execution environment for untrusted skills |
-
----
-
-## Security Checklist for Enterprise Admins
-
-- [ ] Enable HTTPS in production
-- [ ] Use PostgreSQL with encrypted connections
-- [ ] Set strong `DB_PASSWORD` and rotate regularly
-- [ ] Configure rate limits appropriate to your load
-- [ ] Enable audit logging and back up logs
-- [ ] Restrict webhook URLs to internal or approved endpoints
-- [ ] Review and customize the policy file quarterly
+- stronger durable report retention
+- reviewer notes and queue UX
+- auth and access control
+- organization-level policy presets

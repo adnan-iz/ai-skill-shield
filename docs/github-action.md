@@ -1,8 +1,8 @@
 # GitHub Action
 
-## Quick Start
+The repo includes a local action at `.github/actions/validate-skill`.
 
-Create `.github/workflows/skillshield.yml`:
+## Example workflow
 
 ```yaml
 name: SkillShield Scan
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Scan skills
-        uses: ./github/actions/validate-skill
+        uses: ./.github/actions/validate-skill
         with:
           skill-path: ./skills/my-skill
           fail-on: high
@@ -27,53 +27,20 @@ jobs:
 ## Inputs
 
 | Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `skill-path` | Yes | - | Path to the skill directory containing SKILL.md |
-| `fail-on` | No | `high` | Minimum severity to fail: `critical`, `high`, `medium`, `low` |
-| `output-format` | No | `json` | Report output format: `json`, `html` |
+|---|---|---|---|
+| `skill-path` | Yes | - | path to the skill directory |
+| `fail-on` | No | `high` | failure threshold |
+| `output-format` | No | `json` | `json` or `html` |
 
 ## Outputs
 
 | Output | Description |
-|--------|-------------|
-| `score` | Overall validation score (0-100) |
-| `risk-level` | Risk level: `safe`, `low`, `medium`, `high`, `critical` |
-| `finding-count` | Total number of findings |
+|---|---|
+| `score` | overall score |
+| `risk-level` | risk label |
+| `finding-count` | total findings |
 
-## GitHub Code Scanning (SARIF)
+## Notes
 
-Upload results to GitHub Code Scanning:
-
-```yaml
-- name: Scan skills
-  id: scan
-  uses: ./github/actions/validate-skill
-  with:
-    skill-path: ./skills
-    output-format: json
-
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: results.sarif
-```
-
-## PR Comments
-
-The action outputs annotations that appear inline in PR diffs:
-
-```
-::error file=SKILL.md,line=24::Hardcoded API key detected
-::warning file=script.sh,line=10::curl pipe to shell detected
-```
-
-## Advanced Configuration
-
-```yaml
-- name: Scan with strict policy
-  uses: ./github/actions/validate-skill
-  with:
-    skill-path: ./skills
-    fail-on: medium
-    output-format: html
-```
+- the action is best for CI validation of skill files already present in the repo
+- the richer GitHub repository audit flow lives in the web app's `POST /api/github` path

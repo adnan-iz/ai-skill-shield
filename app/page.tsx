@@ -6,7 +6,8 @@ import Dropzone from '@/components/upload/dropzone'
 import UrlInput from '@/components/upload/url-input'
 import { saveValidation } from '@/lib/state'
 import { useToast } from '@/components/ui/toast'
-import type { SkillInput } from '@/lib/validator/types'
+import type { RepositoryMeta, SkillInput } from '@/lib/validator/types'
+import type { RepositoryAudit } from '@/lib/github/repository-audit'
 
 type Tab = 'upload' | 'url' | 'paste'
 
@@ -17,6 +18,23 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
+  const scanPath =
+    tab === 'url'
+      ? 'github.com/owner/repo'
+      : tab === 'upload'
+      ? 'local://skill-package'
+      : 'editor://SKILL.md'
+  const scanSteps = loading
+    ? [
+        ['Read SKILL.md', 'Running'],
+        ['Trace install scripts', 'Scanning'],
+        ['Score runtime risk', 'Queued'],
+      ]
+    : [
+        ['Read SKILL.md', 'Ready'],
+        ['Trace install scripts', tab === 'url' ? 'Armed' : 'Awaiting'],
+        ['Score runtime risk', 'Ready'],
+      ]
 
   useEffect(() => {
     let frameId = 0
@@ -78,7 +96,20 @@ export default function HomePage() {
       if (!res.ok) {
         throw new Error(await readApiError(res, 'Failed to fetch repository'))
       }
-      const result = await res.json()
+      const result = await res.json() as {
+        files: SkillInput['files']
+        owner: string
+        repo: string
+        path: string
+        branch?: string
+        sha?: string
+        repositoryAudit?: RepositoryAudit
+        repositoryMeta?: RepositoryMeta
+        warning?: string
+      }
+      if (typeof result.warning === 'string' && result.warning.length > 0) {
+        toast(result.warning, 'info')
+      }
       await validate({
         files: result.files,
         source: {
@@ -90,6 +121,7 @@ export default function HomePage() {
           branch: result.branch,
           sha: result.sha,
           repositoryAudit: result.repositoryAudit,
+          repositoryMeta: result.repositoryMeta,
         },
       })
     } catch (err) {
@@ -130,8 +162,8 @@ export default function HomePage() {
               <span />
               <span />
             </div>
-            <span className="home-scan-path">github.com/agent/skill</span>
-            <span className="home-scan-live">LIVE</span>
+            <span className="home-scan-path">{scanPath}</span>
+            <span className="home-scan-live">{loading ? 'SCAN' : 'LIVE'}</span>
           </div>
 
           <div className="home-scan-viewport">
@@ -145,11 +177,7 @@ export default function HomePage() {
           </div>
 
           <div className="home-scan-steps">
-            {[
-              ['Read SKILL.md', 'Complete'],
-              ['Trace install scripts', 'Scanning'],
-              ['Score runtime risk', 'Ready'],
-            ].map(([label, status]) => (
+            {scanSteps.map(([label, status]) => (
               <div key={label} className="home-scan-step">
                 <span className="home-scan-step-dot" />
                 <span>{label}</span>
@@ -157,24 +185,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="home-stat-card home-stat-card-1 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
-          <div className="text-3xl font-bold text-shield-600">130K+</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">skill packages reviewed</div>
-        </div>
-        <div className="home-stat-card home-stat-card-2 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
-          <div className="text-3xl font-bold text-shield-600">12</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">threat categories tracked</div>
-        </div>
-        <div className="home-stat-card home-stat-card-3 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
-          <div className="text-3xl font-bold text-shield-600">22+</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
         </div>
       </div>
 
@@ -199,7 +209,7 @@ export default function HomePage() {
           <div className="p-6">
             {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
 
-            {tab === 'url' && <UrlInput onParse={handleUrlParse} />}
+          {tab === 'url' && <UrlInput onParse={handleUrlParse} />}
 
             {tab === 'paste' && (
               <div className="space-y-4">
@@ -234,15 +244,33 @@ export default function HomePage() {
               </select>
             </div>
 
-            {loading && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-on-surface-secondary">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-shield-200 border-t-shield-600" />
+          {loading && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-on-surface-secondary">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-shield-200 border-t-shield-600" />
                 Running validation and repository audit...
               </div>
             )}
           </div>
         </div>
       </section>
+
+      <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="home-stat-card home-stat-card-1 glass-card p-6">
+          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
+          <div className="text-3xl font-bold text-shield-600">130K+</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">skill packages reviewed</div>
+        </div>
+        <div className="home-stat-card home-stat-card-2 glass-card p-6">
+          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
+          <div className="text-3xl font-bold text-shield-600">12</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">threat categories tracked</div>
+        </div>
+        <div className="home-stat-card home-stat-card-3 glass-card p-6">
+          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
+          <div className="text-3xl font-bold text-shield-600">22+</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
+        </div>
+      </div>
 
       <section className="home-feature-shell">
         <div className="glass-card p-8">

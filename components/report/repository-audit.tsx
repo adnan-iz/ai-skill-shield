@@ -13,6 +13,8 @@ const riskTone: Record<RepositoryAudit['riskLevel'], string> = {
 }
 
 export default function RepositoryAuditCard({ audit }: RepositoryAuditProps) {
+  const highlightedFindings = audit.findings.filter((finding) => finding.snippet).slice(0, 4)
+
   return (
     <div className="glass-card rounded-xl p-4">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -42,6 +44,50 @@ export default function RepositoryAuditCard({ audit }: RepositoryAuditProps) {
         <Metric label="Repo Files" value={audit.summary.totalFiles} />
       </div>
 
+      {audit.surfaces.length > 0 && (
+        <div className="mb-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">
+            Install Surface Map
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {audit.surfaces.slice(0, 8).map((surface) => (
+              <div key={surface.path} className="rounded-lg border border-outline bg-surface-secondary/30 px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-mono text-xs text-on-surface">{surface.path}</span>
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-on-surface-secondary">
+                    {surface.kind.replace('-', ' ')}
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] text-on-surface-secondary">
+                  {surface.automatic ? 'Executes or influences install automatically' : 'Manual execution surface'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {highlightedFindings.length > 0 && (
+        <div className="mb-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">
+            Dangerous Lines
+          </div>
+          <div className="space-y-2">
+            {highlightedFindings.map((finding) => (
+              <div key={finding.id} className="rounded-lg border border-outline bg-surface-secondary/30 p-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-secondary">
+                  <span className="font-semibold text-on-surface">{finding.title}</span>
+                  {finding.filePath ? <span>{finding.filePath}{finding.lineNumber ? `:${finding.lineNumber}` : ''}</span> : null}
+                </div>
+                <pre className="mt-2 overflow-x-auto rounded bg-surface px-3 py-2 text-xs text-on-surface">
+                  {finding.snippet}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {audit.summary.truncated && (
         <div className="mb-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
           Audit coverage was truncated to stay within fetch limits. Review the repository manually before installation.
@@ -70,6 +116,11 @@ export default function RepositoryAuditCard({ audit }: RepositoryAuditProps) {
                 </span>
               </div>
               <p className="mt-3 text-sm text-on-surface-secondary">{finding.message}</p>
+              {finding.snippet && (
+                <pre className="mt-3 overflow-x-auto rounded bg-surface px-3 py-2 text-xs text-on-surface">
+                  {finding.snippet}
+                </pre>
+              )}
               {finding.recommendation && (
                 <p className="mt-2 text-xs text-on-surface-secondary">
                   Recommendation: {finding.recommendation}

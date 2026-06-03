@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, ensureDatabase } from '@/lib/db'
 import { rateLimits } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -11,6 +11,8 @@ export async function checkRateLimit(
   key: string,
   options: RateLimitOptions = { maxRequests: 60, windowMs: 60_000 }
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  await ensureDatabase()
+
   const now = Date.now()
 
   const rows = await db.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1)

@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server'
 import { validateOwnerRepo, validateBranch, validateCommitSha } from '@/lib/security/input-validation'
+import { MAX_FILES as MAX_VALIDATION_FILES } from '@/lib/security/input-validation'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
 import { auditRepositoryTree, isRepositoryAuditCandidatePath, type GitHubTreeNode } from '@/lib/github/repository-audit'
+import { selectValidationBlobs } from '@/lib/github/file-selection'
+import type { RepositoryMeta } from '@/lib/validator/types'
 
 const GITHUB_API_HOST = 'api.github.com'
 const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
@@ -99,7 +102,10 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await treeRes.json()
-    const auditFiles = await fetchRepositoryAuditFiles(owner, repo, treeRef, data)
+    const [repositoryMeta, auditFiles] = await Promise.all([
+      fetchRepositoryMeta(owner, repo),
+      fetchRepositoryAuditFiles(owner, repo, treeRef, data),
+    ])
     const repositoryAudit = auditRepositoryTree({
       owner,
       repo,
@@ -116,6 +122,7 @@ export async function POST(request: NextRequest) {
       excludeExtensions,
       ignorePaths,
       repositoryAudit,
+      repositoryMeta,
     })
 
     return addRateLimitHeaders(response, rl)
@@ -214,9 +221,10 @@ async function fetchFiles(
     excludeExtensions?: string[]
     ignorePaths?: string[]
     repositoryAudit?: ReturnType<typeof auditRepositoryTree>
+    repositoryMeta?: RepositoryMeta | undefined
   }
 ) {
-  const { sha, includeExtensions, excludeExtensions, ignorePaths = DEFAULT_IGNORE_PATHS, repositoryAudit } = options || {}
+  const { sha, includeExtensions, excludeExtensions, ignorePaths = DEFAULT_IGNORE_PATHS, repositoryAudit, repositoryMeta } = options || {}
 
   const textExtensions = new Set([
     '.md', '.json', '.yaml', '.yml', '.txt', '.ts', '.tsx', '.js', '.jsx',
@@ -242,7 +250,6 @@ async function fetchFiles(
     : blobs
   const filtered = scoped.filter(item => !shouldIgnore(item.path, ignorePaths))
 
-  const maxFiles = 200
   const MAX_TOTAL_SIZE = 10 * 1024 * 1024
   const ref = sha || branch
 
@@ -250,7 +257,10 @@ async function fetchFiles(
     return notFound('Skill path not found in repository')
   }
 
-  const relevant = filtered.slice(0, maxFiles)
+  const relevant = selectValidationBlobs(filtered, {
+    allowedExtensions: extensions,
+    maxFiles: MAX_VALIDATION_FILES,
+  })
 
   const results = await Promise.allSettled(
     relevant.map(async (blob: GitHubTreeNode) => {
@@ -282,7 +292,8 @@ async function fetchFiles(
       return true
     })
 
-  const truncated = blobs.length > maxFiles || sizeTruncated
+  const fileCountTrimmed = filtered.length > relevant.length
+  const truncated = fileCountTrimmed || sizeTruncated
   const response: Record<string, unknown> = {
     files,
     owner,
@@ -292,12 +303,37 @@ async function fetchFiles(
     path: normalizedTreePath,
     truncated,
     repositoryAudit,
+    repositoryMeta,
   }
-  if (sizeTruncated) {
+  if (fileCountTrimmed && sizeTruncated) {
+    response.warning = `Large repository detected. Validation used the top ${relevant.length} relevant text files and trimmed oversized content. Repository install-surface audit still covered the full tree.`
+  } else if (fileCountTrimmed) {
+    response.warning = `Large repository detected. Validation used the top ${relevant.length} relevant text files while the repository install-surface audit still covered the full tree.`
+  } else if (sizeTruncated) {
     response.warning = 'Response truncated: total content exceeded 10MB limit'
   }
 
   return Response.json(response)
+}
+
+async function fetchRepositoryMeta(owner: string, repo: string): Promise<RepositoryMeta | undefined> {
+  const repoRes = await fetchWithTimeout(`https://${GITHUB_API_HOST}/repos/${owner}/${repo}`)
+  if (!repoRes.ok) return undefined
+
+  const repoData = await repoRes.json()
+
+  return {
+    fullName: repoData.full_name || `${owner}/${repo}`,
+    description: repoData.description || undefined,
+    stars: typeof repoData.stargazers_count === 'number' ? repoData.stargazers_count : 0,
+    forks: typeof repoData.forks_count === 'number' ? repoData.forks_count : 0,
+    openIssues: typeof repoData.open_issues_count === 'number' ? repoData.open_issues_count : 0,
+    archived: Boolean(repoData.archived),
+    defaultBranch: repoData.default_branch || undefined,
+    updatedAt: repoData.updated_at || undefined,
+    pushedAt: repoData.pushed_at || undefined,
+    license: repoData.license?.spdx_id || repoData.license?.name || undefined,
+  }
 }
 
 async function fetchRepositoryAuditFiles(

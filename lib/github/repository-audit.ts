@@ -17,7 +17,14 @@ export interface RepositoryAuditFinding {
   message: string
   filePath?: string
   lineNumber?: number
+  snippet?: string
   recommendation?: string
+}
+
+export interface RepositoryExecutionSurface {
+  path: string
+  kind: 'workflow' | 'package-manifest' | 'install-script' | 'dockerfile' | 'registry' | 'submodule' | 'requirements' | 'systemd-unit'
+  automatic: boolean
 }
 
 export interface RepositoryAuditSummary {
@@ -37,6 +44,7 @@ export interface RepositoryAudit {
   sha?: string
   riskLevel: 'critical' | 'high' | 'medium' | 'low' | 'safe'
   summary: RepositoryAuditSummary
+  surfaces: RepositoryExecutionSurface[]
   findings: RepositoryAuditFinding[]
 }
 
@@ -120,15 +128,19 @@ function determineRiskLevel(findings: RepositoryAuditFinding[]): RepositoryAudit
   }
 }
 
-function findLineNumber(content: string, matcher: RegExp): number | undefined {
+function findLineMatch(content: string, matcher: RegExp): { lineNumber?: number; snippet?: string } {
   const lines = content.split('\n')
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]
     if (matcher.test(line)) {
-      return index + 1
+      return {
+        lineNumber: index + 1,
+        snippet: line.trim().slice(0, 280),
+      }
     }
   }
-  return undefined
+
+  return {}
 }
 
 function buildId(prefix: string, path: string, suffix: string): string {
@@ -140,6 +152,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
   const directoryNodes = input.tree.filter((node) => node.type === 'tree')
   const findings: RepositoryAuditFinding[] = []
   const installSurfacePaths = new Set<string>()
+  const surfaceMap = new Map<string, RepositoryExecutionSurface>()
 
   const filesByPath = new Map(
     input.files.map((file) => [normalizePath(file.path), file.content])
@@ -150,6 +163,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
 
     if (EXECUTION_SURFACE_PATTERNS.workflow.test(path)) {
       installSurfacePaths.add(path)
+      surfaceMap.set(path, { path, kind: 'workflow', automatic: true })
       findings.push({
         id: buildId('workflow', path, 'execution-surface'),
         severity: 'low',
@@ -171,6 +185,27 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
       EXECUTION_SURFACE_PATTERNS.systemdUnit.test(path)
     ) {
       installSurfacePaths.add(path)
+      surfaceMap.set(path, {
+        path,
+        kind: EXECUTION_SURFACE_PATTERNS.packageManifest.test(path)
+          ? 'package-manifest'
+          : EXECUTION_SURFACE_PATTERNS.installScript.test(path)
+          ? 'install-script'
+          : EXECUTION_SURFACE_PATTERNS.dockerfile.test(path)
+          ? 'dockerfile'
+          : EXECUTION_SURFACE_PATTERNS.npmrc.test(path)
+          ? 'registry'
+          : EXECUTION_SURFACE_PATTERNS.gitmodules.test(path)
+          ? 'submodule'
+          : EXECUTION_SURFACE_PATTERNS.requirements.test(path)
+          ? 'requirements'
+          : 'systemd-unit',
+        automatic:
+          EXECUTION_SURFACE_PATTERNS.packageManifest.test(path) ||
+          EXECUTION_SURFACE_PATTERNS.installScript.test(path) ||
+          EXECUTION_SURFACE_PATTERNS.workflow.test(path) ||
+          EXECUTION_SURFACE_PATTERNS.systemdUnit.test(path),
+      })
     }
   }
 
@@ -211,6 +246,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
               ? `The ${name} lifecycle script runs shell or network commands during install: ${command}`
               : `The ${name} lifecycle script executes automatically during install: ${command}`,
             filePath: path,
+            snippet: command,
             recommendation: isSuspicious
               ? 'Do not install this package blindly. Review the full command, its download targets, and every script it invokes.'
               : 'Review whether this lifecycle script is necessary and safe before installation.',
@@ -221,6 +257,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
 
     if (EXECUTION_SURFACE_PATTERNS.installScript.test(path)) {
       if (/curl.*\|.*(bash|sh)|wget.*\|.*(bash|sh)/i.test(content)) {
+        const match = findLineMatch(content, /curl.*\|.*(bash|sh)|wget.*\|.*(bash|sh)/i)
         findings.push({
           id: buildId('install-script', path, 'pipe-shell'),
           severity: 'critical',
@@ -228,12 +265,14 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
           title: 'Install script pipes network to shell',
           message: 'The repository contains an install script that downloads remote content and executes it immediately.',
           filePath: path,
-          lineNumber: findLineNumber(content, /curl.*\|.*(bash|sh)|wget.*\|.*(bash|sh)/i),
+          lineNumber: match.lineNumber,
+          snippet: match.snippet,
           recommendation: 'Require pinned downloads and checksum verification instead of pipe-to-shell execution.',
         })
       }
 
       if (/\b(eval|Invoke-Expression|iex)\b|`[^`]+`|\$\([^)]+\)/i.test(content)) {
+        const match = findLineMatch(content, /\b(eval|Invoke-Expression|iex)\b|`[^`]+`|\$\([^)]+\)/i)
         findings.push({
           id: buildId('install-script', path, 'dynamic-exec'),
           severity: 'high',
@@ -241,7 +280,8 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
           title: 'Install script uses dynamic execution',
           message: 'The install script uses eval, command substitution, or equivalent dynamic execution patterns.',
           filePath: path,
-          lineNumber: findLineNumber(content, /\b(eval|Invoke-Expression|iex)\b|`[^`]+`|\$\([^)]+\)/i),
+          lineNumber: match.lineNumber,
+          snippet: match.snippet,
           recommendation: 'Replace dynamic execution with explicit commands so the install surface is auditable.',
         })
       }
@@ -252,6 +292,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
       const insecureMatch = /url\s*=\s*http:\/\//i
 
       if (nonGithubMatch.test(content)) {
+        const match = findLineMatch(content, nonGithubMatch)
         findings.push({
           id: buildId('gitmodules', path, 'external-host'),
           severity: insecureMatch.test(content) ? 'high' : 'medium',
@@ -259,13 +300,15 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
           title: 'Git submodule points outside GitHub',
           message: 'The repository uses a submodule hosted on an external domain, which expands the trust boundary.',
           filePath: path,
-          lineNumber: findLineNumber(content, nonGithubMatch),
+          lineNumber: match.lineNumber,
+          snippet: match.snippet,
           recommendation: 'Verify the external host, pin exact commits, and review the fetched submodule before installation.',
         })
       }
     }
 
     if (EXECUTION_SURFACE_PATTERNS.npmrc.test(path) && /registry\s*=\s*(?!https:\/\/registry\.npmjs\.org)/i.test(content)) {
+      const match = findLineMatch(content, /registry\s*=/i)
       findings.push({
         id: buildId('npmrc', path, 'custom-registry'),
         severity: 'high',
@@ -273,12 +316,14 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
         title: 'Custom npm registry configured',
         message: 'This repository overrides the default npm registry, which can redirect installs to an untrusted package source.',
         filePath: path,
-        lineNumber: findLineNumber(content, /registry\s*=/i),
+        lineNumber: match.lineNumber,
+        snippet: match.snippet,
         recommendation: 'Confirm the registry host is trusted and expected before any dependency installation.',
       })
     }
 
     if (EXECUTION_SURFACE_PATTERNS.requirements.test(path) && /^-i\s+|--index-url|--extra-index-url/im.test(content)) {
+      const match = findLineMatch(content, /^-i\s+|--index-url|--extra-index-url/i)
       findings.push({
         id: buildId('requirements', path, 'custom-index'),
         severity: 'high',
@@ -286,7 +331,8 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
         title: 'Python install uses a custom package index',
         message: 'The repository points Python installs at a custom package index.',
         filePath: path,
-        lineNumber: findLineNumber(content, /^-i\s+|--index-url|--extra-index-url/i),
+        lineNumber: match.lineNumber,
+        snippet: match.snippet,
         recommendation: 'Validate the package index and its packages before installation.',
       })
     }
@@ -309,6 +355,7 @@ export function auditRepositoryTree(input: RepositoryAuditInput): RepositoryAudi
     sha: input.sha,
     riskLevel: determineRiskLevel(findings),
     summary,
+    surfaces: Array.from(surfaceMap.values()).sort((a, b) => a.path.localeCompare(b.path)),
     findings,
   }
 }

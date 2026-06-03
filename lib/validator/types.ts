@@ -11,6 +11,7 @@ export interface SkillSource {
   branch?: string
   sha?: string
   repositoryAudit?: RepositoryAudit
+  repositoryMeta?: RepositoryMeta
 }
 
 export interface SkillInput {
@@ -107,6 +108,19 @@ export interface SkillPreview {
   body: string
   renderedHtml?: string
   fileTree: FileTreeItem[]
+}
+
+export interface RepositoryMeta {
+  fullName: string
+  description?: string
+  stars: number
+  forks: number
+  openIssues: number
+  archived: boolean
+  defaultBranch?: string
+  updatedAt?: string
+  pushedAt?: string
+  license?: string
 }
 
 export interface FileTreeItem {

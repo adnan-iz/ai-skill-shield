@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDatabase } from '@/lib/db'
 import { auditLogs } from '@/lib/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/security/rate-limit'
@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await ensureDatabase()
+
     const event = request.nextUrl.searchParams.get('event')
     const limitParam = request.nextUrl.searchParams.get('limit')
     const limit = Math.min(Math.max(parseInt(limitParam || '50', 10) || 50, 1), 200)

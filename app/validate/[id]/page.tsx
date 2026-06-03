@@ -10,6 +10,7 @@ import ExportBar from '@/components/report/export-bar'
 import DashboardCards from '@/components/report/dashboard-cards'
 import FileTree from '@/components/report/file-tree'
 import RepositoryAuditCard from '@/components/report/repository-audit'
+import InstallVerdict from '@/components/report/install-verdict'
 import { useToast } from '@/components/ui/toast'
 import type { ValidationResult } from '@/lib/validator/types'
 import type { AiReviewResult, FindingExplanation } from '@/lib/ai-review'
@@ -73,6 +74,26 @@ export default function ReportPage({
       .then(data => setApproval(data.length > 0 ? data[0] : null))
       .catch(() => {})
   }, [id])
+
+  async function updateApproval(action: 'approve' | 'reject') {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanId: id, action, reviewer: 'Local reviewer' }),
+      })
+      if (!response.ok) {
+        toast('Could not update approval', 'error')
+        return
+      }
+
+      const data = await response.json()
+      setApproval(data)
+      toast(action === 'approve' ? 'Scan approved' : 'Scan rejected', 'success')
+    } catch {
+      toast('Could not update approval', 'error')
+    }
+  }
 
   async function runAiReview() {
     setAiLoading(true)
@@ -175,12 +196,33 @@ export default function ReportPage({
           </div>
           {approval.status === 'pending' && (
             <div className="flex gap-2">
-              <button className="rounded-lg bg-shield-600 px-4 py-1.5 text-xs font-semibold text-white">Approve</button>
-              <button className="rounded-lg bg-red-600 px-4 py-1.5 text-xs font-semibold text-white">Reject</button>
+              <button
+                onClick={() => void updateApproval('approve')}
+                className="rounded-lg bg-shield-600 px-4 py-1.5 text-xs font-semibold text-white"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => void updateApproval('reject')}
+                className="rounded-lg bg-red-600 px-4 py-1.5 text-xs font-semibold text-white"
+              >
+                Reject
+              </button>
             </div>
           )}
         </div>
       )}
+
+      <div className="mb-8">
+        <InstallVerdict
+          result={result}
+          approvalStatus={
+            approval?.status === 'approved' || approval?.status === 'rejected' || approval?.status === 'pending'
+              ? approval.status
+              : null
+          }
+        />
+      </div>
 
       <div className="mb-8">
         <DashboardCards result={result} />

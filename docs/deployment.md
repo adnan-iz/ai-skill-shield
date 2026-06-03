@@ -1,107 +1,59 @@
 # Deployment Guide
 
-## Prerequisites
+## Requirements
 
 - Node.js 20+
-- Docker (optional, for containerized deployment)
-- PostgreSQL or SQLite (SQLite used by default)
+- npm
+- SQLite by default
+- optional GitHub token for private repository scans
 
-## Quick Start with Docker
-
-```bash
-# Clone and enter the project
-git clone https://github.com/skill-shield/skill-shield.git
-cd skill-shield
-
-# Start with Docker Compose
-docker compose up -d
-
-# Open http://localhost:3000
-```
-
-## Manual Deployment
+## Local production-style run
 
 ```bash
-# Install dependencies
 npm install
-
-# Build the application
 npm run build
-
-# Start the server
 npm start
 ```
 
-## Environment Variables
+Open `http://localhost:3000`.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | No | `file:./data/skillshield.db` | SQLite/Postgres connection string |
-| `NEXT_PUBLIC_APP_URL` | No | `http://localhost:3000` | Public URL for sharing links |
-| `OPENAI_API_KEY` | No | - | Required for AI review (OpenAI) |
-| `ANTHROPIC_API_KEY` | No | - | Required for AI review (Anthropic) |
-| `GITHUB_TOKEN` | No | - | For private repo scanning |
-| `AI_REVIEW_ENABLED` | No | `false` | Enable AI review feature |
-| `MAX_UPLOAD_SIZE_MB` | No | `10` | Max file upload size |
-| `MAX_FILES_PER_SCAN` | No | `200` | Max files per scan |
-| `SCAN_RETENTION_DAYS` | No | `30` | Days to retain scan results |
-
-## Vercel Deployment
+## Docker
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
+docker compose up -d
 ```
 
-Set environment variables in the Vercel dashboard.
+The included compose setup is intended for self-hosted use and runs the app on port `3000`.
 
-## Self-Hosted Enterprise
+## Environment variables
 
-```yaml
-# docker-compose.yml
-services:
-  skillshield:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
+| Variable | Required | Description |
+|---|---|---|
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL for metadata, sitemap, and shared links |
+| `GITHUB_TOKEN` | No | Enables authenticated GitHub scans, including accessible private repos |
+| `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review |
+| `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review |
+| `DATABASE_URL` | No | Override storage backend if you move beyond the default SQLite file |
 
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: skillshield
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: skillshield
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
-      interval: 5s
-    restart: unless-stopped
+## Storage
 
-volumes:
-  pgdata:
+By default the app uses SQLite under `data/skillshield.db`.
+
+On startup the app creates required tables automatically, which makes first-run environments much smoother than earlier versions.
+
+## Operational notes
+
+- browser-local history is convenience storage, not the durable source of truth
+- durable report lookup comes from server storage by result ID
+- PDF export is browser-print HTML rather than server-rendered binary PDF
+- GitHub repo auditing is strongest when `GITHUB_TOKEN` is configured
+
+## Health checks
+
+Use:
+
+```bash
+curl http://localhost:3000/api/health
 ```
 
-## Database
-
-By default, SkillShield uses SQLite (`data/skillshield.db`). For production:
-
-```env
-DATABASE_URL=postgresql://user:password@host:5432/skillshield
-```
-
-## Security
-
-- Enable HTTPS in production
-- Set strong `DB_PASSWORD` and use a secrets manager
-- Configure rate limiting in environment
-- Regular database backups
-- Keep Node.js and dependencies updated
+to verify the app responds and storage is reachable.

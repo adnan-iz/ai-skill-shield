@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
     const html = generateHtmlReport(result)
     return addRateLimitHeaders(new Response(html, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="skillshield-${id}.pdf"`,
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `inline; filename="skillshield-${id}-print.html"`,
       },
     }), rl)
   }

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDatabase } from '@/lib/db'
 import { rateLimits, webhooks } from '@/lib/db/schema'
 import { count } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/security/rate-limit'
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   let rateLimitEntries = 0
   let webhookCount = 0
   try {
+    await ensureDatabase()
     const [rlRow] = await db.select({ count: count() }).from(rateLimits)
     rateLimitEntries = rlRow.count
     const [whRow] = await db.select({ count: count() }).from(webhooks)

@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, ensureDatabase } from '@/lib/db'
 import { approvals } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
 
@@ -13,11 +13,15 @@ export interface Approval {
 }
 
 export async function getApprovalForScan(scanId: string): Promise<Approval | null> {
+  await ensureDatabase()
+
   const rows = await db.select().from(approvals).where(eq(approvals.scanId, scanId)).limit(1)
   return rows[0] || null
 }
 
 export async function approveScan(scanId: string, reviewer?: string, notes?: string): Promise<void> {
+  await ensureDatabase()
+
   const existing = await getApprovalForScan(scanId)
   const now = Date.now()
   if (existing) {
@@ -38,6 +42,8 @@ export async function approveScan(scanId: string, reviewer?: string, notes?: str
 }
 
 export async function rejectScan(scanId: string, reviewer?: string, notes?: string): Promise<void> {
+  await ensureDatabase()
+
   const existing = await getApprovalForScan(scanId)
   const now = Date.now()
   if (existing) {
@@ -58,6 +64,8 @@ export async function rejectScan(scanId: string, reviewer?: string, notes?: stri
 }
 
 export async function listApprovals(status?: 'pending' | 'approved' | 'rejected', limit?: number): Promise<Approval[]> {
+  await ensureDatabase()
+
   const query = db.select().from(approvals)
   if (status) {
     query.where(eq(approvals.status, status))
@@ -69,11 +77,15 @@ export async function listApprovals(status?: 'pending' | 'approved' | 'rejected'
 }
 
 export async function getPendingApprovalCount(): Promise<number> {
+  await ensureDatabase()
+
   const rows = await db.select({ count: count() }).from(approvals).where(eq(approvals.status, 'pending'))
   return rows[0]?.count ?? 0
 }
 
 export async function createPendingApproval(scanId: string): Promise<void> {
+  await ensureDatabase()
+
   await db.insert(approvals).values({
     id: crypto.randomUUID(),
     scanId,
