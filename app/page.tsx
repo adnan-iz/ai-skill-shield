@@ -1,5 +1,6 @@
 "use client"
 
+import Image from 'next/image'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
@@ -143,6 +144,18 @@ export default function HomePage() {
     >
       <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
         <div className="home-hero-content">
+          <div className="mb-6">
+            <div className="inline-flex rounded-2xl border border-white/10 bg-black/18 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.24)] backdrop-blur-sm">
+              <Image
+                src="/support-engine-logo.png"
+                alt="Support Engine"
+                width={900}
+                height={500}
+                priority
+                className="h-auto w-[220px] object-contain sm:w-[250px] lg:w-[280px]"
+              />
+            </div>
+          </div>
           <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
             <span className="material-symbols-outlined text-sm">shield</span>
             Pre-install skill security

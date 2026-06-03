@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import ThemeToggle from "@/components/ui/theme-toggle"
@@ -64,8 +65,17 @@ export function TopNavBar() {
         href="/"
         className="flex items-center gap-2 text-base font-semibold text-on-surface md:hidden"
       >
-        <span className="material-symbols-outlined text-shield-500">shield</span>
-        SkillShield
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-shield-500/25 bg-black/50 p-0.5 shadow-[0_0_18px_rgba(34,197,94,0.16)]">
+          <Image
+            src="/support-engine-logo.png"
+            alt="Support Engine"
+            width={900}
+            height={500}
+            className="h-full w-full object-contain"
+            priority
+          />
+        </div>
+        <span>Support Engine</span>
       </Link>
       <div className="relative ml-auto hidden max-w-xs flex-1 sm:block md:max-w-sm">
         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-secondary">

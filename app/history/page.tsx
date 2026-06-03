@@ -184,16 +184,8 @@ export default function HistoryPage() {
             {visibleValidations.map((v) => (
               <div
                 key={v.id}
-                role="button"
-                tabIndex={0}
                 onClick={() => openValidation(v.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openValidation(v.id)
-                  }
-                }}
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-shield-500"
+                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-secondary cursor-pointer"
               >
                 <div className="flex-shrink-0 text-center w-14">
                   <div

@@ -1,0 +1,26 @@
+
+> skill-shield@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://100.119.209.20:3000
+✓ Ready in 610ms
+
+ GET / 200 in 429ms (next.js: 227ms, application-code: 202ms)
+ GET / 200 in 66ms (next.js: 5ms, application-code: 61ms)
+ GET / 200 in 59ms (next.js: 3ms, application-code: 56ms)
+ GET /api/docs 200 in 69ms (next.js: 54ms, application-code: 14ms)
+ HEAD / 200 in 59ms (next.js: 4ms, application-code: 55ms)
+ GET / 200 in 53ms (next.js: 4ms, application-code: 49ms)
+ GET /compare 200 in 77ms (next.js: 51ms, application-code: 26ms)
+ GET /history 200 in 63ms (next.js: 43ms, application-code: 20ms)
+ GET / 200 in 20ms (next.js: 4ms, application-code: 16ms)
+ GET / 200 in 44ms (next.js: 3ms, application-code: 41ms)
+ GET /api/docs 200 in 7ms (next.js: 2ms, application-code: 5ms)
+ GET / 200 in 289ms (next.js: 113ms, application-code: 176ms)
+✓ Compiled in 82ms
+ GET / 200 in 163ms (next.js: 90ms, application-code: 74ms)
+✓ Compiled in 183ms
+✓ Compiled in 225ms
+ GET / 200 in 117ms (next.js: 69ms, application-code: 48ms)
