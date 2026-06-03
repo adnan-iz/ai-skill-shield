@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
 import UrlInput from '@/components/upload/url-input'
@@ -15,7 +15,32 @@ export default function HomePage() {
   const { toast } = useToast()
   const [tab, setTab] = useState<Tab>('url')
   const [loading, setLoading] = useState(false)
+  const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
+
+  useEffect(() => {
+    let frameId = 0
+    frameId = window.requestAnimationFrame(() => {
+      setMotionReady(true)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [])
+
+  const readApiError = useCallback(async (res: Response, fallback: string) => {
+    try {
+      const data = await res.json() as { error?: string; details?: string }
+      if (typeof data.error === 'string' && data.error.length > 0) {
+        return typeof data.details === 'string' && data.details.length > 0
+          ? `${data.error}: ${data.details}`
+          : data.error
+      }
+    } catch {
+      // Ignore parse failures and use the fallback message below.
+    }
+
+    return fallback
+  }, [])
 
   const validate = useCallback(async (input: SkillInput) => {
     setLoading(true)
@@ -25,7 +50,7 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       })
-      if (!res.ok) throw new Error('Validation failed')
+      if (!res.ok) throw new Error(await readApiError(res, 'Validation failed'))
       const result = await res.json()
       saveValidation(result)
       router.push(`/validate/${result.id}`)
@@ -34,7 +59,7 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }, [router, toast])
+  }, [readApiError, router, toast])
 
   const handleDropFiles = useCallback(async (files: { name: string; content: string }[]) => {
     const skillFiles = files.map(f => ({ path: f.name, content: f.content }))
@@ -51,8 +76,7 @@ export default function HomePage() {
         body: JSON.stringify({ owner: data.owner, repo: data.repo, path: data.path }),
       })
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Failed to fetch repository')
+        throw new Error(await readApiError(res, 'Failed to fetch repository'))
       }
       const result = await res.json()
       await validate({
@@ -73,7 +97,7 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }, [toast, validate])
+  }, [readApiError, toast, validate])
 
   const handlePasteValidate = useCallback(async () => {
     if (!pasteContent.trim()) return
@@ -81,7 +105,13 @@ export default function HomePage() {
   }, [pasteContent, validate])
 
   return (
-    <div className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface">
+    <div
+      className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface"
+      data-motion-ready={motionReady ? 'true' : 'false'}
+    >
+      <div className="home-hero-orbit home-hero-orbit-a" aria-hidden="true" />
+      <div className="home-hero-orbit home-hero-orbit-b" aria-hidden="true" />
+
       <div className="home-hero-content mb-12">
         <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
           <span className="material-symbols-outlined text-sm">shield</span>
@@ -113,9 +143,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      <section id="upload" className="scroll-mt-20 mb-12">
+      <section id="upload" className="home-panel scroll-mt-20 mb-12">
         <div className="glass-card">
-          <div className="flex border-b border-outline">
+          <div className="home-tabs flex border-b border-outline">
             {([['url', 'GitHub Repo'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -179,24 +209,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
+      <section className="home-feature-shell">
         <div className="glass-card p-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="text-center">
+          <div className="home-feature-grid grid grid-cols-1 gap-8 sm:grid-cols-3">
+            <div className="home-feature-card text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">cloud_upload</span>
               <h3 className="mt-2 font-semibold text-on-surface">Upload</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">
                 Drop a local skill package or scan the files directly
               </p>
             </div>
-            <div className="text-center">
+            <div className="home-feature-card text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">travel_explore</span>
               <h3 className="mt-2 font-semibold text-on-surface">Audit</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">
                 Review GitHub install scripts, workflows, registries, and runtime risk
               </p>
             </div>
-            <div className="text-center">
+            <div className="home-feature-card text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">description</span>
               <h3 className="mt-2 font-semibold text-on-surface">Report</h3>
               <p className="mt-1 text-sm text-on-surface-secondary">

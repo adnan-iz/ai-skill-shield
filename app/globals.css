@@ -64,6 +64,26 @@
     background-color: var(--color-surface);
     color: var(--color-on-surface);
   }
+
+  .material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings:
+      "FILL" 0,
+      "wght" 400,
+      "GRAD" 0,
+      "opsz" 24;
+  }
 }
 
 @layer utilities {
@@ -78,58 +98,51 @@
     text-wrap: balance;
   }
 
-  @keyframes homeHeroBadgeIn {
-    from {
-      opacity: 0;
-      transform: translateY(18px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes homeHeroTitleIn {
-    from {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes homeHeroCopyIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes homeStatCardIn {
-    from {
-      opacity: 0;
-      transform: translateY(26px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   @keyframes homeHeroGlowDrift {
     0%, 100% {
       transform: translate3d(0, 0, 0) scale(1);
-      opacity: 0.55;
+      opacity: 0.42;
     }
     50% {
-      transform: translate3d(18px, 10px, 0) scale(1.08);
+      transform: translate3d(28px, 16px, 0) scale(1.12);
       opacity: 0.72;
+    }
+  }
+
+  @keyframes homeHeroOrbit {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+      opacity: 0.24;
+    }
+    50% {
+      transform: translate3d(20px, -16px, 0) scale(1.14) rotate(10deg);
+      opacity: 0.42;
+    }
+  }
+
+  @keyframes homeStatCardFloat {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-6px) scale(1.01);
+    }
+  }
+
+  @keyframes homePanelSheen {
+    0% {
+      transform: translateX(-120%);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.2;
+    }
+    60% {
+      opacity: 0.28;
+    }
+    100% {
+      transform: translateX(160%);
+      opacity: 0;
     }
   }
 
@@ -137,6 +150,10 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
+    background:
+      radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 24%),
+      var(--color-surface);
   }
 
   .home-hero-shell::before {
@@ -148,61 +165,207 @@
     height: 220px;
     border-radius: 999px;
     background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 68%);
-    filter: blur(6px);
+    filter: blur(10px);
     pointer-events: none;
     z-index: -1;
-    animation: homeHeroGlowDrift 12s ease-in-out infinite;
+    opacity: 0;
+    transform: translate3d(-12px, 12px, 0) scale(0.94);
+    transition:
+      opacity 900ms ease,
+      transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .home-hero-content,
-  .home-stat-grid {
+  .home-stat-grid,
+  .home-panel,
+  .home-feature-shell {
     position: relative;
     z-index: 1;
   }
 
-  .home-hero-badge {
+  .home-hero-orbit {
+    position: absolute;
+    inset: auto auto 0 0;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 0;
     opacity: 0;
-    animation: homeHeroBadgeIn 560ms cubic-bezier(0.22, 1, 0.36, 1) 120ms forwards;
+    filter: blur(14px);
+    transition: opacity 1200ms ease;
+  }
+
+  .home-hero-orbit-a {
+    top: 36px;
+    right: 84px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 68%);
+  }
+
+  .home-hero-orbit-b {
+    top: 120px;
+    right: 220px;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.12), transparent 72%);
+  }
+
+  .home-hero-badge,
+  .home-hero-title,
+  .home-hero-copy,
+  .home-stat-card,
+  .home-panel,
+  .home-feature-card {
+    opacity: 0;
+    transform: translateY(30px) scale(0.985);
+    filter: blur(10px);
+    will-change: transform, opacity, filter;
+    transition:
+      opacity 820ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 820ms cubic-bezier(0.16, 1, 0.3, 1),
+      filter 820ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .home-hero-title {
-    opacity: 0;
-    animation: homeHeroTitleIn 720ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
+    transform: translateY(36px) scale(0.98);
   }
 
   .home-hero-copy {
-    opacity: 0;
-    animation: homeHeroCopyIn 700ms cubic-bezier(0.22, 1, 0.36, 1) 320ms forwards;
+    transform: translateY(32px) scale(0.985);
   }
 
   .home-stat-card {
+    transform: translateY(34px) scale(0.97);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  }
+
+  .home-panel {
+    transform: translateY(40px) scale(0.985);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .home-feature-card {
+    transform: translateY(28px) scale(0.985);
+  }
+
+  .home-panel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -20%;
+    width: 24%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+    transform: translateX(-120%);
     opacity: 0;
-    transform: translateY(26px);
-    animation: homeStatCardIn 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    will-change: transform, opacity;
+    pointer-events: none;
   }
 
   .home-stat-card-1 {
-    animation-delay: 420ms;
+    transition-delay: 220ms;
   }
 
   .home-stat-card-2 {
-    animation-delay: 500ms;
+    transition-delay: 320ms;
   }
 
   .home-stat-card-3 {
-    animation-delay: 580ms;
+    transition-delay: 420ms;
+  }
+
+  .home-feature-card:nth-child(1) {
+    transition-delay: 520ms;
+  }
+
+  .home-feature-card:nth-child(2) {
+    transition-delay: 620ms;
+  }
+
+  .home-feature-card:nth-child(3) {
+    transition-delay: 720ms;
+  }
+
+  .home-hero-shell[data-motion-ready="true"]::before {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    animation: homeHeroGlowDrift 10s ease-in-out 1.1s infinite;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-orbit {
+    opacity: 1;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-orbit-a {
+    animation: homeHeroOrbit 9s ease-in-out 1.2s infinite;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-orbit-b {
+    animation: homeHeroOrbit 11s ease-in-out 1.6s infinite reverse;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-badge,
+  .home-hero-shell[data-motion-ready="true"] .home-hero-title,
+  .home-hero-shell[data-motion-ready="true"] .home-hero-copy,
+  .home-hero-shell[data-motion-ready="true"] .home-stat-card,
+  .home-hero-shell[data-motion-ready="true"] .home-panel,
+  .home-hero-shell[data-motion-ready="true"] .home-feature-card {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-badge {
+    transition-delay: 80ms;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-title {
+    transition-delay: 180ms;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-hero-copy {
+    transition-delay: 280ms;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-panel {
+    transition-delay: 420ms;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-panel::after {
+    animation: homePanelSheen 1350ms ease 900ms 1;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-stat-card-1 {
+    animation: homeStatCardFloat 4.8s ease-in-out 1.5s infinite;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-stat-card-2 {
+    animation: homeStatCardFloat 5.2s ease-in-out 1.8s infinite;
+  }
+
+  .home-hero-shell[data-motion-ready="true"] .home-stat-card-3 {
+    animation: homeStatCardFloat 5.6s ease-in-out 2.1s infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .home-hero-shell::before,
+    .home-hero-orbit,
     .home-hero-badge,
     .home-hero-title,
     .home-hero-copy,
-    .home-stat-card {
+    .home-stat-card,
+    .home-panel,
+    .home-feature-card {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;
+      filter: none !important;
+      transition: none !important;
+    }
+
+    .home-panel::after {
+      animation: none !important;
+      opacity: 0 !important;
     }
   }
 
