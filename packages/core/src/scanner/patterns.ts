@@ -30,7 +30,7 @@ function makeFinding(
   }
 }
 
-function locate(content: string, pattern: RegExp | string): { line: number; col: number; snippet: string } | null {
+function locate(content: string, pattern: RegExp | string): { index: number; line: number; col: number; snippet: string } | null {
   if (typeof pattern === 'string') {
     const idx = content.indexOf(pattern)
     if (idx === -1) return null
@@ -43,7 +43,7 @@ function locate(content: string, pattern: RegExp | string): { line: number; col:
     let snippet = content.slice(start, end)
     if (start > 0) snippet = '...' + snippet
     if (end < content.length) snippet = snippet + '...'
-    return { line, col, snippet }
+    return { index: idx, line, col, snippet }
   }
   const match = content.match(pattern)
   if (!match || typeof match.index !== 'number') return null
@@ -57,7 +57,7 @@ function locate(content: string, pattern: RegExp | string): { line: number; col:
   let snippet = content.slice(start, end)
   if (start > 0) snippet = '...' + snippet
   if (end < content.length) snippet = snippet + '...'
-  return { line, col, snippet }
+  return { index: idx, line, col, snippet }
 }
 
 const LEADING_COMMENT_RE = /^\s*(\/\/|#|<!--|\/\*|\*)/
@@ -91,7 +91,7 @@ const patterns: PatternDef[] = [
       const re = /(?:^|[^a-zA-Z_])exec\s*\(\s*[`'"]/
       const loc = locate(content, re)
       if (!loc) return null
-      if (isInComment(content, content.indexOf('exec', loc.snippet ? loc.line * 10 : 0))) return null
+      if (isInComment(content, loc.index)) return null
       return makeFinding('critical', 'command-injection', 'Direct exec() call',
         `exec() executes shell commands and is a major RCE vector. Use execFile or spawn with shell:false instead.`,
         filePath, loc.line, loc.col, loc.snippet,
@@ -124,7 +124,7 @@ const patterns: PatternDef[] = [
       const re = /\brm\s+(?:-[rfRF]+\s*)+[\/\\]/
       const loc = locate(content, re)
       if (!loc) return null
-      if (isInComment(content, content.indexOf('rm', loc.snippet ? loc.line : 0))) return null
+      if (isInComment(content, loc.index)) return null
       return makeFinding('critical', 'command-injection', 'Destructive delete on root',
         `Recursive force delete targeting root directory is extremely destructive.`,
         filePath, loc.line, loc.col, loc.snippet,
@@ -281,7 +281,7 @@ const patterns: PatternDef[] = [
       const re = /\bchmod\s+(?:-R\s+)?777\b/
       const loc = locate(content, re)
       if (!loc) return null
-      if (isInComment(content, content.indexOf('chmod', loc.snippet ? loc.line : 0))) return null
+      if (isInComment(content, loc.index)) return null
       return makeFinding('high', 'command-injection', 'chmod 777 world-writable permissions',
         `World-writable permissions allow any user to modify the file. Security risk.`,
         filePath, loc.line, loc.col, loc.snippet,
@@ -298,7 +298,7 @@ const patterns: PatternDef[] = [
       const re = /\b(?:DROP\s+DATABASE|DROP\s+TABLE|DELETE\s+FROM\s+\S+\s+(?!WHERE)|TRUNCATE\s+TABLE)\b/i
       const loc = locate(content, re)
       if (!loc) return null
-      if (isInComment(content, content.indexOf('DROP', loc.snippet ? loc.line : 0))) return null
+      if (isInComment(content, loc.index)) return null
       return makeFinding('critical', 'command-injection', 'Database drop/delete command',
         `Destructive database command that can cause permanent data loss.`,
         filePath, loc.line, loc.col, loc.snippet,
@@ -315,7 +315,7 @@ const patterns: PatternDef[] = [
       const re = /(?:spawn|fork|execFile|execSync)\(/
       const loc = locate(content, re)
       if (!loc) return null
-      if (isInComment(content, content.indexOf('spawn', loc.snippet ? loc.line : 0))) return null
+      if (isInComment(content, loc.index)) return null
       const lines = content.split('\n')
       const lineContent = lines[loc.line - 1] || ''
       const hasUserInput = /\$\{.*?\}|\.concat\(|\.join\(|\.replace\(|\.split\(|\+[\s\w'"`]/.test(lineContent)

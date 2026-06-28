@@ -29,6 +29,21 @@ describe('safe content has no findings', () => {
       .filter(Boolean)
     expect(findings.length).toBe(0)
   })
+
+  it('does not flag dangerous command examples in comments', () => {
+    const content = [
+      'const safe = true',
+      '// rm -rf / is shown here as a command to avoid',
+      '# chmod 777 is an insecure permission example',
+    ].join('\n')
+    const findings = ALL_PATTERNS
+      .map(p => p.detect(content, 'docs.md'))
+      .filter(Boolean)
+    const commandFindings = findings.filter(f =>
+      f?.title === 'Destructive delete on root' || f?.title === 'chmod 777 world-writable permissions'
+    )
+    expect(commandFindings.length).toBe(0)
+  })
 })
 
 describe('secret detection', () => {

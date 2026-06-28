@@ -79,4 +79,35 @@ describe('GET /api/report', () => {
     expect(body).toContain('<!DOCTYPE html>')
     expect(body).toContain('SkillShield')
   })
+
+  it('escapes scan-controlled values in HTML exports', async () => {
+    const result = makeResult()
+    result.skillName = '<img src=x onerror=alert(1)>'
+    result.findings = [{
+      id: 'finding-1',
+      axis: 'security',
+      severity: 'high',
+      category: '<script>alert(1)</script>',
+      title: '<svg onload=alert(1)>',
+      message: 'bad',
+      filePath: 'SKILL.md',
+      lineNumber: 1,
+      snippet: '<b>bad</b>',
+      recommendation: '<iframe srcdoc=bad></iframe>',
+    }]
+    result.skillPreview.frontmatter = { description: '<script>alert(1)</script>' }
+    vi.mocked(getResult).mockResolvedValue(result)
+
+    const request = new NextRequest('http://localhost:3000/api/report?id=123e4567-e89b-12d3-a456-426614174000&format=html')
+    const response = await GET(request)
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(body).not.toContain('<img src=x')
+    expect(body).not.toContain('<script>alert(1)</script>')
+    expect(body).not.toContain('<svg onload=alert(1)>')
+    expect(body).not.toContain('<iframe srcdoc=bad>')
+    expect(body).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(body).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
 })

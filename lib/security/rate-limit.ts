@@ -10,7 +10,7 @@ export interface RateLimitOptions {
 export async function checkRateLimit(
   key: string,
   options: RateLimitOptions = { maxRequests: 60, windowMs: 60_000 }
-): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+): Promise<{ allowed: boolean; limit: number; remaining: number; resetAt: number }> {
   await ensureDatabase()
 
   const now = Date.now()
@@ -27,13 +27,13 @@ export async function checkRateLimit(
       target: rateLimits.key,
       set: { count: 1, resetAt: now + options.windowMs },
     })
-    return { allowed: true, remaining: options.maxRequests - 1, resetAt: now + options.windowMs }
+    return { allowed: true, limit: options.maxRequests, remaining: options.maxRequests - 1, resetAt: now + options.windowMs }
   }
 
   if (entry.count >= options.maxRequests) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt }
+    return { allowed: false, limit: options.maxRequests, remaining: 0, resetAt: entry.resetAt }
   }
 
   await db.update(rateLimits).set({ count: entry.count + 1 }).where(eq(rateLimits.key, key))
-  return { allowed: true, remaining: options.maxRequests - entry.count - 1, resetAt: entry.resetAt }
+  return { allowed: true, limit: options.maxRequests, remaining: options.maxRequests - entry.count - 1, resetAt: entry.resetAt }
 }

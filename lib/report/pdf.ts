@@ -1,6 +1,19 @@
 import { ValidationResult, AgentCompatibility } from '@/lib/validator/types'
 import { generateReportData } from '@/lib/report/report-data'
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function classToken(value: unknown): string {
+  return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '')
+}
+
 function scoreToColor(score: number): string {
   if (score >= 80) return '#22c55e'
   if (score >= 60) return '#eab308'
@@ -44,24 +57,24 @@ export function generateHtmlReport(result: ValidationResult): string {
     return `
       <div class="axis-card">
         <div class="axis-header">
-          <strong>${axis.name}</strong>
-          <span class="badge badge-${axis.status}">${axis.status.toUpperCase()}</span>
+          <strong>${escapeHtml(axis.name)}</strong>
+          <span class="badge badge-${classToken(axis.status)}">${escapeHtml(axis.status.toUpperCase())}</span>
         </div>
         <div class="axis-score-row">
           <div class="axis-bar">
             <div class="axis-bar-fill" style="width: ${axis.score}%; background: ${color};"></div>
           </div>
-          <span class="axis-score">${axis.score}/100</span>
+          <span class="axis-score">${escapeHtml(axis.score)}/100</span>
         </div>
-        <p class="axis-summary">${axis.summary}</p>
+        <p class="axis-summary">${escapeHtml(axis.summary)}</p>
         ${axis.findings.length > 0 ? `<details>
           <summary>${axis.findings.length} finding${axis.findings.length > 1 ? 's' : ''}</summary>
           ${axis.findings.map(f => `
             <div class="finding" style="border-left: 4px solid ${severityColor(f.severity)};">
-              <span class="badge badge-${f.severity}">${f.severity.toUpperCase()}</span>
-              <strong>${f.title}</strong>
-              <p>${f.message}</p>
-              ${f.recommendation ? `<p class="rec"><em>Rec:</em> ${f.recommendation}</p>` : ''}
+              <span class="badge badge-${classToken(f.severity)}">${escapeHtml(f.severity.toUpperCase())}</span>
+              <strong>${escapeHtml(f.title)}</strong>
+              <p>${escapeHtml(f.message)}</p>
+              ${f.recommendation ? `<p class="rec"><em>Rec:</em> ${escapeHtml(f.recommendation)}</p>` : ''}
             </div>
           `).join('')}
         </details>` : '<p class="no-issues">No issues</p>'}
@@ -70,11 +83,11 @@ export function generateHtmlReport(result: ValidationResult): string {
 
   const findingsHtml = result.findings.map(f => `
     <tr>
-      <td><span class="badge badge-${f.severity}">${f.severity.toUpperCase()}</span></td>
-      <td>${f.title}</td>
-      <td>${f.category}</td>
-      <td>${f.filePath || '-'}</td>
-      <td>${f.message.substring(0, 80)}${f.message.length > 80 ? '...' : ''}</td>
+      <td><span class="badge badge-${classToken(f.severity)}">${escapeHtml(f.severity.toUpperCase())}</span></td>
+      <td>${escapeHtml(f.title)}</td>
+      <td>${escapeHtml(f.category)}</td>
+      <td>${escapeHtml(f.filePath || '-')}</td>
+      <td>${escapeHtml(f.message.substring(0, 80))}${f.message.length > 80 ? '...' : ''}</td>
     </tr>
   `).join('')
 
@@ -82,18 +95,18 @@ export function generateHtmlReport(result: ValidationResult): string {
     .filter(a => a.status !== 'unknown')
     .map(a => `
       <tr>
-        <td>${a.name}</td>
+        <td>${escapeHtml(a.name)}</td>
         <td><span class="badge badge-${a.status === 'full' ? 'pass' : a.status === 'partial' ? 'warn' : 'fail'}">${statusLabel(a.status)}</span></td>
-        <td>${a.notes || '-'}</td>
+        <td>${escapeHtml(a.notes || '-')}</td>
       </tr>
     `).join('')
 
   const recHtml = recommendations.map((r) =>
-    `<li>${r}</li>`
+    `<li>${escapeHtml(r)}</li>`
   ).join('')
 
   const tokenSectionsHtml = result.tokenAnalysis.breakdown.map(s =>
-    `<tr><td>${s.section}</td><td>${s.tokens}</td><td>${result.tokenAnalysis.totalTokens > 0 ? `${((s.tokens / result.tokenAnalysis.totalTokens) * 100).toFixed(1)}%` : '0%'}</td></tr>`
+    `<tr><td>${escapeHtml(s.section)}</td><td>${escapeHtml(s.tokens)}</td><td>${escapeHtml(result.tokenAnalysis.totalTokens > 0 ? `${((s.tokens / result.tokenAnalysis.totalTokens) * 100).toFixed(1)}%` : '0%')}</td></tr>`
   ).join('')
 
   return `<!DOCTYPE html>
@@ -101,7 +114,7 @@ export function generateHtmlReport(result: ValidationResult): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkillShield Report - ${result.skillName}</title>
+  <title>SkillShield Report - ${escapeHtml(result.skillName)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a2e; background: #f8fafc; line-height: 1.6; }
@@ -190,15 +203,15 @@ export function generateHtmlReport(result: ValidationResult): string {
       <div class="header-meta">
         <div class="header-meta-item">
           <span class="label">Skill Name</span>
-          <span class="value">${result.skillName}</span>
+          <span class="value">${escapeHtml(result.skillName)}</span>
         </div>
         <div class="header-meta-item">
           <span class="label">Report ID</span>
-          <span class="value" style="font-size: 13px; font-family: monospace;">${result.id}</span>
+          <span class="value" style="font-size: 13px; font-family: monospace;">${escapeHtml(result.id)}</span>
         </div>
         <div class="header-meta-item">
           <span class="label">Validated</span>
-          <span class="value" style="font-size: 14px;">${new Date(result.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          <span class="value" style="font-size: 14px;">${escapeHtml(new Date(result.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>
         </div>
       </div>
     </div>
@@ -208,22 +221,22 @@ export function generateHtmlReport(result: ValidationResult): string {
         <div class="gauge">
           <div class="gauge-bg"></div>
           <div class="gauge-fill" style="transform: rotate(${gaugeRotation}deg);"></div>
-          <div class="gauge-cover"><span>${result.overallScore}</span></div>
+          <div class="gauge-cover"><span>${escapeHtml(result.overallScore)}</span></div>
         </div>
         <div class="gauge-label">Overall Score</div>
       </div>
       <div class="gauge-info">
-        <span class="risk-badge risk-badge-${result.riskLevel}">${riskLabel}</span>
-        <h2>${scoreLabel}</h2>
-        <p>${summary}</p>
+        <span class="risk-badge risk-badge-${classToken(result.riskLevel)}">${escapeHtml(riskLabel)}</span>
+        <h2>${escapeHtml(scoreLabel)}</h2>
+        <p>${escapeHtml(summary)}</p>
       </div>
     </div>
 
     <div class="summary-row">
-      <div class="summary-card"><div class="count count-critical">${result.summary.criticalCount}</div><div class="label">Critical</div></div>
-      <div class="summary-card"><div class="count count-high">${result.summary.highCount}</div><div class="label">High</div></div>
-      <div class="summary-card"><div class="count count-medium">${result.summary.mediumCount}</div><div class="label">Medium</div></div>
-      <div class="summary-card"><div class="count count-passed">${result.summary.passed}</div><div class="label">Passed Axes</div></div>
+      <div class="summary-card"><div class="count count-critical">${escapeHtml(result.summary.criticalCount)}</div><div class="label">Critical</div></div>
+      <div class="summary-card"><div class="count count-high">${escapeHtml(result.summary.highCount)}</div><div class="label">High</div></div>
+      <div class="summary-card"><div class="count count-medium">${escapeHtml(result.summary.mediumCount)}</div><div class="label">Medium</div></div>
+      <div class="summary-card"><div class="count count-passed">${escapeHtml(result.summary.passed)}</div><div class="label">Passed Axes</div></div>
     </div>
 
     <div class="section">
@@ -233,8 +246,8 @@ export function generateHtmlReport(result: ValidationResult): string {
 
     <div class="section">
       <h2>Token Usage</h2>
-      <p><strong>Total:</strong> ${result.tokenAnalysis.totalTokens} / ${result.tokenAnalysis.limit} tokens (${result.tokenAnalysis.isUnderLimit ? 'Within limit' : 'Exceeds limit'})</p>
-      <p><strong>Frontmatter:</strong> ${result.tokenAnalysis.frontmatterTokens} tokens | <strong>Body:</strong> ${result.tokenAnalysis.bodyTokens} tokens</p>
+      <p><strong>Total:</strong> ${escapeHtml(result.tokenAnalysis.totalTokens)} / ${escapeHtml(result.tokenAnalysis.limit)} tokens (${result.tokenAnalysis.isUnderLimit ? 'Within limit' : 'Exceeds limit'})</p>
+      <p><strong>Frontmatter:</strong> ${escapeHtml(result.tokenAnalysis.frontmatterTokens)} tokens | <strong>Body:</strong> ${escapeHtml(result.tokenAnalysis.bodyTokens)} tokens</p>
       ${result.tokenAnalysis.breakdown.length > 0 ? `
         <table>
           <thead><tr><th>Section</th><th>Tokens</th><th>%</th></tr></thead>
@@ -245,7 +258,7 @@ export function generateHtmlReport(result: ValidationResult): string {
 
     <div class="section">
       <h2>Agent Compatibility</h2>
-      <p><strong>Overall Score:</strong> ${result.compatibility.overallCompatibility}/100</p>
+      <p><strong>Overall Score:</strong> ${escapeHtml(result.compatibility.overallCompatibility)}/100</p>
       ${agentHtml ? `
         <table>
           <thead><tr><th>Agent</th><th>Status</th><th>Notes</th></tr></thead>
@@ -271,7 +284,7 @@ export function generateHtmlReport(result: ValidationResult): string {
 
     <div class="footer">
       <p>Generated by <strong>SkillShield</strong> - Agent Skills Validator</p>
-      <p>Report ID: ${result.id} | ${new Date(result.timestamp).toISOString()}</p>
+      <p>Report ID: ${escapeHtml(result.id)} | ${escapeHtml(new Date(result.timestamp).toISOString())}</p>
     </div>
   </div>
 </body>
