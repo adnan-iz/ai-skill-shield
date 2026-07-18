@@ -1,10 +1,12 @@
-# SkillShield
+# SkillShield — AI Agent Skill Security Scanner
 
-Validate AI agent skills before they run or install.
+Validate AI agent skills and `SKILL.md` files before they run or install.
 
-SkillShield is a Next.js web app for pre-install review of `SKILL.md`-based skills and GitHub-hosted skill repositories. It combines multi-axis validation, install-risk scanning, repository execution-surface auditing, and exportable reports so you can decide whether a skill is ready to trust.
+SkillShield is an open-source AI agent skill security scanner and `SKILL.md` validator. It reviews local skills and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
 
-## What it does
+![SkillShield AI agent skill security report showing a pre-install GitHub repository verdict](artifacts/ux-audit-2026-07-18/03-report-summary.png)
+
+## AI agent skill security checks
 
 - Validates skill packages across 11 axes, including security, structure, quality, compatibility, dependencies, and installation risk
 - Audits GitHub repositories before import for lifecycle scripts, install scripts, registries, workflows, submodules, and related execution surfaces
@@ -30,7 +32,7 @@ Recommended flow:
 
 ## Core workflows
 
-### GitHub repo scan
+### GitHub repository security scan
 
 This is the main product workflow. The GitHub path:
 
@@ -39,15 +41,15 @@ This is the main product workflow. The GitHub path:
 - attaches trust metadata such as stars, forks, issues, license, and archive state
 - returns a report with dangerous-line evidence and install-surface mapping
 
-### Direct upload
+### Local AI skill validation
 
 Upload a local skill package when you already have the files and want validator coverage without repository context.
 
-### Paste `SKILL.md`
+### Paste `SKILL.md` for security review
 
 Paste raw `SKILL.md` content for quick inspection. This is useful for authoring and spot-checking, but it does not provide repository-level install auditing.
 
-## Current report experience
+## Security report and pre-install verdict
 
 Each report includes:
 
