@@ -2,61 +2,60 @@
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20 or later
 - npm
-- SQLite by default
-- optional GitHub token for private repository scans
+- SQLite or a libSQL-compatible database
+- Optional GitHub token for private repository scans and higher GitHub API limits
 
-## Local production-style run
+## Local production run
 
 ```bash
-npm install
+npm ci
 npm run build
 npm start
 ```
 
-Open `http://localhost:3000`.
+The application listens on [http://localhost:3000](http://localhost:3000) by default.
 
 ## Docker
 
 ```bash
-docker compose up -d
+docker compose up --detach
 ```
 
-The included compose setup runs the standalone Next.js server on port `3000` and persists SQLite data in the `skillshield_data` volume.
+The Compose configuration publishes the application on port `3000` and stores SQLite data in the `skillshield_data` volume.
 
 ## Environment variables
 
 | Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL for metadata, sitemap, and shared links |
-| `GITHUB_TOKEN` | Recommended | Avoids shared-IP GitHub API limits and enables accessible private repos |
-| `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review |
-| `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review |
-| `DATABASE_URL` | No | SQLite/libSQL URL; defaults to `file:./data/skillshield.db` |
-| `DATABASE_AUTH_TOKEN` | For remote libSQL | Authentication token for the remote database |
+| --- | --- | --- |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL used for metadata, the sitemap, and shared links. |
+| `GITHUB_TOKEN` | Recommended | Improves GitHub API limits and enables scans of accessible private repositories. |
+| `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review. |
+| `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review. |
+| `DATABASE_URL` | No | SQLite or libSQL URL. Defaults to `file:./data/skillshield.db` outside Vercel. |
+| `DATABASE_AUTH_TOKEN` | Remote libSQL only | Authentication token for a remote database. |
+| `TURSO_DATABASE_URL` | No | Alias for a remote Turso/libSQL database URL. |
+| `TURSO_AUTH_TOKEN` | Remote Turso only | Alias for the remote database authentication token. |
 
 ## Storage
 
-By default the app uses SQLite under `data/skillshield.db`. Docker stores the same database at `/app/data/skillshield.db` in a named volume.
+By default, SkillShield stores data in `data/skillshield.db`. Docker uses `/app/data/skillshield.db` inside the named volume. Required tables are created when the database is first used, so initial deployment does not require a separate migration command.
 
-On startup the app creates required tables automatically, which makes first-run environments much smoother than earlier versions.
+On Vercel, configure a remote libSQL database with `DATABASE_URL` and `DATABASE_AUTH_TOKEN`, or use the Turso aliases. Without a remote database, SkillShield falls back to ephemeral `/tmp` storage. Scans will run, but reports, approvals, rate limits, and public trust pages will not persist reliably across function instances.
 
-On Vercel, configure a remote libSQL database with `DATABASE_URL` and `DATABASE_AUTH_TOKEN` (the `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` aliases also work). Without one, SkillShield uses ephemeral `/tmp` storage: scans work, but server-side reports, approvals, and public trust pages are not durable across function instances.
+## Operational considerations
 
-## Operational notes
+- Browser-local history is convenience storage, not the durable source of truth.
+- Durable report lookup uses the configured server-side database.
+- PDF export returns print-friendly HTML rather than a server-generated binary PDF.
+- GitHub repository auditing is most reliable when `GITHUB_TOKEN` is configured.
+- The application has no built-in authentication layer; protect production deployments at the network or platform layer.
 
-- browser-local history is convenience storage, not the durable source of truth
-- durable report lookup comes from server storage by result ID
-- PDF export is browser-print HTML rather than server-rendered binary PDF
-- GitHub repo auditing is strongest when `GITHUB_TOKEN` is configured
-
-## Health checks
-
-Use:
+## Health check
 
 ```bash
 curl http://localhost:3000/api/health
 ```
 
-to verify the app responds and storage is reachable.
+A successful response confirms that the application can respond and access its configured storage.

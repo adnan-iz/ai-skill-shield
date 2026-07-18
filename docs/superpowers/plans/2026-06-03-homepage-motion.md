@@ -31,12 +31,12 @@
 ### Task 1: Add a Homepage Motion Contract Test
 
 **Files:**
-- Create: `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts`
-- Test: `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts`
+- Create: `tests/homepage/motion-contract.test.ts`
+- Test: `tests/homepage/motion-contract.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts` with:
+Create `tests/homepage/motion-contract.test.ts` with:
 
 ```ts
 import { readFileSync } from 'node:fs'
@@ -115,12 +115,12 @@ Expected:
 ### Task 2: Add Homepage Motion Hooks to the JSX
 
 **Files:**
-- Modify: `F:/agent skill validator/skill-shield/app/page.tsx`
-- Test: `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts`
+- Modify: `app/page.tsx`
+- Test: `tests/homepage/motion-contract.test.ts`
 
 - [ ] **Step 1: Update the hero wrapper and copy with semantic motion classes**
 
-In `F:/agent skill validator/skill-shield/app/page.tsx`, replace the current hero opening block with:
+In `app/page.tsx`, replace the current hero opening block with:
 
 ```tsx
     <div className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface">
@@ -146,7 +146,7 @@ Also update the closing wrapper at the end of the component to match:
 
 - [ ] **Step 2: Add motion class hooks to the stat card grid**
 
-In `F:/agent skill validator/skill-shield/app/page.tsx`, replace the current stat-card section with:
+In `app/page.tsx`, replace the current stat-card section with:
 
 ```tsx
       <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -207,12 +207,12 @@ Expected:
 ### Task 3: Implement the Cinematic Lift Motion in CSS
 
 **Files:**
-- Modify: `F:/agent skill validator/skill-shield/app/globals.css`
-- Test: `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts`
+- Modify: `app/globals.css`
+- Test: `tests/homepage/motion-contract.test.ts`
 
 - [ ] **Step 1: Add homepage-specific keyframes**
 
-In `F:/agent skill validator/skill-shield/app/globals.css`, inside `@layer utilities`, add:
+In `app/globals.css`, inside `@layer utilities`, add:
 
 ```css
   @keyframes homeHeroBadgeIn {
@@ -273,7 +273,7 @@ In `F:/agent skill validator/skill-shield/app/globals.css`, inside `@layer utili
 
 - [ ] **Step 2: Add the homepage motion classes and ambient effect**
 
-Still in `F:/agent skill validator/skill-shield/app/globals.css`, below the keyframes, add:
+Still in `app/globals.css`, below the keyframes, add:
 
 ```css
   .home-hero-shell {
@@ -340,7 +340,7 @@ Still in `F:/agent skill validator/skill-shield/app/globals.css`, below the keyf
 
 - [ ] **Step 3: Add reduced-motion handling**
 
-Still in `F:/agent skill validator/skill-shield/app/globals.css`, add:
+Still in `app/globals.css`, add:
 
 ```css
   @media (prefers-reduced-motion: reduce) {
@@ -389,7 +389,7 @@ Expected:
 
 **Files:**
 - Modify: none
-- Test: `F:/agent skill validator/skill-shield/tests/homepage/motion-contract.test.ts`
+- Test: `tests/homepage/motion-contract.test.ts`
 
 - [ ] **Step 1: Run the full test suite in single-worker mode**
 
@@ -496,4 +496,3 @@ No spec gaps remain.
   - `home-stat-card-1`
   - `home-stat-card-2`
   - `home-stat-card-3`
-

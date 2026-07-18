@@ -13,14 +13,15 @@ tags:
 
 # Example Skill
 
-A safe, clean skill for testing SkillShield's validation pipeline.
+A safe example skill for testing SkillShield's validation pipeline.
 
 ## Usage
 
 This skill can be used to:
-- Test the validation API
-- View the report dashboard
-- Understand scoring axes
+
+- Test the validation API.
+- View the report dashboard.
+- Understand the scoring axes.
 
 ## Configuration
 
@@ -33,4 +34,4 @@ This skill can be used to:
 
 ## Notes
 
-For security testing with malicious patterns, use the **Paste** tab on the landing page to paste content containing threat patterns directly — no files written to disk.
+To test malicious patterns without creating local files, paste the sample content into the **Paste** tab on the landing page.

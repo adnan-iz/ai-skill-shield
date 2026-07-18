@@ -1,11 +1,11 @@
 # Scoring Model
 
-SkillShield calculates an overall score from 11 weighted axes and then combines that with finding severity and repository audit results to shape the install decision shown in the UI.
+SkillShield calculates a weighted score across 11 validation axes. Finding severity determines the reported risk level, while repository audit and approval data contribute to the separate installation verdict shown in the report UI.
 
-## Axes
+## Validation axes
 
 | Axis | Weight |
-|---|---|
+| --- | ---: |
 | Security | 25% |
 | Frontmatter | 18% |
 | Quality | 12% |
@@ -18,30 +18,37 @@ SkillShield calculates an overall score from 11 weighted axes and then combines 
 | Dependencies | 3% |
 | Best Practices | 2% |
 
+The current weights total 97%, so the maximum weighted score before risk caps is `97`.
+
 ## Overall score
 
-The overall score is the weighted sum of axis scores, rounded to the nearest integer.
+The validator multiplies each axis score by its weight, sums the results, and rounds to the nearest integer. It then applies these severity caps:
+
+- Any critical finding caps the overall score at `60`.
+- Any high finding caps the overall score at `74`.
 
 ## Risk level
 
-The score is not the only signal. Risk level is also influenced by finding severity, including critical install-time behavior and repository audit findings.
+The validation risk level is the highest severity among the skill findings: `critical`, `high`, `medium`, `low`, or `safe`. Repository audit risk is stored separately and does not change the validation score or validation risk level.
 
 ## Approval threshold
 
-By default, scans below `70` create a pending approval record.
+By default, a validation score below `70` triggers an attempt to create a pending approval record.
 
-## Install verdict
+## Installation verdict
 
-The top-level report verdict uses more than score alone. It combines:
+The report derives a separate pre-install verdict from:
 
-- overall score and risk level
-- install-related findings
-- repository audit findings
-- repository trust metadata
-- approval status
+- Validation risk and finding severity
+- Installation-related findings
+- Repository audit findings and risk
+- Approval status
+- Repository trust metadata displayed in the decision checklist
 
-Current verdict labels:
+Verdict labels are:
 
 - `Safe to Review`
 - `Needs Manual Review`
 - `Do Not Install`
+
+`Safe to Review` indicates that no blocking installation signals were detected; it is not a guarantee that a skill is safe to execute.

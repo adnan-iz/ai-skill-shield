@@ -1,6 +1,6 @@
 # GitHub Action
 
-The repo includes a local action at `.github/actions/validate-skill`.
+The repository includes a local JavaScript action at `.github/actions/validate-skill`. It scans a skill directory already present in the workflow workspace.
 
 ## Example workflow
 
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan skills
+      - name: Scan skill
         uses: ./.github/actions/validate-skill
         with:
           skill-path: ./skills/my-skill
@@ -27,20 +27,22 @@ jobs:
 ## Inputs
 
 | Input | Required | Default | Description |
-|---|---|---|---|
-| `skill-path` | Yes | - | path to the skill directory |
-| `fail-on` | No | `high` | failure threshold |
-| `output-format` | No | `json` | `json` or `html` |
+| --- | --- | --- | --- |
+| `skill-path` | Yes | — | Path to the directory containing `SKILL.md`. |
+| `fail-on` | No | `high` | Requested failure severity: `critical`, `high`, `medium`, or `low`. |
+| `output-format` | No | `json` | Output format: `json` or `html`. |
 
 ## Outputs
 
 | Output | Description |
-|---|---|
-| `score` | overall score |
-| `risk-level` | risk label |
-| `finding-count` | total findings |
+| --- | --- |
+| `score` | Overall action score from `0` to `100`. |
+| `risk-level` | Highest detected risk level. |
+| `finding-count` | Number of files collected by the current action implementation. |
 
-## Notes
+## Behavior and limitations
 
-- the action is best for CI validation of skill files already present in the repo
-- the richer GitHub repository audit flow lives in the web app's `POST /api/github` path
+- The action emits workflow annotations for detected findings.
+- With the default `high` threshold, high and critical results fail the job.
+- HTML output is written to `skillshield-report.html` in the scanned directory; upload it separately if it should be retained as a workflow artifact.
+- The action uses a compact local rule set. The web application's GitHub import route provides the complete repository metadata and install-surface audit.

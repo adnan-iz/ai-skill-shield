@@ -1,52 +1,54 @@
-# Contributing to Skill-Shield
+# Contributing to SkillShield
 
-## How to Contribute
+Thank you for helping improve SkillShield. Contributions should be focused, tested, and aligned with the project's pre-install security review goals.
 
-- Report bugs or suggest features via GitHub Issues.
-- Discuss major changes in a GitHub Issue before opening a PR.
-- Read the ROADMAP.md to align with project priorities.
+## Before you begin
 
-## Development Setup
+- Search existing issues before reporting a bug or proposing a feature.
+- Open an issue before starting a substantial change so the scope can be agreed on first.
+- Review the [roadmap](ROADMAP.md) for current priorities.
 
-1. Clone the repository.
+## Development setup
+
+1. Fork and clone the repository.
 2. Install dependencies:
-   ```sh
+
+   ```bash
    npm install
    ```
-3. Copy `.env.example` to `.env.local` and fill in required values.
-4. Start the dev server:
-   ```sh
+
+3. Copy `.env.example` to `.env.local` if your work requires environment-specific configuration.
+4. Start the development server:
+
+   ```bash
    npm run dev
    ```
 
-## Pull Request Process
+## Verification
 
-1. Fork the repo and create a feature branch from `main`.
-2. Write or update tests for your changes.
-3. Ensure all checks pass locally:
-   ```sh
-   npm run typecheck
-   npm run lint
-   npm run test
-   ```
-4. Keep PRs focused — one feature or fix per PR.
-5. Title must follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`).
+Run the relevant tests while developing. Before submitting a pull request, run the complete local verification suite:
 
-## Code Style
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-- **Language**: TypeScript with strict mode enabled.
-- **Formatting**: Prettier (default config).
-- **Linting**: ESLint with `@typescript-eslint/recommended`.
-- **Imports**: Use `import type` for type-only imports; group by external -> internal.
-- **Naming**: `camelCase` for variables/functions, `PascalCase` for types/classes, `kebab-case` for files.
+Add or update tests when a change affects behavior. API routes, CLI behavior, validation rules, and security-sensitive logic should include coverage appropriate to the change.
 
-## Testing Requirements
+## Pull request guidelines
 
-- All new features must include unit tests (Vitest).
-- Integration tests are required for API endpoints and CLI commands.
-- Run the full suite before pushing:
-  ```sh
-  npm run test
-  npm run test:watch   # if applicable
-  ```
-- Minimum coverage threshold: 80% (branches and lines).
+- Create a focused branch from `main`.
+- Keep each pull request limited to one feature or fix.
+- Explain the problem, the chosen solution, and how the change was verified.
+- Update documentation when behavior or public interfaces change.
+- Use a Conventional Commits-style title, such as `feat:`, `fix:`, `docs:`, or `chore:`.
+
+## Code style
+
+- Use TypeScript and follow the existing strict compiler settings.
+- Follow the established patterns in the surrounding code.
+- Use `import type` for type-only imports.
+- Use `camelCase` for variables and functions, `PascalCase` for types and components, and `kebab-case` for filenames.
+- Treat `npm run lint` and `npm run typecheck` as the authoritative style and type checks.

@@ -1,10 +1,10 @@
 # API Reference
 
-Base URL: `/api`
+SkillShield exposes JSON APIs under `/api`. The application does not provide built-in authentication, so production deployments should place sensitive endpoints behind an appropriate access-control layer.
 
-## POST /api/validate
+## `POST /api/validate`
 
-Run full validation on provided files.
+Validate a set of skill files and store the resulting report.
 
 ### Request
 
@@ -22,35 +22,33 @@ Run full validation on provided files.
 }
 ```
 
+The endpoint accepts up to 30 files, 3 MB per file, and 15 MB for the complete request.
+
 ### Response
 
-Returns a `ValidationResult` with:
+Returns a stored `ValidationResult` containing:
 
-- `id`
-- `overallScore`
-- `riskLevel`
-- `summary`
-- `axes`
-- `findings`
-- `compatibility`
+- `id` and `timestamp`
+- `skillName`
+- `overallScore` and `riskLevel`
+- `summary`, `axes`, and `findings`
+- `compatibility` and `tokenAnalysis`
 - `skillPreview`
-- optional `source`
+- optional `source` metadata
 
-If the result scores below the approval threshold, the server attempts to create a pending approval record automatically.
+If the overall score is below `70`, the server attempts to create a pending approval record. Failure to create that record does not fail the validation request.
 
-## GET /api/validate
+## `GET /api/validate`
 
-Fetch a previously stored result.
+Retrieve a stored validation result.
 
-### Query
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `id` | Yes | Validation result ID. |
 
-| Param | Required | Description |
-|---|---|---|
-| `id` | Yes | Validation result ID |
+## `POST /api/github`
 
-## POST /api/github
-
-Import files from GitHub and audit repository install surfaces before validation.
+Import a skill from GitHub and audit repository-level installation and execution surfaces before validation.
 
 ### Request
 
@@ -65,6 +63,8 @@ Import files from GitHub and audit repository install surfaces before validation
   "ignorePaths": ["node_modules", ".git"]
 }
 ```
+
+`branch`, `sha`, extension filters, and ignore paths are optional. When a repository root contains multiple skills and no path is supplied, the endpoint returns `requiresSkillSelection: true` with the discovered skill paths.
 
 ### Response
 
@@ -99,87 +99,82 @@ Import files from GitHub and audit repository install surfaces before validation
 }
 ```
 
-### Notes
+`repositoryAudit` covers install and execution surfaces. `repositoryMeta` provides repository trust signals for the report UI. Configure `GITHUB_TOKEN` to improve API limits and scan private repositories accessible to that token.
 
-- `repositoryAudit` focuses on install and execution surfaces
-- `repositoryMeta` adds repo trust signals for the report UI
-- if `GITHUB_TOKEN` is configured, private repositories accessible to that token can also be scanned
+## `GET /api/report`
 
-## GET /api/report
+Export a stored scan report.
 
-Export a scan report.
+| Parameter | Required | Default | Description |
+| --- | --- | --- | --- |
+| `id` | Yes | — | Validation result ID. |
+| `format` | No | `json` | One of `json`, `html`, `pdf`, or `sarif`. |
 
-### Query
+The `pdf` format returns print-friendly HTML for the browser's save-to-PDF workflow; it does not return a binary PDF.
 
-| Param | Required | Default | Description |
-|---|---|---|---|
-| `id` | Yes | - | Scan result ID |
-| `format` | No | `json` | `json`, `html`, `pdf`, `sarif` |
+## `POST /api/ai-review`
 
-### Notes
-
-- `format=pdf` currently returns print-friendly HTML for browser save-to-PDF workflows
-
-## POST /api/ai-review
-
-Run AI-powered analysis over existing findings.
-
-### Request
+Run provider-backed analysis on an existing set of findings.
 
 ```json
 {
-  "findings": [],
-  "skillName": "my-skill"
+  "findings": [
+    {
+      "id": "finding-1",
+      "severity": "high",
+      "category": "command-injection",
+      "title": "Pipe to shell",
+      "message": "A downloaded script is executed directly."
+    }
+  ],
+  "skillName": "my-skill",
+  "provider": "openai"
 }
 ```
 
-## GET /api/approvals
+Supported request providers are `openai` and `anthropic`. Configure the matching `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` environment variable. Finding snippets are redacted for common secret formats before they are sent to the provider.
 
-List approvals or fetch the approval record for a scan.
+## Approvals
 
-### Query
+### `GET /api/approvals`
 
-| Param | Required | Description |
-|---|---|---|
-| `scanId` | No | Fetch approval for a single scan |
-| `status` | No | Filter by `pending`, `approved`, or `rejected` |
-| `limit` | No | Limit returned records |
+List approval records or retrieve the record for one scan.
 
-## POST /api/approvals
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `scanId` | No | Return the approval associated with one scan. |
+| `status` | No | Filter by `pending`, `approved`, or `rejected`. |
+| `limit` | No | Limit the number of returned records. |
+
+### `POST /api/approvals`
 
 Approve or reject a scan.
-
-### Request
 
 ```json
 {
   "scanId": "scan_123",
   "action": "approve",
   "reviewer": "admin",
-  "notes": "Looks safe"
+  "notes": "Reviewed the install surfaces and findings."
 }
 ```
 
-## GET /api/audit
+## Audit logs
 
-Query audit log events.
+### `GET /api/audit`
 
-### Query
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `event` | No | Filter by event name. |
+| `limit` | No | Limit the number of returned records. |
 
-| Param | Required | Description |
-|---|---|---|
-| `event` | No | Filter by event name |
-| `limit` | No | Maximum rows to return |
+## Webhooks
 
-## GET /api/webhooks
+- `GET /api/webhooks` lists registered webhooks.
+- `POST /api/webhooks` registers a webhook.
+- `DELETE /api/webhooks` deletes a webhook by `id`.
 
-List registered webhooks.
-
-## POST /api/webhooks
-
-Register a webhook.
-
-### Request
+Example registration request:
 
 ```json
 {
@@ -189,14 +184,38 @@ Register a webhook.
 }
 ```
 
-## DELETE /api/webhooks
+## Policy evaluation
 
-Delete a webhook by `id`.
+### `POST /api/policy`
 
-## GET /api/health
+Evaluate existing findings and a score against a supplied policy object.
 
-Return service health and lightweight storage statistics.
+```json
+{
+  "score": 82,
+  "findings": [],
+  "policy": {
+    "mode": "default",
+    "failOn": "high",
+    "blockSecrets": true,
+    "blockDestructiveCommands": true,
+    "requirePermissionManifest": false,
+    "allowExternalDomains": [],
+    "blockedCommands": [],
+    "maxFileSizeMB": 10,
+    "maxFiles": 100
+  }
+}
+```
 
-## GET /api/docs
+## Additional endpoints
 
-Return the generated OpenAPI-style API document for the app.
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/compare` | Compare two stored scan results. |
+| `POST` | `/api/events` | Receive supported application events. |
+| `GET` | `/api/rules` | Return scanner rule metadata. |
+| `GET` | `/api/semgrep-rules` | Return built-in Semgrep-compatible rules. |
+| `GET` | `/api/health` | Return service health and storage statistics. |
+| `GET` | `/api/docs` | Return the generated OpenAPI-style document. |
+| `GET` | `/api/badge/github/{owner}/{repo}/{path?}` | Return the latest public GitHub trust badge. |

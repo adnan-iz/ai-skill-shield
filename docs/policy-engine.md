@@ -1,19 +1,20 @@
 # Policy Engine
 
-SkillShield supports policy evaluation for scan findings and scores. The current app exposes policy behavior through the API and the `/rules` UI playground.
+SkillShield can evaluate scan findings and scores against a policy configuration. Policies are available through the policy library and `POST /api/policy`; the `/rules` page provides a client-side configuration preview.
 
 ## Modes
 
-| Mode | Intent |
-|---|---|
-| `default` | balanced baseline |
-| `strict` | tighter blocking |
-| `enterprise` | lower tolerance and stronger review expectations |
-| `custom` | caller-supplied configuration |
+| Mode | Failure threshold | Purpose |
+| --- | --- | --- |
+| `default` | `high` | Balanced baseline. |
+| `strict` | `medium` | Requires a permission manifest and blocks a broader command set. |
+| `enterprise` | `low` | Applies the lowest finding tolerance and the broadest built-in command restrictions. |
+| `custom` | Configured value | Uses caller-supplied settings. |
 
-## Example policy
+## Example YAML policy
 
 ```yaml
+mode: custom
 failOn: high
 blockSecrets: true
 blockDestructiveCommands: true
@@ -31,14 +32,23 @@ allowedFileExtensions:
   - .yaml
 ```
 
-## Current use
+## Configuration fields
 
-Policies are useful for:
+| Field | Description |
+| --- | --- |
+| `mode` | Policy preset: `default`, `strict`, `enterprise`, or `custom`. |
+| `failOn` | Minimum severity that fails evaluation. |
+| `blockSecrets` | Fails findings identified as exposed secrets. |
+| `blockDestructiveCommands` | Fails destructive command findings. |
+| `requirePermissionManifest` | Requires a declared permission manifest. |
+| `allowExternalDomains` | Permits matching external domains. |
+| `blockedCommands` | Adds command strings that should be blocked. |
+| `maxFileSizeMB` | Maximum allowed file size. |
+| `maxFiles` | Maximum allowed file count. |
+| `severityOverrides` | Overrides severity by rule ID or category. |
+| `allowedFileExtensions` | Restricts accepted file extensions. |
+| `blockedFindings` | Blocks findings whose titles match configured values. |
 
-- CI gating
-- local review standards
-- organization-specific tolerances
+## Current integration
 
-## Current limit
-
-The app does not yet have a fully organization-scoped multi-tenant policy management layer. Today the policy engine is best treated as a scan-time evaluation tool rather than a centralized enterprise policy platform.
+The policy endpoint evaluates caller-supplied findings and a score; it is not applied automatically by `POST /api/validate`. The current CLI accepts a `--policy` option but does not yet apply the referenced file. Organization-scoped policy storage and multi-tenant administration are not implemented.

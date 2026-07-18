@@ -81,7 +81,7 @@ Each axis produces findings and a score. The orchestrator aggregates them into:
 
 ## Repository audit engine
 
-The repository audit lives in [lib/github/repository-audit.ts](</F:/agent skill validator/skill-shield/lib/github/repository-audit.ts>).
+The repository audit lives in [`lib/github/repository-audit.ts`](lib/github/repository-audit.ts).
 
 It identifies execution surfaces such as:
 
@@ -120,10 +120,10 @@ Client-side history still uses `localStorage` for fast access in the browser, bu
 
 Key report components:
 
-- [components/report/install-verdict.tsx](</F:/agent skill validator/skill-shield/components/report/install-verdict.tsx>)
-- [components/report/repository-audit.tsx](</F:/agent skill validator/skill-shield/components/report/repository-audit.tsx>)
-- [components/report/findings-table.tsx](</F:/agent skill validator/skill-shield/components/report/findings-table.tsx>)
-- [components/report/dashboard-cards.tsx](</F:/agent skill validator/skill-shield/components/report/dashboard-cards.tsx>)
+- [`components/report/install-verdict.tsx`](components/report/install-verdict.tsx)
+- [`components/report/repository-audit.tsx`](components/report/repository-audit.tsx)
+- [`components/report/findings-table.tsx`](components/report/findings-table.tsx)
+- [`components/report/dashboard-cards.tsx`](components/report/dashboard-cards.tsx)
 
 Homepage behavior:
 
@@ -147,7 +147,7 @@ Primary routes:
 
 ## Trust and decision model
 
-The app now treats "should I install this?" as a first-class question.
+The app treats "should I install this?" as a first-class question.
 
 That decision is built from:
 
@@ -163,7 +163,7 @@ The result is rendered as a pre-install verdict:
 - `Needs Manual Review`
 - `Do Not Install`
 
-## Current constraints
+## Limitations
 
 - GitHub repository trust metadata is available only for GitHub-based scans
 - direct upload and paste flows cannot infer repo-wide install behavior

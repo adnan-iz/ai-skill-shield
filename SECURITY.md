@@ -1,38 +1,37 @@
 # Security Policy
 
-## Reporting Vulnerabilities
+## Reporting a vulnerability
 
-If you discover a security vulnerability, please do **not** open a public issue. Instead, send a private report to **security@skill-shield.dev** (or open a GitHub Security Advisory via the "Report a vulnerability" link under the Security tab).
+Do not report security vulnerabilities through a public issue. Send a private report to **security@skill-shield.dev** or use the repository's **Report a vulnerability** option to open a private GitHub Security Advisory.
 
-We aim to acknowledge receipt within 48 hours and provide a timeline for a fix within 7 days.
+Include the affected version, reproduction steps, impact, and any suggested mitigation. We aim to acknowledge reports within 48 hours and provide an initial remediation timeline within seven days.
 
-## Supported Versions
+## Supported versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x     | :white_check_mark: |
-| < 1.0   | :x:                |
+Security fixes are applied to the latest release line.
 
-Only the latest stable release receives security patches.
+| Version | Supported |
+| --- | --- |
+| `0.1.x` | Yes |
+| Earlier versions | No |
 
-## Security Practices
+## Current security controls
 
-- All dependencies are scanned with `npm audit` and Socket.dev on every CI run.
-- SBOM generation is enabled for each release.
-- Secrets and tokens are never logged; audit logs redact sensitive fields.
-- Minimum required Node.js version is published in `engines` in `package.json`.
+- Skill content is analyzed statically; SkillShield does not execute submitted skill code.
+- Validation requests enforce file-count, per-file, total-payload, path, and binary-content checks.
+- Rate limits are stored server-side and applied per IP address.
+- CI runs `npm audit` and GitHub CodeQL analysis.
+- Finding snippets are redacted for common secret formats before configured AI review requests are sent to a provider.
+- The minimum supported Node.js version is declared in `package.json`.
 
-## Data Handling
+## Data handling
 
-- Scan results are stored persistently by default in SQLite via Drizzle ORM.
-- Data is encrypted at rest when encryption is explicitly configured.
-- API keys and tokens are masked in all logs and error messages.
-- User-uploaded files are analyzed in a sandboxed environment and deleted after scan completion.
-- Default data retention is 30 days; configurable via environment variables.
+- Validation results are stored in SQLite or the configured libSQL-compatible database.
+- Results that are not eligible for public GitHub trust pages receive a 30-day expiration timestamp. Public, commit-bound default-branch GitHub results are retained for trust-page lookups.
+- Browser history is stored in the user's local storage for convenience.
+- Database encryption is provided by the selected storage platform; SkillShield does not add application-layer encryption at rest.
+- When AI review is enabled, redacted finding data is sent to the configured provider. Review that provider's data-handling terms before enabling the feature.
 
-## Rate Limiting
+## Request limits
 
-- Public API endpoints are rate-limited to **30 requests per minute** per IP.
-- Authenticated users receive **1000 requests per minute** per token.
-- File uploads are limited to **50 MB per file** and **10 files per scan**.
-- Rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) are returned on all API responses.
+The validation API currently accepts up to 30 files, 3 MB per file, and 15 MB for the complete request. Validation and GitHub import endpoints allow 30 requests per minute per IP; other rate-limited endpoints generally use a 60-request-per-minute default. Rate-limited responses include limit, remaining, and reset headers.

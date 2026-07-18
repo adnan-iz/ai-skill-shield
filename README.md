@@ -53,7 +53,7 @@ Each report includes:
 
 - pre-install verdict: `Safe to Review`, `Needs Manual Review`, or `Do Not Install`
 - score and risk summary
-- 10-axis assessment cards in the UI
+- 11-axis assessment cards in the UI
 - repository audit panel for GitHub scans
 - install-surface map and dangerous-line snippets
 - findings table, AI review, compatibility grid, and `SKILL.md` preview
@@ -84,15 +84,15 @@ tests/                   Vitest coverage
 
 ## Documentation
 
-- [ARCHITECTURE.md](</F:/agent skill validator/skill-shield/ARCHITECTURE.md>)
-- [ROADMAP.md](</F:/agent skill validator/skill-shield/ROADMAP.md>)
-- [docs/api.md](</F:/agent skill validator/skill-shield/docs/api.md>)
-- [docs/cli.md](</F:/agent skill validator/skill-shield/docs/cli.md>)
-- [docs/deployment.md](</F:/agent skill validator/skill-shield/docs/deployment.md>)
-- [docs/enterprise.md](</F:/agent skill validator/skill-shield/docs/enterprise.md>)
-- [docs/policy-engine.md](</F:/agent skill validator/skill-shield/docs/policy-engine.md>)
-- [docs/scoring.md](</F:/agent skill validator/skill-shield/docs/scoring.md>)
-- [docs/github-action.md](</F:/agent skill validator/skill-shield/docs/github-action.md>)
+- [Architecture](ARCHITECTURE.md)
+- [Roadmap](ROADMAP.md)
+- [API reference](docs/api.md)
+- [CLI reference](docs/cli.md)
+- [Deployment guide](docs/deployment.md)
+- [Enterprise notes](docs/enterprise.md)
+- [Policy engine](docs/policy-engine.md)
+- [Scoring model](docs/scoring.md)
+- [GitHub Action](docs/github-action.md)
 
 ## Verification
 

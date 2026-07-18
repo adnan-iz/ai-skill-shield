@@ -1,8 +1,8 @@
 # CLI Reference
 
-The repository includes a CLI package in `packages/cli/`.
+The repository contains the `skillshield-cli` package in `packages/cli/`. Its executable is named `skillshield`.
 
-## Run directly
+## Run with `npx`
 
 ```bash
 npx skillshield-cli scan ./path/to/skill
@@ -11,33 +11,37 @@ npx skillshield-cli scan ./path/to/skill
 ## Install globally
 
 ```bash
-npm install -g skillshield-cli
+npm install --global skillshield-cli
 skillshield scan ./path/to/skill
 ```
 
-## Command
+## Build from source
 
-### `scan`
+```bash
+npm install --prefix packages/cli
+npm run build --prefix packages/cli
+node packages/cli/dist/index.js scan ./path/to/skill
+```
+
+## `scan` command
 
 ```bash
 skillshield scan <path> [options]
 ```
 
-### Options
-
 | Option | Default | Description |
-|---|---|---|
-| `--format` | `json` | `json`, `html`, `sarif`, `markdown` |
-| `--fail-on` | `high` | fail threshold: `critical`, `high`, `medium`, `low` |
-| `--output` | stdout | write report to a file |
-| `--policy` | - | path to a policy file |
+| --- | --- | --- |
+| `--format <format>` | `json` | Output format: `json`, `html`, `sarif`, or `markdown`. |
+| `--fail-on <severity>` | `high` | Exit with status `1` when the result meets or exceeds `critical`, `high`, `medium`, or `low`. |
+| `--output <file>` | Standard output | Write the report to a file. |
+| `--policy <path>` | — | Reserved option; the current CLI does not apply the supplied policy file. |
 
-## Example
+### Example
 
 ```bash
 skillshield scan ./my-skill --format sarif --output result.sarif
 ```
 
-## Scope note
+## Current scope
 
-The CLI validates local skill content. Repository trust metadata and GitHub repository install-surface auditing are first-class in the web app's GitHub import flow.
+The CLI provides a compact local scanner for frontmatter and common dangerous patterns. It does not run the web application's complete 11-axis validator, GitHub repository metadata review, or repository install-surface audit.

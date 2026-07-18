@@ -1,61 +1,58 @@
-# Enterprise Notes
+# Enterprise Deployment Notes
 
-SkillShield has a useful set of enterprise-oriented building blocks today, but it is still best described as a local-first security review app rather than a full enterprise platform.
+SkillShield includes several controls that support internal security review, but it remains a local-first application rather than a complete multi-tenant enterprise platform.
 
-## Available now
+## Available capabilities
 
 ### Approval workflow
 
-- scans below threshold can create pending approvals automatically
-- reports support approve and reject actions
-- approval state is included in the install decision flow
+- Scans below the score threshold can create pending approval records automatically.
+- Report reviewers can approve or reject a scan.
+- Approval status is included in the report's installation checklist.
 
-### Audit and webhook plumbing
+### Audit logs and webhooks
 
-- audit logs are stored server-side
-- webhooks can be registered for scan events
-- report and validation actions are designed to tolerate webhook failures
+- Audit events are stored in the configured database.
+- Webhooks can be registered for supported scan events.
+- Validation and report operations continue if webhook delivery fails.
 
-### Repository install-surface review
+### Repository installation review
 
-For GitHub imports, the app audits:
+GitHub imports inspect repository-level execution surfaces, including:
 
-- lifecycle scripts
-- install scripts
-- custom registries
-- workflows
-- submodules
-- related execution surfaces
+- Package lifecycle scripts
+- Installation and bootstrap scripts
+- Custom package registries
+- GitHub Actions workflows
+- Git submodules
+- Related service and container configuration
 
-This is currently the strongest enterprise-facing capability because it directly supports software supply chain review before agent installation.
+This review supports software supply-chain assessment before a skill is installed in an agent environment.
 
-## Important limits
+## Current limitations
 
-These are not shipped as full product features yet:
+SkillShield does not currently provide:
 
-- SSO
-- SAML
-- RBAC
-- team workspaces
-- multi-user tenant isolation
+- Built-in authentication, SSO, or SAML
+- Role-based access control
+- Team workspaces or tenant isolation
 - Helm deployment assets
-- billing tiers
+- Billing or subscription management
 
-Older docs overstated some of these; the current codebase does not support them as complete features.
+Deployments that require these controls should provide them through an identity-aware proxy, private network, or hosting-platform access layer.
 
-## Practical enterprise setup
+## Recommended internal deployment
 
-If a team wants to use the current app seriously, the best path today is:
+1. Run SkillShield in a controlled internal environment.
+2. Configure durable remote storage for shared reports and approvals.
+3. Set `GITHUB_TOKEN` for more reliable repository scanning.
+4. Protect the application with your organization's access-control layer.
+5. Forward relevant audit events to an internal webhook receiver.
+6. Treat SkillShield as a pre-install review aid, not as a replacement for runtime isolation or endpoint security.
 
-1. run it in a controlled internal environment
-2. configure `GITHUB_TOKEN` for richer repository scanning
-3. use shared report IDs plus approval records as the review trail
-4. push audit events to your own webhook target
-5. treat the app as a pre-install review gate, not as a full IAM platform
+## Recommended next steps
 
-## Recommended next enterprise steps
-
-- stronger durable report retention
-- reviewer notes and queue UX
-- auth and access control
-- organization-level policy presets
+- Durable retention controls and administration
+- Reviewer queues, attribution, and notes
+- Authentication and authorization
+- Organization-level policy management
