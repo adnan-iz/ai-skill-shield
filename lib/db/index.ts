@@ -2,10 +2,20 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from './schema'
 
+export function databaseConfig() {
+  const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || (
+    process.env.VERCEL
+      ? 'file:/tmp/skillshield.db'
+      : 'file:./data/skillshield.db'
+  )
+  const authToken = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN
+
+  // ponytail: /tmp keeps basic scans working on Vercel; configure remote libSQL for durable cross-instance reports.
+  return authToken ? { url, authToken } : { url }
+}
+
 function createDatabase() {
-  const client = createClient({
-    url: process.env.DATABASE_URL || 'file:./data/skillshield.db',
-  })
+  const client = createClient(databaseConfig())
   return { client, db: drizzle(client, { schema }) }
 }
 

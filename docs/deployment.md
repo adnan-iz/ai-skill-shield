@@ -30,16 +30,19 @@ The included compose setup runs the standalone Next.js server on port `3000` and
 | Variable | Required | Description |
 |---|---|---|
 | `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL for metadata, sitemap, and shared links |
-| `GITHUB_TOKEN` | No | Enables authenticated GitHub scans, including accessible private repos |
+| `GITHUB_TOKEN` | Recommended | Avoids shared-IP GitHub API limits and enables accessible private repos |
 | `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review |
 | `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review |
 | `DATABASE_URL` | No | SQLite/libSQL URL; defaults to `file:./data/skillshield.db` |
+| `DATABASE_AUTH_TOKEN` | For remote libSQL | Authentication token for the remote database |
 
 ## Storage
 
 By default the app uses SQLite under `data/skillshield.db`. Docker stores the same database at `/app/data/skillshield.db` in a named volume.
 
 On startup the app creates required tables automatically, which makes first-run environments much smoother than earlier versions.
+
+On Vercel, configure a remote libSQL database with `DATABASE_URL` and `DATABASE_AUTH_TOKEN` (the `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` aliases also work). Without one, SkillShield uses ephemeral `/tmp` storage: scans work, but server-side reports, approvals, and public trust pages are not durable across function instances.
 
 ## Operational notes
 

@@ -122,12 +122,12 @@ function githubHeaders(): HeadersInit {
 export async function POST(request: NextRequest) {
   const clientIp = ipFromRequest(request)
 
-  const rl = await checkRateLimit(`github:${clientIp}`, { maxRequests: 30, windowMs: 60_000 })
-  if (!rl.allowed) {
-    return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
-  }
-
   try {
+    const rl = await checkRateLimit(`github:${clientIp}`, { maxRequests: 30, windowMs: 60_000 })
+    if (!rl.allowed) {
+      return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
+    }
+
     const { owner, repo, path, branch, sha, includeExtensions, excludeExtensions, ignorePaths } = await request.json()
 
     const validationError = validateOwnerRepo(owner, repo)
@@ -163,6 +163,9 @@ export async function POST(request: NextRequest) {
     )
 
     if (!treeRes.ok) {
+      if (treeRes.status === 403 || treeRes.status === 429) {
+        return serverError('GitHub API limit reached. Configure GITHUB_TOKEN in Vercel.')
+      }
       return notFound('Skill path not found in repository')
     }
 
@@ -215,10 +218,16 @@ export async function POST(request: NextRequest) {
 
     return addRateLimitHeaders(response, rl)
   } catch (error) {
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'GitHub import failed',
+      requestId: request.headers.get('x-vercel-id'),
+      error: error instanceof Error ? error.message : String(error),
+    }))
     if (error instanceof DOMException && error.name === 'AbortError') {
       return serverError('Request timed out')
     }
-    return serverError()
+    return serverError('GitHub import failed on the server')
   }
 }
 

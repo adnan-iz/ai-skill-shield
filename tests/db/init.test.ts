@@ -9,12 +9,23 @@ const databaseFiles: string[] = []
 afterEach(async () => {
   vi.resetModules()
   delete process.env.DATABASE_URL
+  delete process.env.DATABASE_AUTH_TOKEN
+  delete process.env.TURSO_DATABASE_URL
+  delete process.env.TURSO_AUTH_TOKEN
+  delete process.env.VERCEL
 
   await Promise.all(
     databaseFiles.splice(0).map(async (databaseFile) => {
       await rm(databaseFile, { force: true }).catch(() => {})
     })
   )
+})
+
+test('uses writable temporary storage when Vercel has no remote database', async () => {
+  process.env.VERCEL = '1'
+  const { databaseConfig } = await import('@/lib/db')
+
+  expect(databaseConfig()).toEqual({ url: 'file:/tmp/skillshield.db' })
 })
 
 test('ensureDatabase bootstraps all required tables for a fresh sqlite file', async () => {
