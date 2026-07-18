@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db, ensureDatabase } from '@/lib/db'
+import { ensureDatabase, getDatabase } from '@/lib/db'
 import { auditLogs } from '@/lib/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/security/rate-limit'
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await ensureDatabase()
+    const { db } = getDatabase()
 
     const event = request.nextUrl.searchParams.get('event')
     const limitParam = request.nextUrl.searchParams.get('limit')

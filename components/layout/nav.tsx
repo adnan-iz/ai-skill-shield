@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import ThemeToggle from "@/components/ui/theme-toggle"
@@ -20,6 +19,7 @@ export function SideNavBar() {
     <aside className="fixed left-0 top-0 z-50 hidden h-full w-16 flex-col items-center gap-2 border-r border-stitch-sidebar-hover bg-stitch-sidebar py-4 md:flex">
       <Link
         href="/"
+        aria-label="SkillShield home"
         className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-shield-500 text-white"
       >
         <span className="material-symbols-outlined text-xl">shield</span>
@@ -39,6 +39,7 @@ export function SideNavBar() {
             target="_blank"
             rel="noopener noreferrer"
             title={item.label}
+            aria-label={item.label}
             className={classes}
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -48,6 +49,7 @@ export function SideNavBar() {
             key={item.href}
             href={item.href}
             title={item.label}
+            aria-label={item.label}
             className={classes}
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -66,40 +68,14 @@ export function TopNavBar() {
     <header className="md:hidden sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-outline bg-surface-container/80 px-4 backdrop-blur-md md:ml-16 md:px-6">
       <Link
         href="/"
+        aria-label="SkillShield home"
         className="flex items-center gap-2 text-sm font-semibold text-on-surface md:hidden"
       >
-        <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-shield-500/25 bg-black/50 p-0.5 shadow-[0_0_12px_rgba(34,197,94,0.16)]">
-          <Image
-            src="/support-engine-logo.png"
-            alt="Support Engine"
-            width={900}
-            height={500}
-            className="h-full w-full object-contain"
-            priority
-          />
-        </div>
-        <span>Support Engine</span>
+        <span className="material-symbols-outlined flex h-7 w-7 items-center justify-center rounded-lg bg-shield-600 text-base text-white">shield</span>
+        <span>SkillShield</span>
       </Link>
-      <div className="relative ml-auto hidden max-w-xs flex-1 sm:block md:max-w-sm">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-secondary">
-          search
-        </span>
-        <input
-          type="search"
-          placeholder="Search skills..."
-          readOnly
-          aria-label="Search skills"
-          className="w-full rounded-lg border border-outline bg-surface py-1.5 pl-9 pr-3 text-sm text-on-surface placeholder-on-surface-secondary outline-none focus:border-shield-500 focus:ring-1 focus:ring-shield-500"
-        />
-      </div>
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
-        <button aria-label="Notifications" className="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-secondary hover:bg-surface-secondary transition-colors">
-          <span className="material-symbols-outlined text-lg">notifications</span>
-        </button>
-        <div aria-label="User menu" className="flex h-7 w-7 items-center justify-center rounded-full bg-shield-500 text-[10px] font-bold text-white">
-          AS
-        </div>
       </div>
     </header>
   )

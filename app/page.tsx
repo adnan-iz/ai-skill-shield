@@ -12,6 +12,20 @@ import type { RepositoryAudit } from '@/lib/github/repository-audit'
 
 type Tab = 'upload' | 'url' | 'paste'
 
+interface GitHubTarget {
+  owner: string
+  repo: string
+  path: string
+  url: string
+  branch?: string
+  sha?: string
+}
+
+interface SkillChoice {
+  path: string
+  skillFile: string
+}
+
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -19,6 +33,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
+  const [resolutionHint, setResolutionHint] = useState('')
+  const [skillChoices, setSkillChoices] = useState<SkillChoice[]>([])
+  const [selectedSkillFile, setSelectedSkillFile] = useState('')
+  const [pendingTarget, setPendingTarget] = useState<GitHubTarget | null>(null)
   const scanPath =
     tab === 'url'
       ? 'github.com/owner/repo'
@@ -72,6 +90,15 @@ export default function HomePage() {
       if (!res.ok) throw new Error(await readApiError(res, 'Validation failed'))
       const result = await res.json()
       saveValidation(result)
+      const referralScanId = new URLSearchParams(window.location.search).get('refScan')
+      if (referralScanId) {
+        void fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'trust.converted', scanId: referralScanId }),
+          keepalive: true,
+        }).catch(() => {})
+      }
       router.push(`/validate/${result.id}`)
     } catch (err) {
       toast('Validation failed: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
@@ -86,30 +113,60 @@ export default function HomePage() {
     await validate(skillInput)
   }, [validate])
 
-  const handleUrlParse = useCallback(async (data: { owner: string; repo: string; path: string; url: string }) => {
+  const handleUrlParse = useCallback(async (data: GitHubTarget) => {
     setLoading(true)
+    setResolutionHint('')
+    setSkillChoices([])
+    setPendingTarget(null)
     try {
       const res = await fetch('/api/github', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: data.owner, repo: data.repo, path: data.path }),
+        body: JSON.stringify({
+          owner: data.owner,
+          repo: data.repo,
+          path: data.path,
+          branch: data.branch,
+          sha: data.sha,
+        }),
       })
       if (!res.ok) {
         throw new Error(await readApiError(res, 'Failed to fetch repository'))
       }
       const result = await res.json() as {
-        files: SkillInput['files']
+        files?: SkillInput['files']
         owner: string
         repo: string
         path: string
         branch?: string
         sha?: string
+        requiresSkillSelection?: boolean
+        skills?: SkillChoice[]
         repositoryAudit?: RepositoryAudit
         repositoryMeta?: RepositoryMeta
         warning?: string
       }
+      if (result.requiresSkillSelection && result.skills?.length) {
+        setSkillChoices(result.skills)
+        setSelectedSkillFile(result.skills[0].skillFile)
+        setPendingTarget({ ...data, branch: result.branch || data.branch })
+        setResolutionHint(`Found ${result.skills.length} skills. Choose one to scan without mixing results.`)
+        return
+      }
+      if (!Array.isArray(result.files)) {
+        throw new Error('GitHub did not return a scannable skill')
+      }
       if (typeof result.warning === 'string' && result.warning.length > 0) {
         toast(result.warning, 'info')
+      }
+      const sourcePath = result.path || '(repository root)'
+      const requestPath = data.path || '(repository root)'
+      const resolvedHint = requestPath === sourcePath
+        ? `Resolved import: ${result.owner}/${result.repo} on ${result.branch || data.branch || 'default branch'} -> ${sourcePath}`
+        : `Resolved import: ${requestPath} -> ${sourcePath}`
+      setResolutionHint(resolvedHint)
+      if (requestPath !== sourcePath) {
+        toast(resolvedHint, 'info')
       }
       await validate({
         files: result.files,
@@ -119,8 +176,8 @@ export default function HomePage() {
           owner: result.owner,
           repo: result.repo,
           path: result.path,
-          branch: result.branch,
-          sha: result.sha,
+          branch: result.branch || data.branch,
+          sha: result.sha || data.sha,
           repositoryAudit: result.repositoryAudit,
           repositoryMeta: result.repositoryMeta,
         },
@@ -168,7 +225,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="home-scan-stage" aria-hidden="true">
+        <div className="home-scan-stage hidden lg:block" aria-hidden="true">
           <div className="home-scan-topbar">
             <div className="home-scan-window-dots">
               <span />
@@ -203,11 +260,13 @@ export default function HomePage() {
 
       <section id="upload" className="home-panel scroll-mt-20 mb-12">
         <div className="glass-card">
-          <div className="home-tabs flex border-b border-outline">
+          <div className="home-tabs flex border-b border-outline" role="tablist" aria-label="Skill input method">
             {([['url', 'GitHub Repo'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
+                role="tab"
+                aria-selected={tab === key}
                 className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                   tab === key
                     ? 'border-b-2 border-shield-500 text-shield-700 bg-shield-50'
@@ -222,7 +281,40 @@ export default function HomePage() {
           <div className="p-6">
             {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
 
-          {tab === 'url' && <UrlInput onParse={handleUrlParse} />}
+            {tab === 'url' && (
+              <>
+                <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
+                {pendingTarget && skillChoices.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-shield-200 bg-shield-50/70 p-4">
+                    <label htmlFor="skill-choice" className="block text-sm font-semibold text-on-surface">
+                      Choose the skill to scan
+                    </label>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <select
+                        id="skill-choice"
+                        value={selectedSkillFile}
+                        onChange={(event) => setSelectedSkillFile(event.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-outline bg-surface-container px-3 py-2 text-sm text-on-surface focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
+                      >
+                        {skillChoices.map((choice) => (
+                          <option key={choice.skillFile} value={choice.skillFile}>
+                            {choice.path || '(repository root)'}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={loading || !selectedSkillFile}
+                        onClick={() => void handleUrlParse({ ...pendingTarget, path: selectedSkillFile })}
+                        className="rounded-lg bg-shield-600 px-5 py-2 text-sm font-semibold text-white hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Scan selected skill
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             {tab === 'paste' && (
               <div className="space-y-4">
@@ -245,18 +337,6 @@ export default function HomePage() {
               </div>
             )}
 
-            <div className="mt-4 flex items-center gap-3 border-t border-outline pt-4">
-              <label className="text-xs font-medium text-on-surface-secondary">Policy Mode</label>
-              <select
-                className="rounded-lg border border-outline bg-surface-container px-3 py-1.5 text-sm text-on-surface focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500 transition-colors"
-              >
-                <option value="default">Default</option>
-                <option value="strict">Strict</option>
-                <option value="enterprise">Enterprise</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-
           {loading && (
             <div className="mt-4 flex items-center justify-center gap-2 text-sm text-on-surface-secondary">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-shield-200 border-t-shield-600" />
@@ -270,8 +350,8 @@ export default function HomePage() {
       <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="home-stat-card home-stat-card-1 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
-          <div className="text-3xl font-bold text-shield-600">130K+</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">skill packages reviewed</div>
+          <div className="text-3xl font-bold text-shield-600">11</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">validation axes assessed</div>
         </div>
         <div className="home-stat-card home-stat-card-2 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
@@ -280,7 +360,7 @@ export default function HomePage() {
         </div>
         <div className="home-stat-card home-stat-card-3 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
-          <div className="text-3xl font-bold text-shield-600">22+</div>
+          <div className="text-3xl font-bold text-shield-600">23</div>
           <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
         </div>
       </div>

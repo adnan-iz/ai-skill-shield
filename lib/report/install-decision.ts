@@ -16,13 +16,17 @@ export interface InstallDecision {
   checklist: InstallChecklistItem[]
 }
 
-function countInstallFindings(result: ValidationResult): number {
-  return result.findings.filter((finding) =>
+function isInstallFinding(finding: ValidationResult['findings'][number]): boolean {
+  return (
     finding.axis === 'installation' ||
     finding.category === 'Install Script' ||
     finding.category === 'Registry' ||
     finding.category === 'Submodule'
-  ).length
+  )
+}
+
+function countInstallFindings(result: ValidationResult): number {
+  return result.findings.filter(isInstallFinding).length
 }
 
 function countSevereRepoFindings(audit?: RepositoryAudit): number {
@@ -34,11 +38,19 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
   const repositoryAudit = result.source?.repositoryAudit
   const installFindingCount = countInstallFindings(result)
   const severeRepoFindingCount = countSevereRepoFindings(repositoryAudit)
+  const hasSevereInstallFinding = result.findings.some((finding) =>
+    isInstallFinding(finding) && (finding.severity === 'critical' || finding.severity === 'high')
+  )
+  const hasSevereRepositoryRisk =
+    repositoryAudit?.riskLevel === 'critical' ||
+    repositoryAudit?.riskLevel === 'high' ||
+    severeRepoFindingCount >= 2
   const hasCriticalStopSignal =
     result.riskLevel === 'critical' ||
     result.summary.criticalCount > 0 ||
     repositoryAudit?.riskLevel === 'critical' ||
     severeRepoFindingCount >= 2
+  const hasAutomaticExecutionRisk = hasSevereInstallFinding || hasSevereRepositoryRisk
 
   const needsManualReview =
     hasCriticalStopSignal ||
@@ -72,7 +84,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
         installFindingCount > 0
           ? `${installFindingCount} install-related validation finding${installFindingCount === 1 ? '' : 's'} need review.`
           : 'No install-time execution findings were raised in the skill payload.',
-      status: installFindingCount > 0 ? (result.summary.criticalCount > 0 || result.summary.highCount > 0 ? 'fail' : 'warn') : 'pass',
+      status: installFindingCount > 0 ? (hasSevereInstallFinding ? 'fail' : 'warn') : 'pass',
     },
     {
       label: 'Repository install surface checked',
@@ -121,8 +133,10 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     },
   ]
 
-  const summary = hasCriticalStopSignal
+  const summary = hasCriticalStopSignal && hasAutomaticExecutionRisk
     ? 'Automatic execution surfaces were detected with critical or compounding risk. Hold installation until a reviewer clears the repo.'
+    : hasCriticalStopSignal
+    ? 'Critical security findings were detected. Hold installation and review the evidence before proceeding.'
     : needsManualReview
     ? 'The scan is usable, but install-time behavior still needs a human look before any agent install step.'
     : 'No blocking install signals were found. Review the report, then proceed with normal caution.'

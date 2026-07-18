@@ -22,9 +22,10 @@ test('ensureDatabase bootstraps all required tables for a fresh sqlite file', as
   databaseFiles.push(databaseFile)
   process.env.DATABASE_URL = `file:${databaseFile}`
 
-  const { client, ensureDatabase } = await import('@/lib/db')
+  const { ensureDatabase, getDatabase } = await import('@/lib/db')
 
   await ensureDatabase()
+  const { client } = getDatabase()
 
   const tablesResult = await client.execute(
     "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"

@@ -1,12 +1,26 @@
 "use client"
 
 import type { ValidationResult, Finding } from '@/lib/validator/types'
+import { githubBadgePath, githubTrustPath, trustTargetForResult } from '@/lib/trust'
 
 interface ExportBarProps {
   result: ValidationResult
 }
 
 export default function ExportBar({ result }: ExportBarProps) {
+  const trustTarget = trustTargetForResult(result)
+  const trustPath = trustTarget ? githubTrustPath(trustTarget) : null
+  const badgePath = trustTarget ? githubBadgePath(trustTarget) : null
+
+  function track(event: 'report.share' | 'report.badge_copy') {
+    void fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, scanId: result.id }),
+      keepalive: true,
+    }).catch(() => {})
+  }
+
   function downloadBlob(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -69,51 +83,58 @@ export default function ExportBar({ result }: ExportBarProps) {
     downloadBlob(blob, `skillshield-${result.id}.md`)
   }
 
-  function copyLink() {
-    const url = `${window.location.origin}/validate/${result.id}`
-    navigator.clipboard.writeText(url).catch(() => {})
+  async function copyLink() {
+    const url = `${window.location.origin}${trustPath || `/validate/${result.id}`}`
+    try {
+      await navigator.clipboard.writeText(url)
+      track('report.share')
+    } catch {}
+  }
+
+  async function copyBadge() {
+    if (!badgePath || !trustPath) return
+    const origin = window.location.origin
+    try {
+      await navigator.clipboard.writeText(`[![SkillShield](${origin}${badgePath})](${origin}${trustPath})`)
+      track('report.badge_copy')
+    } catch {}
   }
 
   const btnClass = "inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container px-4 py-2 text-sm font-medium text-on-surface hover:bg-surface-secondary transition-colors"
+  const primaryBtnClass = "inline-flex items-center gap-1.5 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700 transition-colors"
 
   return (
     <div className="space-y-5">
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Download Report</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Share trust result</p>
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={exportPdf} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-            Print / Save PDF
+          <button onClick={() => void copyLink()} className={trustPath ? primaryBtnClass : btnClass}>
+            <span className="material-symbols-outlined text-lg">link</span>
+            {trustPath ? 'Copy Public Trust Link' : 'Copy Link'}
           </button>
-          <button onClick={exportHtml} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">code</span>
-            Export HTML
-          </button>
-          <button onClick={exportJson} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">data_object</span>
-            Export JSON
-          </button>
-          <button onClick={exportSarif} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">code_blocks</span>
-            Export SARIF
-          </button>
-          <button onClick={exportCsv} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">table_rows</span>
-            Export CSV
-          </button>
-          <button onClick={exportMarkdown} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">description</span>
-            Export Markdown
-          </button>
+          {trustPath && badgePath && (
+            <>
+              <button onClick={() => void copyBadge()} className={btnClass}>
+                <span className="material-symbols-outlined text-lg">verified</span>
+                Copy README Badge
+              </button>
+              <a href={trustPath} className={btnClass}>
+                <span className="material-symbols-outlined text-lg">public</span>
+                Open Public Trust Page
+              </a>
+            </>
+          )}
         </div>
       </div>
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Share</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Download report</p>
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={copyLink} className={btnClass}>
-            <span className="material-symbols-outlined text-lg">link</span>
-            Copy Link
-          </button>
+          <button onClick={exportPdf} className={btnClass}><span className="material-symbols-outlined text-lg">picture_as_pdf</span>Print / Save PDF</button>
+          <button onClick={exportHtml} className={btnClass}><span className="material-symbols-outlined text-lg">code</span>Export HTML</button>
+          <button onClick={exportJson} className={btnClass}><span className="material-symbols-outlined text-lg">data_object</span>Export JSON</button>
+          <button onClick={exportSarif} className={btnClass}><span className="material-symbols-outlined text-lg">code_blocks</span>Export SARIF</button>
+          <button onClick={exportCsv} className={btnClass}><span className="material-symbols-outlined text-lg">table_rows</span>Export CSV</button>
+          <button onClick={exportMarkdown} className={btnClass}><span className="material-symbols-outlined text-lg">description</span>Export Markdown</button>
         </div>
       </div>
     </div>

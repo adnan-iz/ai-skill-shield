@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
 import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 
 describe('selectValidationBlobs', () => {
@@ -27,6 +27,34 @@ describe('selectValidationBlobs', () => {
       '.github/workflows/release.yml',
       'scripts/install.sh',
       '.npmrc',
+    ])
+  })
+})
+
+describe('skill directory selection', () => {
+  it('lists every skill and normalizes direct SKILL.md targets to their directory', () => {
+    const tree: GitHubTreeNode[] = [
+      { path: 'SKILL.md', type: 'blob' },
+      { path: 'skills/reviewer/SKILL.md', type: 'blob' },
+      { path: 'skills/writer/SKILL.md', type: 'blob' },
+      { path: 'skills/writer/script.ts', type: 'blob' },
+    ]
+
+    expect(listSkillDirectories(tree)).toEqual(['', 'skills/reviewer', 'skills/writer'])
+    expect(normalizeSkillDirectoryPath('/skills/reviewer/SKILL.md/')).toBe('skills/reviewer')
+  })
+
+  it('keeps one skill payload isolated from sibling skill directories', () => {
+    const tree: GitHubTreeNode[] = [
+      { path: 'skills/reviewer/SKILL.md', type: 'blob' },
+      { path: 'skills/reviewer/scripts/check.ts', type: 'blob' },
+      { path: 'skills/writer/SKILL.md', type: 'blob' },
+      { path: 'skills/writer/scripts/publish.ts', type: 'blob' },
+    ]
+
+    expect(scopeSkillBlobs(tree, 'skills/reviewer').map((item) => item.path)).toEqual([
+      'skills/reviewer/SKILL.md',
+      'skills/reviewer/scripts/check.ts',
     ])
   })
 })

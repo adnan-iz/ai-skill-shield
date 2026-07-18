@@ -113,11 +113,13 @@ export interface SkillPreview {
 export interface RepositoryMeta {
   fullName: string
   description?: string
+  isPrivate?: boolean
   stars: number
   forks: number
   openIssues: number
   archived: boolean
   defaultBranch?: string
+  isDefaultBranchHead?: boolean
   updatedAt?: string
   pushedAt?: string
   license?: string

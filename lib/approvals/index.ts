@@ -1,4 +1,4 @@
-import { db, ensureDatabase } from '@/lib/db'
+import { ensureDatabase, getDatabase } from '@/lib/db'
 import { approvals } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
 
@@ -14,6 +14,7 @@ export interface Approval {
 
 export async function getApprovalForScan(scanId: string): Promise<Approval | null> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const rows = await db.select().from(approvals).where(eq(approvals.scanId, scanId)).limit(1)
   return rows[0] || null
@@ -21,6 +22,7 @@ export async function getApprovalForScan(scanId: string): Promise<Approval | nul
 
 export async function approveScan(scanId: string, reviewer?: string, notes?: string): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const existing = await getApprovalForScan(scanId)
   const now = Date.now()
@@ -43,6 +45,7 @@ export async function approveScan(scanId: string, reviewer?: string, notes?: str
 
 export async function rejectScan(scanId: string, reviewer?: string, notes?: string): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const existing = await getApprovalForScan(scanId)
   const now = Date.now()
@@ -65,6 +68,7 @@ export async function rejectScan(scanId: string, reviewer?: string, notes?: stri
 
 export async function listApprovals(status?: 'pending' | 'approved' | 'rejected', limit?: number): Promise<Approval[]> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const query = db.select().from(approvals)
   if (status) {
@@ -78,6 +82,7 @@ export async function listApprovals(status?: 'pending' | 'approved' | 'rejected'
 
 export async function getPendingApprovalCount(): Promise<number> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const rows = await db.select({ count: count() }).from(approvals).where(eq(approvals.status, 'pending'))
   return rows[0]?.count ?? 0
@@ -85,6 +90,7 @@ export async function getPendingApprovalCount(): Promise<number> {
 
 export async function createPendingApproval(scanId: string): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   await db.insert(approvals).values({
     id: crypto.randomUUID(),

@@ -75,6 +75,16 @@ export default function ReportPage({
       .catch(() => {})
   }, [id])
 
+  useEffect(() => {
+    if (!result) return
+    void fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'report.view', scanId: result.id }),
+      keepalive: true,
+    }).catch(() => {})
+  }, [result])
+
   async function updateApproval(action: 'approve' | 'reject') {
     try {
       const response = await fetch('/api/approvals', {
@@ -155,6 +165,15 @@ export default function ReportPage({
     critical: 'bg-threat-critical/10 text-threat-critical',
   }
 
+  const sourceDetails = result.source?.type === 'github'
+    ? [
+        result.source.owner && result.source.repo ? `${result.source.owner}/${result.source.repo}` : null,
+        result.source.path ? `path ${result.source.path}` : null,
+        result.source.branch ? `branch ${result.source.branch}` : null,
+        result.source.sha ? `sha ${result.source.sha.slice(0, 12)}` : null,
+      ].filter(Boolean)
+    : []
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="glass-card mb-8 flex items-center justify-between rounded-xl px-6 py-4">
@@ -180,6 +199,20 @@ export default function ReportPage({
           {result.riskLevel}
         </span>
       </div>
+
+      {sourceDetails.length > 0 && (
+        <div className="glass-card mb-6 rounded-xl px-6 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-secondary">
+            <span className="material-symbols-outlined text-sm text-shield-600">link</span>
+            <span className="font-medium text-on-surface">Resolved source</span>
+            {sourceDetails.map((detail) => (
+              <span key={detail} className="rounded-full bg-surface-secondary px-2 py-1">
+                {detail}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {approval && (
         <div className="mb-6 glass-card rounded-xl px-6 py-3 flex items-center justify-between">
@@ -224,6 +257,10 @@ export default function ReportPage({
         />
       </div>
 
+      <div className="glass-card mb-8 rounded-xl p-4">
+        <ExportBar result={result} />
+      </div>
+
       <div className="mb-8">
         <DashboardCards result={result} />
       </div>
@@ -240,7 +277,7 @@ export default function ReportPage({
           <div className="glass-card rounded-xl p-6">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
               <span className="material-symbols-outlined text-lg">donut_small</span>
-              10-Axis Assessment
+              {result.axes.length}-Axis Assessment
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {result.axes.map((axis) => {
@@ -403,8 +440,6 @@ export default function ReportPage({
           </pre>
         </div>
       </div>
-
-      <ExportBar result={result} />
 
       <div className="mt-6 text-center">
         <button

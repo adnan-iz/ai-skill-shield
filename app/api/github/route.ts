@@ -5,7 +5,7 @@ import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
 import { auditRepositoryTree, isRepositoryAuditCandidatePath, type GitHubTreeNode } from '@/lib/github/repository-audit'
-import { selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
 import type { RepositoryMeta } from '@/lib/validator/types'
 
 const GITHUB_API_HOST = 'api.github.com'
@@ -154,7 +154,10 @@ export async function POST(request: NextRequest) {
       if (shaError) return badRequest(shaError)
     }
 
-    const treeRef = sha || resolvedBranch
+    const requestedSkillFile = /(^|\/)SKILL\.md$/i.test(treePath.replace(/\\/g, '/'))
+    treePath = normalizeSkillDirectoryPath(treePath)
+    const resolvedSha = sha || await resolveCommitSha(owner, repo, resolvedBranch)
+    const treeRef = resolvedSha || resolvedBranch
     const treeRes = await fetchWithTimeout(
       `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${treeRef}?recursive=1`
     )
@@ -164,22 +167,45 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await treeRes.json()
-    const [repositoryMeta, auditFiles] = await Promise.all([
+    const skillDirectories = listSkillDirectories(data.tree || [])
+    if (!treePath && !requestedSkillFile && skillDirectories.length > 1) {
+      return addRateLimitHeaders(Response.json({
+        requiresSkillSelection: true,
+        skills: skillDirectories.map((skillPath) => ({
+          path: skillPath,
+          skillFile: skillPath ? `${skillPath}/SKILL.md` : 'SKILL.md',
+        })),
+        owner,
+        repo,
+        branch: resolvedBranch,
+      }), rl)
+    }
+    if (!treePath && !requestedSkillFile && skillDirectories.length === 1) {
+      treePath = skillDirectories[0]
+    }
+
+    const [rawRepositoryMeta, auditFiles] = await Promise.all([
       fetchRepositoryMeta(owner, repo),
       fetchRepositoryAuditFiles(owner, repo, treeRef, data),
     ])
+    const repositoryMeta = rawRepositoryMeta
+      ? {
+          ...rawRepositoryMeta,
+          isDefaultBranchHead: !sha && resolvedBranch === rawRepositoryMeta.defaultBranch,
+        }
+      : undefined
     const repositoryAudit = auditRepositoryTree({
       owner,
       repo,
       branch: resolvedBranch,
-      sha,
+      sha: resolvedSha,
       tree: data.tree || [],
       files: auditFiles,
       truncated: Boolean(data.truncated),
     })
 
     const response = await fetchFiles(owner, repo, resolvedBranch, treePath, data, {
-      sha,
+      sha: resolvedSha,
       includeExtensions,
       excludeExtensions,
       ignorePaths,
@@ -259,6 +285,16 @@ async function getDefaultBranch(owner: string, repo: string): Promise<string> {
   return 'main'
 }
 
+async function resolveCommitSha(owner: string, repo: string, ref: string): Promise<string | undefined> {
+  const response = await fetchWithTimeout(
+    `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`
+  )
+  if (!response.ok) return undefined
+
+  const data = await response.json() as { sha?: unknown }
+  return typeof data.sha === 'string' && /^[0-9a-f]{40}$/i.test(data.sha) ? data.sha : undefined
+}
+
 async function fetchFiles(
   owner: string,
   repo: string,
@@ -294,10 +330,7 @@ async function fetchFiles(
   }
 
   const normalizedTreePath = treePath.replace(/^\/+|\/+$/g, '')
-  const blobs = (treeData.tree || []).filter((item: GitHubTreeNode) => item.type === 'blob')
-  const scoped = normalizedTreePath
-    ? blobs.filter((item) => item.path === normalizedTreePath || item.path.startsWith(`${normalizedTreePath}/`))
-    : blobs
+  const scoped = scopeSkillBlobs(treeData.tree || [], normalizedTreePath)
   const filtered = scoped.filter(item => !shouldIgnore(item.path, ignorePaths))
 
   const MAX_TOTAL_SIZE = 10 * 1024 * 1024
@@ -375,6 +408,7 @@ async function fetchRepositoryMeta(owner: string, repo: string): Promise<Reposit
   return {
     fullName: repoData.full_name || `${owner}/${repo}`,
     description: repoData.description || undefined,
+    isPrivate: Boolean(repoData.private),
     stars: typeof repoData.stargazers_count === 'number' ? repoData.stargazers_count : 0,
     forks: typeof repoData.forks_count === 'number' ? repoData.forks_count : 0,
     openIssues: typeof repoData.open_issues_count === 'number' ? repoData.open_issues_count : 0,

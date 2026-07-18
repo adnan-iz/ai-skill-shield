@@ -1,6 +1,36 @@
 import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 import { isRepositoryAuditCandidatePath } from '@/lib/github/repository-audit'
 
+export function normalizeSkillDirectoryPath(path: string): string {
+  const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!/(^|\/)SKILL\.md$/i.test(normalized)) return normalized
+  return normalized.split('/').slice(0, -1).join('/')
+}
+
+export function listSkillDirectories(tree: GitHubTreeNode[]): string[] {
+  return Array.from(new Set(
+    tree
+      .filter((item) => item.type === 'blob' && /(^|\/)SKILL\.md$/i.test(item.path))
+      .map((item) => normalizeSkillDirectoryPath(item.path))
+  )).sort((a, b) => a.localeCompare(b))
+}
+
+export function scopeSkillBlobs(tree: GitHubTreeNode[], targetPath: string): GitHubTreeNode[] {
+  const normalizedTarget = normalizeSkillDirectoryPath(targetPath)
+  const blobs = tree.filter((item) => item.type === 'blob')
+  const withinTarget = normalizedTarget
+    ? blobs.filter((item) => item.path === normalizedTarget || item.path.startsWith(`${normalizedTarget}/`))
+    : blobs
+  const nestedSkills = listSkillDirectories(tree).filter((directory) =>
+    directory !== normalizedTarget &&
+    (normalizedTarget ? directory.startsWith(`${normalizedTarget}/`) : directory.length > 0)
+  )
+
+  return withinTarget.filter((item) => !nestedSkills.some((directory) =>
+    item.path === directory || item.path.startsWith(`${directory}/`)
+  ))
+}
+
 function fileExtension(path: string): string {
   const lastSlash = path.lastIndexOf('/')
   const baseName = lastSlash >= 0 ? path.slice(lastSlash + 1) : path

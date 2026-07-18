@@ -29,31 +29,9 @@ export function validateFrontmatter(frontmatter: Record<string, unknown>): AxisR
     }
   }
 
-  const recommendedFields = ['version', 'author', 'license', 'tags', 'agent']
-  for (const field of recommendedFields) {
-    if (!frontmatter[field] || String(frontmatter[field]).trim() === '') {
-      findings.push({
-        id: makeId(),
-        axis: 'frontmatter',
-        severity: 'low',
-        category: 'frontmatter',
-        title: `Missing recommended field: ${field}`,
-        message: `Frontmatter is missing the recommended "${field}" field`,
-        filePath: 'SKILL.md',
-        lineNumber: 1,
-        column: 0,
-        snippet: '',
-        recommendation: `Consider adding "${field}" to the frontmatter`,
-        ruleId: 'frontmatter-recommended',
-      })
-    }
-  }
-
   const allowedFields = new Set([
     ...requiredFields,
-    ...recommendedFields,
-    'minVersion', 'maxVersion', 'tools', 'allowed-tools', 'allowedTools',
-    'config', 'env', 'description', 'version',
+    'license', 'compatibility', 'metadata', 'allowed-tools',
   ])
 
   for (const key of Object.keys(frontmatter)) {

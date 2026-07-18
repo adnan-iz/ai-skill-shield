@@ -1,4 +1,4 @@
-import { db, ensureDatabase } from '@/lib/db'
+import { ensureDatabase, getDatabase } from '@/lib/db'
 import { webhooks, auditLogs } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 
@@ -19,6 +19,7 @@ export interface WebhookPayload {
 
 export async function triggerWebhooks(event: string, scanId: string, data: WebhookPayload['data']): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const hooks = await db.select().from(webhooks)
     .where(and(eq(webhooks.enabled, true)))
@@ -55,6 +56,7 @@ export async function triggerWebhooks(event: string, scanId: string, data: Webho
 
 export async function logAuditEvent(event: string, scanId?: string, metadata?: Record<string, unknown>): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const { v4: uuid } = await import('uuid')
   await db.insert(auditLogs).values({
@@ -68,6 +70,7 @@ export async function logAuditEvent(event: string, scanId?: string, metadata?: R
 
 export async function registerWebhook(url: string, events: string[], secret?: string): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const { v4: uuid } = await import('uuid')
   await db.insert(webhooks).values({
@@ -82,12 +85,14 @@ export async function registerWebhook(url: string, events: string[], secret?: st
 
 export async function listWebhooks(): Promise<typeof webhooks.$inferSelect[]> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   return db.select().from(webhooks).orderBy(webhooks.createdAt)
 }
 
 export async function deleteWebhook(id: string): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   await db.delete(webhooks).where(eq(webhooks.id, id))
 }

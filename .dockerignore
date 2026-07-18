@@ -1,0 +1,9 @@
+.git
+.next
+node_modules
+coverage
+data/*.db*
+graphify-out
+*.log
+.env*
+!.env.example

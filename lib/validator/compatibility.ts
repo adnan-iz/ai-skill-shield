@@ -75,6 +75,7 @@ export function detectCompatibility(
 ): CompatibilityMatrix {
   const filePaths = files.map(f => f.path.replace(/\\/g, '/'))
   const fullText = [content, ...files.map(f => f.content)].join('\n')
+  const hasStandardSkill = filePaths.some(path => /(^|\/)SKILL\.md$/i.test(path))
 
   const agents: AgentCompatibility[] = SUPPORTED_AGENTS.map(agent => {
     const contentMatches = findPatternMatches(content, agent.detectionPatterns)
@@ -95,6 +96,15 @@ export function detectCompatibility(
         agent.notes = agent.notes
           ? `${agent.notes}; Uses allowed-tools (new spec, broad compatibility)`
           : 'Uses allowed-tools (new spec, broad compatibility)'
+      }
+    }
+  }
+
+  if (hasStandardSkill) {
+    for (const agent of agents) {
+      if (agent.status === 'unknown') {
+        agent.status = 'partial'
+        agent.notes = 'Standard Agent Skills format; runtime-specific behavior not verified'
       }
     }
   }

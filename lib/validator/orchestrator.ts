@@ -262,6 +262,8 @@ export async function runFullValidation(
   overallScore = Math.round(overallScore)
 
   const riskLevel = determineRiskLevel(allFindings)
+  if (riskLevel === 'critical') overallScore = Math.min(overallScore, 60)
+  if (riskLevel === 'high') overallScore = Math.min(overallScore, 74)
   const summary = buildSummary(allFindings, axes)
   const fileTree = buildFileTree(input.files)
 

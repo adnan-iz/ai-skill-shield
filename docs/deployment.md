@@ -23,7 +23,7 @@ Open `http://localhost:3000`.
 docker compose up -d
 ```
 
-The included compose setup is intended for self-hosted use and runs the app on port `3000`.
+The included compose setup runs the standalone Next.js server on port `3000` and persists SQLite data in the `skillshield_data` volume.
 
 ## Environment variables
 
@@ -33,11 +33,11 @@ The included compose setup is intended for self-hosted use and runs the app on p
 | `GITHUB_TOKEN` | No | Enables authenticated GitHub scans, including accessible private repos |
 | `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review |
 | `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review |
-| `DATABASE_URL` | No | Override storage backend if you move beyond the default SQLite file |
+| `DATABASE_URL` | No | SQLite/libSQL URL; defaults to `file:./data/skillshield.db` |
 
 ## Storage
 
-By default the app uses SQLite under `data/skillshield.db`.
+By default the app uses SQLite under `data/skillshield.db`. Docker stores the same database at `/app/data/skillshield.db` in a named volume.
 
 On startup the app creates required tables automatically, which makes first-run environments much smoother than earlier versions.
 

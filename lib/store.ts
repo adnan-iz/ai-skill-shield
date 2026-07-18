@@ -1,21 +1,27 @@
-import { db, ensureDatabase } from '@/lib/db'
+import { ensureDatabase, getDatabase } from '@/lib/db'
 import { validationResults } from '@/lib/db/schema'
-import { eq, count, lt, isNull, or, and, inArray } from 'drizzle-orm'
+import { eq, count, desc, gt, inArray, isNull, lt, or } from 'drizzle-orm'
+import { normalizeGitHubSkillPath, trustTargetForResult } from '@/lib/trust'
 import type { ValidationResult } from '@/lib/validator/types'
 
 export async function saveResult(result: ValidationResult): Promise<void> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   await db.insert(validationResults).values({
     id: result.id,
     result: JSON.stringify(result),
     createdAt: Date.now(),
-    expiresAt: Date.now() + getRetentionDays() * 24 * 60 * 60 * 1000,
+    expiresAt:
+      trustTargetForResult(result)
+        ? null
+        : Date.now() + getRetentionDays() * 24 * 60 * 60 * 1000,
   })
 }
 
 export async function getResult(id: string): Promise<ValidationResult | undefined> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const row = await db.select().from(validationResults).where(eq(validationResults.id, id)).limit(1)
   const found = row[0]
@@ -25,9 +31,50 @@ export async function getResult(id: string): Promise<ValidationResult | undefine
 
 export async function getResultCount(): Promise<number> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const rows = await db.select({ count: count() }).from(validationResults)
   return rows[0].count
+}
+
+export async function getLatestGitHubResult(
+  owner: string,
+  repo: string,
+  path = ''
+): Promise<ValidationResult | undefined> {
+  await ensureDatabase()
+  const { db } = getDatabase()
+
+  // ponytail: JSON blob scan is fine for the local-first MVP; index source columns when report volume makes this measurable.
+  const rows = await db
+    .select({ result: validationResults.result })
+    .from(validationResults)
+    .where(or(isNull(validationResults.expiresAt), gt(validationResults.expiresAt, Date.now())))
+    .orderBy(desc(validationResults.createdAt))
+
+  const normalizedOwner = owner.toLowerCase()
+  const normalizedRepo = repo.toLowerCase()
+  const normalizedPath = normalizeGitHubSkillPath(path)
+
+  for (const row of rows) {
+    try {
+      const result = JSON.parse(row.result) as ValidationResult
+      const source = result.source
+      if (
+        source?.type === 'github' &&
+        source.owner?.toLowerCase() === normalizedOwner &&
+        source.repo?.toLowerCase() === normalizedRepo &&
+        normalizeGitHubSkillPath(source.path) === normalizedPath &&
+        trustTargetForResult(result)
+      ) {
+        return result
+      }
+    } catch {
+      // Ignore a corrupt legacy row and keep looking for the latest valid scan.
+    }
+  }
+
+  return undefined
 }
 
 export function getRetentionDays(): number {
@@ -36,18 +83,13 @@ export function getRetentionDays(): number {
 
 export async function cleanExpiredResults(): Promise<number> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const now = Date.now()
-  const cutoff = now - getRetentionDays() * 24 * 60 * 60 * 1000
 
   const expired = await db.select({ id: validationResults.id })
     .from(validationResults)
-    .where(
-      or(
-        and(isNull(validationResults.expiresAt), lt(validationResults.createdAt, cutoff)),
-        lt(validationResults.expiresAt, now)
-      )
-    )
+    .where(lt(validationResults.expiresAt, now))
 
   if (expired.length === 0) return 0
 

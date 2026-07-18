@@ -2,17 +2,26 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from './schema'
 
-const client = createClient({
-  url: process.env.DATABASE_URL || 'file:./data/skillshield.db',
-})
+function createDatabase() {
+  const client = createClient({
+    url: process.env.DATABASE_URL || 'file:./data/skillshield.db',
+  })
+  return { client, db: drizzle(client, { schema }) }
+}
 
-export const db = drizzle(client, { schema })
+let databaseInstance: ReturnType<typeof createDatabase> | null = null
+
+export function getDatabase(): ReturnType<typeof createDatabase> {
+  if (!databaseInstance) databaseInstance = createDatabase()
+  return databaseInstance
+}
 
 let databaseReadyPromise: Promise<void> | null = null
 
 export async function ensureDatabase(): Promise<void> {
   if (!databaseReadyPromise) {
     databaseReadyPromise = (async () => {
+      const { client } = getDatabase()
       await client.execute(`
         CREATE TABLE IF NOT EXISTS validation_results (
           id TEXT PRIMARY KEY NOT NULL,
@@ -72,5 +81,3 @@ export async function ensureDatabase(): Promise<void> {
 
   await databaseReadyPromise
 }
-
-export { client }

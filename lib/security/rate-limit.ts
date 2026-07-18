@@ -1,4 +1,4 @@
-import { db, ensureDatabase } from '@/lib/db'
+import { ensureDatabase, getDatabase } from '@/lib/db'
 import { rateLimits } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -12,6 +12,7 @@ export async function checkRateLimit(
   options: RateLimitOptions = { maxRequests: 60, windowMs: 60_000 }
 ): Promise<{ allowed: boolean; limit: number; remaining: number; resetAt: number }> {
   await ensureDatabase()
+  const { db } = getDatabase()
 
   const now = Date.now()
 
