@@ -24,6 +24,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+To enable AI review, copy `.env.example` to `.env.local` and set one supported provider key: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENCODE_GO_API_KEY`, or `OPENCODE_ZEN_API_KEY`.
+
 Recommended flow:
 
 1. Use the `GitHub Repo` tab on the homepage

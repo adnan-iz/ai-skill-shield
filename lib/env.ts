@@ -11,6 +11,10 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_AI_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
+  OPENCODE_GO_API_KEY: z.string().optional(),
+  OPENCODE_GO_MODEL: z.string().optional(),
+  OPENCODE_ZEN_API_KEY: z.string().optional(),
+  OPENCODE_ZEN_MODEL: z.string().optional(),
   GITHUB_TOKEN: z.string().optional(),
 })
 

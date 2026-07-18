@@ -33,6 +33,10 @@ The Compose configuration publishes the application on port `3000` and stores SQ
 | `GITHUB_TOKEN` | Recommended | Improves GitHub API limits and enables scans of accessible private repositories. |
 | `OPENAI_API_KEY` | No | Enables OpenAI-backed AI review. |
 | `ANTHROPIC_API_KEY` | No | Enables Anthropic-backed AI review. |
+| `OPENCODE_GO_API_KEY` | No | Enables AI review through the OpenCode Go API. |
+| `OPENCODE_GO_MODEL` | No | Overrides the OpenCode Go model. Defaults to `kimi-k2.7-code`. |
+| `OPENCODE_ZEN_API_KEY` | No | Enables AI review through the OpenCode Zen API. |
+| `OPENCODE_ZEN_MODEL` | No | Overrides the OpenCode Zen model. Defaults to `kimi-k2.7-code`. |
 | `DATABASE_URL` | No | SQLite or libSQL URL. Defaults to `file:./data/skillshield.db` outside Vercel. |
 | `DATABASE_AUTH_TOKEN` | Remote libSQL only | Authentication token for a remote database. |
 | `TURSO_DATABASE_URL` | No | Alias for a remote Turso/libSQL database URL. |

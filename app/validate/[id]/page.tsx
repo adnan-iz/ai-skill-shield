@@ -115,7 +115,7 @@ export default function ReportPage({
       })
       if (!res.ok) {
         const err = await res.json()
-        toast(err.error || 'AI review failed', 'error')
+        toast(err.message || err.error || 'AI review failed', 'error')
         return
       }
       const data = await res.json()

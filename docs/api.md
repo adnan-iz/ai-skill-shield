@@ -132,7 +132,7 @@ Run provider-backed analysis on an existing set of findings.
 }
 ```
 
-Supported request providers are `openai` and `anthropic`. Configure the matching `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` environment variable. Finding snippets are redacted for common secret formats before they are sent to the provider.
+Supported request providers are `openai`, `anthropic`, `opencode-go`, and `opencode-zen`. Configure the matching `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENCODE_GO_API_KEY`, or `OPENCODE_ZEN_API_KEY` environment variable. When `provider` is omitted, SkillShield uses the first configured provider in that order. OpenCode model selection can be overridden with `OPENCODE_GO_MODEL` or `OPENCODE_ZEN_MODEL`; both default to `kimi-k2.7-code`. Finding snippets are redacted for common secret formats before they are sent to the provider.
 
 ## Approvals
 

@@ -1,6 +1,12 @@
 import type { Finding } from '@/lib/validator/types'
 
-export type AiProvider = 'openai' | 'anthropic' | 'google' | 'openrouter'
+export const AI_PROVIDERS = ['openai', 'anthropic', 'opencode-go', 'opencode-zen'] as const
+
+export type AiProvider = typeof AI_PROVIDERS[number]
+
+export function isAiProvider(value: unknown): value is AiProvider {
+  return typeof value === 'string' && AI_PROVIDERS.includes(value as AiProvider)
+}
 
 export interface AiReviewConfig {
   provider: AiProvider
@@ -72,23 +78,28 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
       messages: [{ role: 'user', content: prompt }],
     }
   } else {
+    const isOpenCode = config.provider.startsWith('opencode-')
     headers['Authorization'] = `Bearer ${config.apiKey}`
     body = {
-      model: config.model || 'gpt-4o-mini',
-      max_tokens: 2000,
+      model: config.model || (isOpenCode ? 'kimi-k2.7-code' : 'gpt-4o-mini'),
+      max_tokens: isOpenCode ? 4000 : 2000,
+      ...(isOpenCode ? { reasoning_effort: 'none' } : {}),
       messages: [{ role: 'user', content: prompt }],
     }
   }
 
-  const apiUrl = config.provider === 'anthropic'
-    ? 'https://api.anthropic.com/v1/messages'
-    : `${config.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}/chat/completions`
+  const apiUrl = {
+    openai: 'https://api.openai.com/v1/chat/completions',
+    anthropic: 'https://api.anthropic.com/v1/messages',
+    'opencode-go': 'https://opencode.ai/zen/go/v1/chat/completions',
+    'opencode-zen': 'https://opencode.ai/zen/v1/chat/completions',
+  }[config.provider]
 
   const res = await fetch(apiUrl, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(60000),
   })
 
   if (!res.ok) {
@@ -106,7 +117,7 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
 
 function parseAiResponse(response: string): AiReviewResult {
   try {
-    const parsed = JSON.parse(response)
+    const parsed = JSON.parse(response.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
     return {
       summary: parsed.executiveSummary || parsed.summary || '',
       riskExplanation: parsed.overallRiskExplanation || parsed.riskExplanation || '',
