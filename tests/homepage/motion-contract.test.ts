@@ -17,6 +17,8 @@ describe('homepage motion contract', () => {
     expect(pageSource).toContain('home-hero-badge')
     expect(pageSource).toContain('home-hero-title')
     expect(pageSource).toContain('home-hero-copy')
+    expect(pageSource).toContain('home-hero-shell py-16')
+    expect(pageSource).toContain('mx-auto max-w-6xl px-4')
     expect(pageSource).toContain('home-stat-grid')
     expect(pageSource).toContain('home-stat-card home-stat-card-1')
     expect(pageSource).toContain('home-stat-card home-stat-card-2')

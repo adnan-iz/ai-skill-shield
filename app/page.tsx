@@ -196,9 +196,10 @@ export default function HomePage() {
 
   return (
     <div
-      className="home-hero-shell mx-auto max-w-6xl px-4 py-16 bg-surface"
+      className="home-hero-shell py-16"
       data-motion-ready={motionReady ? 'true' : 'false'}
     >
+      <div className="mx-auto max-w-6xl px-4">
       <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <div className="home-hero-content">
           <div className="mb-6">
@@ -392,6 +393,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   )
 }
