@@ -98,6 +98,99 @@
     text-wrap: balance;
   }
 
+  .api-docs {
+    color: var(--color-on-surface-secondary);
+    line-height: 1.75;
+  }
+
+  .api-docs h1,
+  .api-docs h2,
+  .api-docs h3 {
+    color: var(--color-on-surface);
+    font-weight: 700;
+    line-height: 1.2;
+    scroll-margin-top: 1.5rem;
+  }
+
+  .api-docs h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.035em;
+  }
+
+  .api-docs h2 {
+    margin-top: 3rem;
+    border-top: 1px solid var(--color-outline);
+    padding-top: 2rem;
+    font-size: 1.5rem;
+  }
+
+  .api-docs h3 {
+    margin-top: 2rem;
+    font-size: 1.125rem;
+  }
+
+  .api-docs p,
+  .api-docs ul,
+  .api-docs table,
+  .api-docs pre {
+    margin-top: 1rem;
+  }
+
+  .api-docs ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+
+  .api-docs a {
+    color: var(--color-shield-600);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .api-docs :not(pre) > code {
+    border: 1px solid var(--color-outline);
+    border-radius: 0.375rem;
+    background: var(--color-surface-secondary);
+    padding: 0.1rem 0.35rem;
+    color: var(--color-shield-600);
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-size: 0.875em;
+  }
+
+  .api-docs pre {
+    overflow-x: auto;
+    border: 1px solid var(--color-outline);
+    border-radius: 0.75rem;
+    background: #07140f;
+    padding: 1rem;
+    color: #d1fae5;
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+  }
+
+  .api-docs table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .api-docs th,
+  .api-docs td {
+    border: 1px solid var(--color-outline);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .api-docs th {
+    background: var(--color-surface-secondary);
+    color: var(--color-on-surface);
+    font-weight: 600;
+  }
+
   @keyframes homeHeroGlowDrift {
     0%, 100% {
       transform: translate3d(0, 0, 0) scale(1);

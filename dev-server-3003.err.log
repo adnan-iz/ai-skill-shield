@@ -1,0 +1,50 @@
+⚠ Fast Refresh had to perform a full reload when ./node_modules/next/dist/client/image-component.js changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Suspense name="history/" fallback={<Fragment>}>
+      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+        <RedirectBoundary>
+          <RedirectErrorBoundary router={{...}}>
+            <InnerLayoutRouter url="/history" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+              <SegmentViewNode type="page" pagePath="history/pa...">
+                <SegmentTrieNode>
+                <ClientPageRoot Component={function HistoryPage} serverProvidedParams={{...}}>
+                  <HistoryPage params={Promise} searchParams={Promise}>
+                    <div className="mx-auto ma...">
+                      <div className="mb-6 flex ...">
+                        <div>
+                          <h1>
+                          <p className="text-sm te...">
++                           7
+-                           0
+                            ...
+                        ...
+                      ...
+              ...
+            ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at throwOnHydrationMismatch (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:3318:56)
+    at completeWork (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7021:36)
+    at runWithFiberInDEV (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at completeUnitOfWork (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9622:23)
+    at performUnitOfWork (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9557:28)
+    at workLoopConcurrentByScheduler (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9551:58)
+    at renderRootConcurrent (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9534:71)
+    at performWorkOnRoot (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:2647:64)
+    at p (<anonymous>)
+    at HistoryPage (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/_0g4bdcl._.js:216:231)
+    at ClientPageRoot (file://F:/agent skill validator/skill-shield/.next/dev/static/chunks/node_modules_next_1ohmjn5._.js:5337:50)

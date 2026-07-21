@@ -9,7 +9,7 @@ const navItems = [
   { href: "/compare", label: "Compare", icon: "compare_arrows" },
   { href: "/history", label: "History", icon: "history" },
   { href: "/rules", label: "Rules", icon: "policy" },
-  { href: "/api/docs", label: "API", icon: "api", external: true },
+  { href: "/docs/api", label: "API", icon: "api" },
 ]
 
 export function SideNavBar() {
@@ -32,19 +32,7 @@ export function SideNavBar() {
             ? "bg-shield-500/20 text-shield-400"
             : "text-on-surface-secondary hover:bg-stitch-sidebar-hover hover:text-on-surface"
         }`
-        return item.external ? (
-          <a
-            key={item.href}
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={item.label}
-            aria-label={item.label}
-            className={classes}
-          >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-          </a>
-        ) : (
+        return (
           <Link
             key={item.href}
             href={item.href}
@@ -123,15 +111,15 @@ export function BottomNavBar() {
         <span className="material-symbols-outlined text-lg">policy</span>
         <span className="text-[10px] font-medium">Rules</span>
       </Link>
-      <a
-        href="/api/docs"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex flex-col items-center gap-0.5 px-3 py-1 text-on-surface-secondary"
+      <Link
+        href="/docs/api"
+        className={`flex flex-col items-center gap-0.5 px-3 py-1 ${
+          pathname === "/docs/api" ? "text-shield-500" : "text-on-surface-secondary"
+        }`}
       >
         <span className="material-symbols-outlined text-lg">api</span>
         <span className="text-[10px] font-medium">API</span>
-      </a>
+      </Link>
       {isReport && (
         <div className="flex flex-col items-center gap-0.5 px-3 py-1 text-shield-500">
           <span className="material-symbols-outlined text-lg">description</span>

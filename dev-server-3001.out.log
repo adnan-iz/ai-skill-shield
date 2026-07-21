@@ -1,0 +1,39 @@
+
+> skill-shield@0.1.0 dev
+> next dev --port 3001
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://100.119.209.20:3001
+✓ Ready in 723ms
+
+ GET / 200 in 768ms (next.js: 320ms, application-code: 447ms)
+ POST /api/github 404 in 2.9s (next.js: 716ms, application-code: 2.2s)
+ POST /api/github 404 in 814ms (next.js: 5ms, application-code: 809ms)
+ POST /api/github 200 in 1384ms (next.js: 8ms, application-code: 1377ms)
+ POST /api/validate 200 in 787ms (next.js: 580ms, application-code: 207ms)
+ GET /validate/52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 1327ms (next.js: 1238ms, application-code: 89ms)
+ GET /api/approvals?scanId=52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 272ms (next.js: 256ms, application-code: 15ms)
+ GET /api/approvals?scanId=52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 23ms (next.js: 3ms, application-code: 19ms)
+ POST /api/approvals 200 in 23ms (next.js: 3ms, application-code: 21ms)
+ GET /validate/52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 219ms (next.js: 129ms, application-code: 90ms)
+ GET /validate/52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 236ms (next.js: 22ms, application-code: 214ms)
+ GET /api/approvals?scanId=52bae945-9c3b-4a6e-849d-42e670cc4fe9 200 in 70ms (next.js: 44ms, application-code: 26ms)
+ GET / 200 in 34ms (next.js: 13ms, application-code: 20ms)
+ POST /api/github 200 in 1804ms (next.js: 78ms, application-code: 1727ms)
+ POST /api/validate 200 in 98ms (next.js: 25ms, application-code: 73ms)
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 101ms (next.js: 67ms, application-code: 34ms)
+ GET /api/approvals?scanId=5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 26ms (next.js: 3ms, application-code: 23ms)
+ GET /api/approvals?scanId=5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 23ms (next.js: 3ms, application-code: 20ms)
+ POST /api/github 200 in 1547ms (next.js: 3ms, application-code: 1544ms)
+ POST /api/ai-review 501 in 252ms (next.js: 233ms, application-code: 19ms)
+✓ Compiled in 138ms
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 276ms (next.js: 118ms, application-code: 158ms)
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 80ms (next.js: 5ms, application-code: 74ms)
+✓ Compiled in 71ms
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 172ms (next.js: 107ms, application-code: 65ms)
+✓ Compiled in 87ms
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 267ms (next.js: 185ms, application-code: 82ms)
+✓ Compiled in 101ms
+ GET /validate/5884c1dd-f3f4-453f-8f09-02eacc350d32 200 in 200ms (next.js: 119ms, application-code: 81ms)
+[?25h

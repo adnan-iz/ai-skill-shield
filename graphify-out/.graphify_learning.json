@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-07-18T07:25:18.376834+00:00",
+  "nodes": {
+    "readme_pre_install_review": {
+      "code_fingerprint": "ceb5f2f4b2d590ffceeb530ce32049ac942301b0946854d292d6e02f44d8da5b",
+      "label": "Pre-Install Skill Review",
+      "last": "2026-07-18T06:23:30.452290+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T06:23:30.452290+00:00",
+          "outcome": "useful",
+          "q": "you are an elite AI agent builder and automation expert who has 20 years of exp. now check graphify-out/graph.html and tell me what should be added to make it viral product"
+        }
+      ],
+      "score": 0.999008926,
+      "source_file": "README.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "roadmap_trust_before_install_focus": {
+      "code_fingerprint": "35e3575530c7cb19fe9a692f52dfb08035883a70d9ed1a01c4a69fdbc76d6660",
+      "label": "Trust Before Installation Focus",
+      "last": "2026-07-18T06:23:30.452290+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T06:23:30.452290+00:00",
+          "outcome": "useful",
+          "q": "you are an elite AI agent builder and automation expert who has 20 years of exp. now check graphify-out/graph.html and tell me what should be added to make it viral product"
+        }
+      ],
+      "score": 0.999008926,
+      "source_file": "ROADMAP.md",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}
