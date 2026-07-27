@@ -41,7 +41,7 @@ export async function GET(
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 20 }}>
           <span>Validate before installation</span>
-          <span>{result ? new Date(result.timestamp).toISOString().slice(0, 10) : 'skillshield.dev'}</span>
+          <span>{result ? new Date(result.timestamp).toISOString().slice(0, 10) : 'ai-skill-shield.vercel.app'}</span>
         </div>
       </div>
     ),

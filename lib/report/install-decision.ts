@@ -6,7 +6,7 @@ type ApprovalState = 'pending' | 'approved' | 'rejected' | null
 export interface InstallChecklistItem {
   label: string
   detail: string
-  status: 'pass' | 'warn' | 'fail'
+  status: 'pass' | 'warn' | 'fail' | 'neutral'
 }
 
 export interface InstallDecision {
@@ -34,10 +34,18 @@ function countSevereRepoFindings(audit?: RepositoryAudit): number {
   return audit.findings.filter((finding) => finding.severity === 'critical' || finding.severity === 'high').length
 }
 
+function countReviewableRepoFindings(audit?: RepositoryAudit): number {
+  if (!audit) return 0
+  return audit.findings.filter((finding) =>
+    finding.severity === 'critical' || finding.severity === 'high' || finding.severity === 'medium'
+  ).length
+}
+
 export function buildInstallDecision(result: ValidationResult, approval: ApprovalState): InstallDecision {
   const repositoryAudit = result.source?.repositoryAudit
   const installFindingCount = countInstallFindings(result)
   const severeRepoFindingCount = countSevereRepoFindings(repositoryAudit)
+  const reviewableRepoFindingCount = countReviewableRepoFindings(repositoryAudit)
   const hasSevereInstallFinding = result.findings.some((finding) =>
     isInstallFinding(finding) && (finding.severity === 'critical' || finding.severity === 'high')
   )
@@ -56,7 +64,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     hasCriticalStopSignal ||
     result.riskLevel === 'high' ||
     result.summary.highCount > 0 ||
-    (repositoryAudit?.findings.length ?? 0) > 0 ||
+    reviewableRepoFindingCount > 0 ||
     approval === 'pending' ||
     approval === 'rejected'
 
@@ -96,7 +104,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
       status: repositoryAudit
         ? repositoryAudit.riskLevel === 'critical' || repositoryAudit.riskLevel === 'high'
           ? 'fail'
-          : repositoryAudit.findings.length > 0
+          : reviewableRepoFindingCount > 0
           ? 'warn'
           : 'pass'
         : result.source?.type === 'github'
@@ -104,15 +112,11 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
         : 'warn',
     },
     {
-      label: 'Trust signals checked',
+      label: 'Repository context',
       detail: result.source?.repositoryMeta
         ? `${result.source.repositoryMeta.stars} stars, ${result.source.repositoryMeta.forks} forks, ${result.source.repositoryMeta.archived ? 'archived repo' : 'active repo'}.`
         : 'No repository trust metadata attached to this scan.',
-      status: result.source?.repositoryMeta
-        ? result.source.repositoryMeta.archived
-          ? 'fail'
-          : 'pass'
-        : 'warn',
+      status: result.source?.repositoryMeta?.archived ? 'fail' : 'neutral',
     },
     {
       label: 'Human approval',

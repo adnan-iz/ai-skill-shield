@@ -18,6 +18,7 @@ const dotClasses = {
   pass: 'bg-shield-500',
   warn: 'bg-yellow-500',
   fail: 'bg-red-500',
+  neutral: 'bg-slate-400',
 }
 
 export default function InstallVerdict({ result, approvalStatus }: InstallVerdictProps) {
