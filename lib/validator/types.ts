@@ -19,6 +19,7 @@ export interface SkillInput {
   files: SkillFile[]
   directoryName?: string
   source?: SkillSource
+  analyzeAllSkills?: boolean
 }
 
 export interface SkillFile {
@@ -39,6 +40,22 @@ export interface ValidationResult {
   tokenAnalysis: TokenAnalysis
   skillPreview: SkillPreview
   source?: SkillSource
+  batch?: SkillBatch
+}
+
+export interface SkillBatch {
+  totalSkills: number
+  results: SkillBatchResult[]
+}
+
+export interface SkillBatchResult {
+  path: string
+  skillName: string
+  overallScore: number
+  riskLevel: ValidationResult['riskLevel']
+  findingsCount: number
+  criticalCount: number
+  highCount: number
 }
 
 export interface ValidationSummary {

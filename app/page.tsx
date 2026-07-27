@@ -7,7 +7,7 @@ import Dropzone from '@/components/upload/dropzone'
 import UrlInput from '@/components/upload/url-input'
 import { saveValidation } from '@/lib/state'
 import { useToast } from '@/components/ui/toast'
-import type { RepositoryMeta, SkillInput } from '@/lib/validator/types'
+import type { RepositoryMeta, SkillInput, ValidationResult } from '@/lib/validator/types'
 import type { RepositoryAudit } from '@/lib/github/repository-audit'
 
 type Tab = 'upload' | 'url' | 'paste'
@@ -21,11 +21,6 @@ interface GitHubTarget {
   sha?: string
 }
 
-interface SkillChoice {
-  path: string
-  skillFile: string
-}
-
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -34,9 +29,6 @@ export default function HomePage() {
   const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
   const [resolutionHint, setResolutionHint] = useState('')
-  const [skillChoices, setSkillChoices] = useState<SkillChoice[]>([])
-  const [selectedSkillFile, setSelectedSkillFile] = useState('')
-  const [pendingTarget, setPendingTarget] = useState<GitHubTarget | null>(null)
   const scanPath =
     tab === 'url'
       ? 'github.com/owner/repo'
@@ -116,8 +108,6 @@ export default function HomePage() {
   const handleUrlParse = useCallback(async (data: GitHubTarget) => {
     setLoading(true)
     setResolutionHint('')
-    setSkillChoices([])
-    setPendingTarget(null)
     try {
       const res = await fetch('/api/github', {
         method: 'POST',
@@ -140,17 +130,17 @@ export default function HomePage() {
         path: string
         branch?: string
         sha?: string
-        requiresSkillSelection?: boolean
-        skills?: SkillChoice[]
+        analyzeAllSkills?: boolean
+        skillCount?: number
         repositoryAudit?: RepositoryAudit
         repositoryMeta?: RepositoryMeta
         warning?: string
+        validationResult?: ValidationResult
       }
-      if (result.requiresSkillSelection && result.skills?.length) {
-        setSkillChoices(result.skills)
-        setSelectedSkillFile(result.skills[0].skillFile)
-        setPendingTarget({ ...data, branch: result.branch || data.branch })
-        setResolutionHint(`Found ${result.skills.length} skills. Choose one to scan without mixing results.`)
+      if (result.validationResult) {
+        saveValidation(result.validationResult)
+        toast(`Analyzed all ${result.validationResult.batch?.totalSkills || 0} skills`, 'success')
+        router.push(`/validate/${result.validationResult.id}`)
         return
       }
       if (!Array.isArray(result.files)) {
@@ -161,7 +151,9 @@ export default function HomePage() {
       }
       const sourcePath = result.path || '(repository root)'
       const requestPath = data.path || '(repository root)'
-      const resolvedHint = requestPath === sourcePath
+      const resolvedHint = result.analyzeAllSkills
+        ? `Found ${result.skillCount || result.files.length} skills in ${result.owner}/${result.repo}. Analyzing all skills.`
+        : requestPath === sourcePath
         ? `Resolved import: ${result.owner}/${result.repo} on ${result.branch || data.branch || 'default branch'} -> ${sourcePath}`
         : `Resolved import: ${requestPath} -> ${sourcePath}`
       setResolutionHint(resolvedHint)
@@ -169,7 +161,9 @@ export default function HomePage() {
         toast(resolvedHint, 'info')
       }
       await validate({
+        name: result.analyzeAllSkills ? `${result.owner}/${result.repo}` : undefined,
         files: result.files,
+        analyzeAllSkills: result.analyzeAllSkills,
         source: {
           type: 'github',
           url: data.url,
@@ -187,7 +181,7 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }, [readApiError, toast, validate])
+  }, [readApiError, router, toast, validate])
 
   const handlePasteValidate = useCallback(async () => {
     if (!pasteContent.trim()) return
@@ -283,38 +277,7 @@ export default function HomePage() {
             {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
 
             {tab === 'url' && (
-              <>
-                <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
-                {pendingTarget && skillChoices.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-shield-200 bg-shield-50/70 p-4">
-                    <label htmlFor="skill-choice" className="block text-sm font-semibold text-on-surface">
-                      Choose the skill to scan
-                    </label>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                      <select
-                        id="skill-choice"
-                        value={selectedSkillFile}
-                        onChange={(event) => setSelectedSkillFile(event.target.value)}
-                        className="min-w-0 flex-1 rounded-lg border border-outline bg-surface-container px-3 py-2 text-sm text-on-surface focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-                      >
-                        {skillChoices.map((choice) => (
-                          <option key={choice.skillFile} value={choice.skillFile}>
-                            {choice.path || '(repository root)'}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        disabled={loading || !selectedSkillFile}
-                        onClick={() => void handleUrlParse({ ...pendingTarget, path: selectedSkillFile })}
-                        className="rounded-lg bg-shield-600 px-5 py-2 text-sm font-semibold text-white hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Scan selected skill
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
+              <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
             )}
 
             {tab === 'paste' && (

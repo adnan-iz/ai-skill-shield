@@ -7,6 +7,8 @@ export const VALID_COMMIT_SHA = /^[0-9a-f]{7,40}$/
 export const MAX_FILE_SIZE = 3 * 1024 * 1024 // 3MB per file
 export const MAX_TOTAL_SIZE = 15 * 1024 * 1024 // 15MB total
 export const MAX_FILES = 30
+// ponytail: bounded bulk scan; raise or paginate when repositories exceed 1,000 skills within the payload limit.
+export const MAX_BATCH_SKILLS = 1000
 
 export function validateOwnerRepo(owner: string, repo: string): string | null {
   if (!owner || !VALID_OWNER_REPO.test(owner)) return 'Invalid owner'
@@ -29,7 +31,9 @@ export function validateFiles(
 ): string | null {
   if (!Array.isArray(files)) return 'files must be an array'
   if (files.length === 0) return 'Provide at least one file'
-  if (files.length > MAX_FILES) return `Too many files (max ${MAX_FILES})`
+  const allSkillFiles = files.every((file) => typeof file.path === 'string' && /(^|\/)SKILL\.md$/i.test(file.path.replace(/\\/g, '/')))
+  const maxFiles = allSkillFiles ? MAX_BATCH_SKILLS : MAX_FILES
+  if (files.length > maxFiles) return `Too many files (max ${maxFiles})`
 
   for (const file of files) {
     if (typeof file.path !== 'string' || typeof file.content !== 'string') {

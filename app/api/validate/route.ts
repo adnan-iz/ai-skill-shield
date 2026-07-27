@@ -1,11 +1,9 @@
 import { NextRequest } from 'next/server'
-import { runFullValidation } from '@/lib/validator/orchestrator'
-import { saveResult } from '@/lib/store'
+import { validateAndSave } from '@/lib/validator/service'
 import { validateFiles, validatePayloadSize } from '@/lib/security/input-validation'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
-import { triggerWebhooks, logAuditEvent } from '@/lib/webhooks'
 import type { SkillInput } from '@/lib/validator/types'
 
 function ipFromRequest(request: NextRequest): string {
@@ -35,36 +33,7 @@ export async function POST(request: NextRequest) {
       return badRequest(filesError)
     }
 
-    const result = await runFullValidation(body)
-    await saveResult(result)
-
-    if (result.overallScore < 70) {
-      try {
-        const { createPendingApproval } = await import('@/lib/approvals')
-        await createPendingApproval(result.id)
-      } catch {
-        // Approval creation must not break the scan response
-      }
-    }
-
-    try {
-      await logAuditEvent('scan.completed', result.id, {
-        skillName: result.skillName,
-        score: result.overallScore,
-        riskLevel: result.riskLevel,
-      })
-      await triggerWebhooks('scan.completed', result.id, {
-        score: result.overallScore,
-        riskLevel: result.riskLevel,
-        skillName: result.skillName,
-        findingsCount: result.findings.length,
-        criticalCount: result.summary.criticalCount,
-        highCount: result.summary.highCount,
-        sourceUrl: result.source?.url,
-      })
-    } catch {
-      // Webhook/audit failures must not break the scan response
-    }
+    const result = await validateAndSave(body)
 
     return addRateLimitHeaders(Response.json(result, { status: 200 }), rl)
   } catch (error) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectSkillEntryBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
 import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 
 describe('selectValidationBlobs', () => {
@@ -55,6 +55,20 @@ describe('skill directory selection', () => {
     expect(scopeSkillBlobs(tree, 'skills/reviewer').map((item) => item.path)).toEqual([
       'skills/reviewer/SKILL.md',
       'skills/reviewer/scripts/check.ts',
+    ])
+  })
+
+  it('selects every SKILL.md entry for a repository batch scan', () => {
+    const tree: GitHubTreeNode[] = [
+      { path: 'README.md', type: 'blob' },
+      { path: 'skills/reviewer/SKILL.md', type: 'blob' },
+      { path: 'skills/reviewer/script.ts', type: 'blob' },
+      { path: 'skills/writer/SKILL.md', type: 'blob' },
+    ]
+
+    expect(selectSkillEntryBlobs(tree, 500).map((item) => item.path)).toEqual([
+      'skills/reviewer/SKILL.md',
+      'skills/writer/SKILL.md',
     ])
   })
 })

@@ -15,6 +15,14 @@ import { useToast } from '@/components/ui/toast'
 import type { ValidationResult } from '@/lib/validator/types'
 import type { AiReviewResult, FindingExplanation } from '@/lib/ai-review'
 
+const batchRiskClasses: Record<string, string> = {
+  safe: 'bg-shield-100 text-shield-800',
+  low: 'bg-threat-low/10 text-threat-low',
+  medium: 'bg-threat-medium/10 text-threat-medium',
+  high: 'bg-threat-high/10 text-threat-high',
+  critical: 'bg-threat-critical/10 text-threat-critical',
+}
+
 export default function ReportPage({
   params,
 }: {
@@ -257,6 +265,55 @@ export default function ReportPage({
         />
       </div>
 
+      {result.batch && (
+        <div className="glass-card mb-8 rounded-xl p-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
+              All skills analyzed
+            </h3>
+            <p className="mt-1 text-sm text-on-surface-secondary">
+              {result.batch.totalSkills} skills were validated independently. The repository verdict uses their combined findings.
+            </p>
+          </div>
+          <div className="max-h-[32rem] overflow-auto rounded-lg border border-outline">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-surface-container text-xs uppercase text-on-surface-secondary">
+                <tr>
+                  <th className="px-3 py-2">Skill</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">Risk</th>
+                  <th className="px-3 py-2">Findings</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline">
+                {result.batch.results.map((skill) => (
+                  <tr key={skill.path}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-on-surface">{skill.skillName}</div>
+                      <div className="font-mono text-xs text-on-surface-secondary">{skill.path}</div>
+                    </td>
+                    <td className="px-3 py-2 font-semibold text-on-surface">{skill.overallScore}</td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${batchRiskClasses[skill.riskLevel]}`}>
+                        {skill.riskLevel}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-on-surface-secondary">
+                      {skill.findingsCount}
+                      {(skill.criticalCount > 0 || skill.highCount > 0) && (
+                        <span className="ml-2 text-xs text-red-600">
+                          {skill.criticalCount} critical · {skill.highCount} high
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card mb-8 rounded-xl p-4">
         <ExportBar result={result} />
       </div>
@@ -350,7 +407,7 @@ export default function ReportPage({
         </div>
       </div>
 
-      <div className="mb-8">
+      {!result.batch && <div className="mb-8">
         <div className="glass-card rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
@@ -417,9 +474,9 @@ export default function ReportPage({
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
-      <div className="mb-8">
+      {!result.batch && <div className="mb-8">
         <div className="glass-card rounded-xl p-4">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
             <span className="material-symbols-outlined text-lg">device_hub</span>
@@ -427,7 +484,7 @@ export default function ReportPage({
           </h3>
           <CompatibilityGrid agents={result.compatibility.agents} />
         </div>
-      </div>
+      </div>}
 
       <div className="mb-8">
         <div className="glass-card rounded-xl p-4">

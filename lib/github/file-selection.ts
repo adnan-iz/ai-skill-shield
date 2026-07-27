@@ -15,6 +15,16 @@ export function listSkillDirectories(tree: GitHubTreeNode[]): string[] {
   )).sort((a, b) => a.localeCompare(b))
 }
 
+export function selectSkillEntryBlobs(tree: GitHubTreeNode[], maxSkills: number): GitHubTreeNode[] {
+  const skillPaths = new Set(
+    listSkillDirectories(tree)
+      .slice(0, maxSkills)
+      .map((directory) => directory ? `${directory}/SKILL.md` : 'SKILL.md')
+  )
+
+  return tree.filter((item) => item.type === 'blob' && skillPaths.has(item.path))
+}
+
 export function scopeSkillBlobs(tree: GitHubTreeNode[], targetPath: string): GitHubTreeNode[] {
   const normalizedTarget = normalizeSkillDirectoryPath(targetPath)
   const blobs = tree.filter((item) => item.type === 'blob')

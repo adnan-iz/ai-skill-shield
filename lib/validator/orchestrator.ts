@@ -173,10 +173,111 @@ function buildCompatibilityAxis(result: CompatibilityMatrix): AxisResult {
   return { name: 'Agent Compatibility', key: 'compatibility', score, status, summary, findings }
 }
 
+async function runAllSkillValidation(
+  input: SkillInput,
+  skillFiles: SkillFile[],
+  options?: OrchestratorOptions
+): Promise<ValidationResult> {
+  const validated = await Promise.all(skillFiles.map(async (skillFile) => {
+    const normalizedPath = skillFile.path.replace(/\\/g, '/')
+    const directory = normalizedPath.split('/').slice(0, -1).join('/')
+    const source = input.source ? { ...input.source, path: directory } : undefined
+    const result = await runFullValidation({
+      files: [{ path: 'SKILL.md', content: skillFile.content }],
+      directoryName: directory.split('/').pop(),
+      source,
+      analyzeAllSkills: false,
+    }, { source })
+
+    return { path: normalizedPath, result }
+  }))
+
+  const findings = validated.flatMap(({ path, result }, skillIndex) =>
+    result.findings.map((finding) => ({
+      ...finding,
+      id: `skill-${skillIndex}-${finding.id}`,
+      filePath: !finding.filePath || finding.filePath === 'SKILL.md'
+        ? path
+        : `${path.slice(0, -'SKILL.md'.length)}${finding.filePath}`,
+    }))
+  )
+
+  const axes = validated[0].result.axes.map((firstAxis) => {
+    const matching = validated.map(({ result }) => result.axes.find((axis) => axis.key === firstAxis.key) || firstAxis)
+    const score = Math.round(matching.reduce((sum, axis) => sum + axis.score, 0) / matching.length)
+    const status: AxisResult['status'] = matching.some((axis) => axis.status === 'fail')
+      ? 'fail'
+      : matching.some((axis) => axis.status === 'warn')
+      ? 'warn'
+      : 'pass'
+
+    return {
+      name: firstAxis.name,
+      key: firstAxis.key,
+      score,
+      status,
+      summary: `${matching.filter((axis) => axis.status === 'pass').length}/${matching.length} skills passed; ${score}/100 average`,
+      findings: findings.filter((finding) => finding.axis === firstAxis.key),
+    }
+  })
+
+  const riskLevel = determineRiskLevel(findings)
+  let overallScore = Math.round(validated.reduce((sum, { result }) => sum + result.overallScore, 0) / validated.length)
+  if (riskLevel === 'critical') overallScore = Math.min(overallScore, 60)
+  if (riskLevel === 'high') overallScore = Math.min(overallScore, 74)
+
+  const baseName = input.name || input.source?.repositoryMeta?.fullName || 'Repository'
+  const totalTokens = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.totalTokens, 0)
+  const totalLimit = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.limit, 0)
+
+  return {
+    id: options?.id || uuidv4(),
+    timestamp: new Date().toISOString(),
+    skillName: `${baseName} (${validated.length} skills)`,
+    overallScore,
+    riskLevel,
+    summary: buildSummary(findings, axes),
+    axes,
+    findings,
+    compatibility: validated[0].result.compatibility,
+    tokenAnalysis: {
+      totalTokens,
+      frontmatterTokens: validated.reduce((sum, { result }) => sum + result.tokenAnalysis.frontmatterTokens, 0),
+      bodyTokens: validated.reduce((sum, { result }) => sum + result.tokenAnalysis.bodyTokens, 0),
+      isUnderLimit: totalTokens <= totalLimit,
+      limit: totalLimit,
+      breakdown: validated.map(({ path, result }) => ({ section: path, tokens: result.tokenAnalysis.totalTokens })),
+    },
+    skillPreview: {
+      frontmatter: { batch: true, skillCount: validated.length },
+      body: `Analyzed ${validated.length} SKILL.md files independently. See the skill results and findings above.`,
+      fileTree: buildFileTree(skillFiles),
+    },
+    source: options?.source || input.source,
+    batch: {
+      totalSkills: validated.length,
+      results: validated.map(({ path, result }) => ({
+        path,
+        skillName: result.skillName,
+        overallScore: result.overallScore,
+        riskLevel: result.riskLevel,
+        findingsCount: result.findings.length,
+        criticalCount: result.summary.criticalCount,
+        highCount: result.summary.highCount,
+      })),
+    },
+  }
+}
+
 export async function runFullValidation(
   input: SkillInput,
   options?: OrchestratorOptions
 ): Promise<ValidationResult> {
+  const skillFiles = input.files.filter((file) => /(^|\/)SKILL\.md$/i.test(file.path.replace(/\\/g, '/')))
+  if (input.analyzeAllSkills && skillFiles.length > 1) {
+    return runAllSkillValidation(input, skillFiles, options)
+  }
+
   const skillFile = input.files.find(f =>
     f.path.replace(/\\/g, '/').endsWith('SKILL.md')
   )

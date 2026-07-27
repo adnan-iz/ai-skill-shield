@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server'
 import { validateOwnerRepo, validateBranch, validateCommitSha } from '@/lib/security/input-validation'
-import { MAX_FILES as MAX_VALIDATION_FILES } from '@/lib/security/input-validation'
+import { MAX_BATCH_SKILLS, MAX_FILES as MAX_VALIDATION_FILES } from '@/lib/security/input-validation'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
 import { auditRepositoryTree, isRepositoryAuditCandidatePath, type GitHubTreeNode } from '@/lib/github/repository-audit'
-import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectSkillEntryBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
 import type { RepositoryMeta } from '@/lib/validator/types'
+import { validateAndSave } from '@/lib/validator/service'
 
 const GITHUB_API_HOST = 'api.github.com'
 const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
@@ -171,17 +172,9 @@ export async function POST(request: NextRequest) {
 
     const data = await treeRes.json()
     const skillDirectories = listSkillDirectories(data.tree || [])
-    if (!treePath && !requestedSkillFile && skillDirectories.length > 1) {
-      return addRateLimitHeaders(Response.json({
-        requiresSkillSelection: true,
-        skills: skillDirectories.map((skillPath) => ({
-          path: skillPath,
-          skillFile: skillPath ? `${skillPath}/SKILL.md` : 'SKILL.md',
-        })),
-        owner,
-        repo,
-        branch: resolvedBranch,
-      }), rl)
+    const analyzeAllSkills = !treePath && !requestedSkillFile && skillDirectories.length > 1
+    if (analyzeAllSkills && skillDirectories.length > MAX_BATCH_SKILLS) {
+      return badRequest(`Repository contains ${skillDirectories.length} skills; batch scans support up to ${MAX_BATCH_SKILLS}`)
     }
     if (!treePath && !requestedSkillFile && skillDirectories.length === 1) {
       treePath = skillDirectories[0]
@@ -214,7 +207,37 @@ export async function POST(request: NextRequest) {
       ignorePaths,
       repositoryAudit,
       repositoryMeta,
+      analyzeAllSkills,
+      discoveredSkillCount: skillDirectories.length,
     })
+
+    if (analyzeAllSkills && response.ok) {
+      const payload = await response.json() as {
+        files: Array<{ path: string; content: string }>
+        path: string
+        repositoryAudit?: ReturnType<typeof auditRepositoryTree>
+        repositoryMeta?: RepositoryMeta
+      }
+      const source = {
+        type: 'github' as const,
+        url: `https://github.com/${owner}/${repo}`,
+        owner,
+        repo,
+        path: payload.path,
+        branch: resolvedBranch,
+        sha: resolvedSha,
+        repositoryAudit: payload.repositoryAudit,
+        repositoryMeta: payload.repositoryMeta,
+      }
+      const validationResult = await validateAndSave({
+        name: `${owner}/${repo}`,
+        files: payload.files,
+        source,
+        analyzeAllSkills: true,
+      }, { source })
+
+      return addRateLimitHeaders(Response.json({ validationResult }), rl)
+    }
 
     return addRateLimitHeaders(response, rl)
   } catch (error) {
@@ -317,9 +340,20 @@ async function fetchFiles(
     ignorePaths?: string[]
     repositoryAudit?: ReturnType<typeof auditRepositoryTree>
     repositoryMeta?: RepositoryMeta | undefined
+    analyzeAllSkills?: boolean
+    discoveredSkillCount?: number
   }
 ) {
-  const { sha, includeExtensions, excludeExtensions, ignorePaths = DEFAULT_IGNORE_PATHS, repositoryAudit, repositoryMeta } = options || {}
+  const {
+    sha,
+    includeExtensions,
+    excludeExtensions,
+    ignorePaths = DEFAULT_IGNORE_PATHS,
+    repositoryAudit,
+    repositoryMeta,
+    analyzeAllSkills = false,
+    discoveredSkillCount = 0,
+  } = options || {}
 
   const textExtensions = new Set([
     '.md', '.json', '.yaml', '.yml', '.txt', '.ts', '.tsx', '.js', '.jsx',
@@ -339,7 +373,9 @@ async function fetchFiles(
   }
 
   const normalizedTreePath = treePath.replace(/^\/+|\/+$/g, '')
-  const scoped = scopeSkillBlobs(treeData.tree || [], normalizedTreePath)
+  const scoped = analyzeAllSkills
+    ? selectSkillEntryBlobs(treeData.tree || [], MAX_BATCH_SKILLS)
+    : scopeSkillBlobs(treeData.tree || [], normalizedTreePath)
   const filtered = scoped.filter(item => !shouldIgnore(item.path, ignorePaths))
 
   const MAX_TOTAL_SIZE = 10 * 1024 * 1024
@@ -349,13 +385,18 @@ async function fetchFiles(
     return notFound('Skill path not found in repository')
   }
 
-  const relevant = selectValidationBlobs(filtered, {
-    allowedExtensions: extensions,
-    maxFiles: MAX_VALIDATION_FILES,
-  })
+  const relevant = analyzeAllSkills
+    ? filtered
+    : selectValidationBlobs(filtered, {
+        allowedExtensions: extensions,
+        maxFiles: MAX_VALIDATION_FILES,
+      })
 
-  const results = await Promise.allSettled(
-    relevant.map(async (blob: GitHubTreeNode) => {
+  const results: PromiseSettledResult<{ path: string; content: string } | null>[] = []
+  // ponytail: bounded batches avoid a custom queue; paginate if repositories exceed 1,000 skills.
+  for (let index = 0; index < relevant.length; index += 40) {
+    const batch = await Promise.allSettled(
+      relevant.slice(index, index + 40).map(async (blob: GitHubTreeNode) => {
       const ext = '.' + blob.path.split('.').pop()?.toLowerCase()
       if (!extensions.has(ext) && !blob.path.endsWith('SKILL.md')) return null
 
@@ -366,8 +407,10 @@ async function fetchFiles(
       const text = await rawRes.text()
       if (text.length > 3 * 1024 * 1024) return null
       return { path: blob.path, content: text }
-    })
-  )
+      })
+    )
+    results.push(...batch)
+  }
 
   let totalSize = 0
   let sizeTruncated = false
@@ -384,8 +427,13 @@ async function fetchFiles(
       return true
     })
 
-  const fileCountTrimmed = filtered.length > relevant.length
+  const fileCountTrimmed = analyzeAllSkills
+    ? discoveredSkillCount > relevant.length
+    : filtered.length > relevant.length
   const truncated = fileCountTrimmed || sizeTruncated
+  if (analyzeAllSkills && files.length !== discoveredSkillCount) {
+    return serverError(`Could not fetch all ${discoveredSkillCount} discovered skills. Try again.`)
+  }
   const response: Record<string, unknown> = {
     files,
     owner,
@@ -396,6 +444,8 @@ async function fetchFiles(
     truncated,
     repositoryAudit,
     repositoryMeta,
+    analyzeAllSkills,
+    skillCount: files.length,
   }
   if (fileCountTrimmed && sizeTruncated) {
     response.warning = `Large repository detected. Validation used the top ${relevant.length} relevant text files and trimmed oversized content. Repository install-surface audit still covered the full tree.`
