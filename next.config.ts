@@ -12,9 +12,9 @@ function buildContentSecurityPolicy() {
   return [
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
-    "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://api.github.com https://raw.githubusercontent.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -26,6 +26,16 @@ function buildContentSecurityPolicy() {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "ai-skill-shield.vercel.app" }],
+        destination: "https://ai-skill-shield.suppeng.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

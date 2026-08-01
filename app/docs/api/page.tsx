@@ -7,6 +7,12 @@ import { marked } from 'marked'
 export const metadata: Metadata = {
   title: 'API Reference',
   description: 'SkillShield API endpoints, request formats, and response details.',
+  alternates: { canonical: '/docs/api' },
+  openGraph: {
+    title: 'SkillShield API Reference',
+    description: 'Integrate AI agent skill validation, repository auditing, policies, and security reports.',
+    url: '/docs/api',
+  },
 }
 
 export default async function ApiDocsPage() {

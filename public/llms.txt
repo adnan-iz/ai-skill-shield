@@ -1,0 +1,23 @@
+# SkillShield
+
+> SkillShield is a web-based security validator for AI agent skills. It reviews SKILL.md content, uploaded skill packages, and public GitHub repositories before installation.
+
+## Primary pages
+
+- [Validate an AI agent skill](https://ai-skill-shield.suppeng.com/): Upload files, paste SKILL.md, or audit a GitHub repository.
+- [Compare AI agent skills](https://ai-skill-shield.suppeng.com/compare): Compare validation scores, risk levels, and security findings.
+- [Security policy rules](https://ai-skill-shield.suppeng.com/rules): Review and configure validation policy options.
+- [API documentation](https://ai-skill-shield.suppeng.com/docs/api): Integrate validation, repository audits, policies, and reports.
+
+## What SkillShield checks
+
+- Secrets and credential exposure
+- Destructive commands and shell-execution risk
+- External network access and domains
+- Install scripts, workflows, registries, and submodules
+- Compatibility across supported AI agent ecosystems
+- Permission declarations and install risk
+
+## Publisher
+
+SkillShield is made by [Support Engine](https://suppeng.com/) in Bangladesh.

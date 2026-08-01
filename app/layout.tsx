@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { SideNavBar, TopNavBar, BottomNavBar } from "@/components/layout/nav";
 import { ToastProvider } from "@/components/ui/toast";
 import { Analytics } from "@vercel/analytics/next";
-
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { SITE_URL } from "@/lib/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,7 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(appUrl),
+  metadataBase: new URL(SITE_URL),
+  applicationName: "SkillShield",
   title: {
     default: "SkillShield - Validate Agent Skills Before You Run Them",
     template: "%s - SkillShield",
@@ -34,17 +35,60 @@ export const metadata: Metadata = {
     "AI agent security",
     "DevSecOps",
   ],
-  authors: [{ name: "SkillShield" }],
+  authors: [{ name: "Support Engine", url: "https://suppeng.com" }],
+  creator: "Support Engine",
+  publisher: "Support Engine",
+  category: "Security",
   alternates: {
     canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
     title: "SkillShield - Validate Agent Skills Before You Run Them",
     description:
       "Pre-flight validation, security scanning, and professional reports for AI agent skills.",
     type: "website",
-    url: appUrl,
+    url: "/",
+    siteName: "SkillShield",
+    locale: "en_US",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "SkillShield - Validate Agent Skills Before You Run Them",
+    description:
+      "Pre-flight validation, security scanning, and professional reports for AI agent skills.",
+  },
+};
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Support Engine",
+      url: "https://suppeng.com",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "SkillShield",
+      description: "Security validation for AI agent skills before installation.",
+      inLanguage: "en",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -59,10 +103,10 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=swap"
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <script
           dangerouslySetInnerHTML={{
@@ -77,12 +121,21 @@ export default function RootLayout({
           <div className="flex-1">
             <ToastProvider>{children}</ToastProvider>
           </div>
-          <footer className="py-6 text-center text-sm text-on-surface-secondary">
-            Made by Support Engine with ❤️ from Bangladesh.
+          <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-6 text-center text-sm text-on-surface-secondary">
+            <span>
+              Made by{" "}
+              <a href="https://suppeng.com" target="_blank" rel="noopener noreferrer" className="hover:text-on-surface">
+                Support Engine
+              </a>{" "}
+              with ❤️ from Bangladesh.
+            </span>
+            <Link href="/rules" className="hover:text-on-surface">Security rules</Link>
+            <Link href="/docs/api" className="hover:text-on-surface">API docs</Link>
+            <a href="/llms.txt" className="hover:text-on-surface">llms.txt</a>
           </footer>
         </main>
         <BottomNavBar />
-        <Analytics />
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );

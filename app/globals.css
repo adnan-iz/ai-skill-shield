@@ -59,6 +59,14 @@
 }
 
 @layer base {
+  @font-face {
+    font-family: "Material Symbols Outlined";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("https://fonts.gstatic.com/l/font?kit=kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOemdcMkzUJPvbB--NyU9cW9D-I3cSFCBNDtTy7ky4w6bKKbaZirY9QI6rR051xwh2ovQavsvI2MHL7rNE7HPCCSuY3NiRl6MdvE0ovpSa0zoId6MkH4f_FOY8mETQq7c1H6&skey=b8dc2088854b122f&v=v364") format("truetype");
+  }
+
   body {
     font-family: var(--font-inter), system-ui, sans-serif;
     background-color: var(--color-surface);
@@ -199,58 +207,6 @@
     50% {
       transform: translate3d(28px, 16px, 0) scale(1.12);
       opacity: 0.72;
-    }
-  }
-
-  @keyframes homeHeroBadgeIn {
-    from {
-      opacity: 0;
-      transform: translateY(30px) scale(0.985);
-      filter: blur(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-  }
-
-  @keyframes homeHeroTitleIn {
-    from {
-      opacity: 0;
-      transform: translateY(36px) scale(0.98);
-      filter: blur(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-  }
-
-  @keyframes homeHeroCopyIn {
-    from {
-      opacity: 0;
-      transform: translateY(32px) scale(0.985);
-      filter: blur(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-  }
-
-  @keyframes homeStatCardIn {
-    from {
-      opacity: 0;
-      transform: translateY(34px) scale(0.97);
-      filter: blur(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
     }
   }
 
@@ -402,33 +358,7 @@
     z-index: 1;
   }
 
-  .home-hero-badge,
-  .home-hero-title,
-  .home-hero-copy,
-  .home-scan-stage,
-  .home-stat-card,
-  .home-panel,
-  .home-feature-card {
-    opacity: 0;
-    transform: translateY(30px) scale(0.985);
-    filter: blur(10px);
-    will-change: transform, opacity, filter;
-    transition:
-      opacity 820ms cubic-bezier(0.16, 1, 0.3, 1),
-      transform 820ms cubic-bezier(0.16, 1, 0.3, 1),
-      filter 820ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .home-hero-title {
-    transform: translateY(36px) scale(0.98);
-  }
-
-  .home-hero-copy {
-    transform: translateY(32px) scale(0.985);
-  }
-
   .home-stat-card {
-    transform: translateY(34px) scale(0.97);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
   }
 
@@ -443,7 +373,6 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     min-height: 360px;
     overflow: hidden;
-    transform: translateY(36px) scale(0.97);
   }
 
   .home-scan-topbar {
@@ -584,13 +513,8 @@
   }
 
   .home-panel {
-    transform: translateY(40px) scale(0.985);
     position: relative;
     overflow: hidden;
-  }
-
-  .home-feature-card {
-    transform: translateY(28px) scale(0.985);
   }
 
   .home-panel::after {
@@ -703,21 +627,6 @@
     filter: blur(0);
   }
 
-  .home-hero-shell[data-motion-ready="true"] .home-hero-badge {
-    transition-delay: 80ms;
-    animation: homeHeroBadgeIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
-  }
-
-  .home-hero-shell[data-motion-ready="true"] .home-hero-title {
-    transition-delay: 180ms;
-    animation: homeHeroTitleIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 180ms both;
-  }
-
-  .home-hero-shell[data-motion-ready="true"] .home-hero-copy {
-    transition-delay: 280ms;
-    animation: homeHeroCopyIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 280ms both;
-  }
-
   .home-hero-shell[data-motion-ready="true"] .home-scan-stage {
     transition-delay: 240ms;
   }
@@ -763,21 +672,15 @@
   }
 
   .home-hero-shell[data-motion-ready="true"] .home-stat-card-1 {
-    animation:
-      homeStatCardIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both,
-      homeStatCardFloat 4.8s ease-in-out 1.5s infinite;
+    animation: homeStatCardFloat 4.8s ease-in-out 1.5s infinite;
   }
 
   .home-hero-shell[data-motion-ready="true"] .home-stat-card-2 {
-    animation:
-      homeStatCardIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both,
-      homeStatCardFloat 5.2s ease-in-out 1.8s infinite;
+    animation: homeStatCardFloat 5.2s ease-in-out 1.8s infinite;
   }
 
   .home-hero-shell[data-motion-ready="true"] .home-stat-card-3 {
-    animation:
-      homeStatCardIn 820ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both,
-      homeStatCardFloat 5.6s ease-in-out 2.1s infinite;
+    animation: homeStatCardFloat 5.6s ease-in-out 2.1s infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {

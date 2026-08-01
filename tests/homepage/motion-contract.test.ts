@@ -25,12 +25,11 @@ describe('homepage motion contract', () => {
     expect(pageSource).toContain('home-stat-card home-stat-card-3')
   })
 
-  test('defines cinematic-lift animation and reduced-motion support in global css', () => {
-    expect(globalsSource).toContain('@keyframes homeHeroBadgeIn')
-    expect(globalsSource).toContain('@keyframes homeHeroTitleIn')
-    expect(globalsSource).toContain('@keyframes homeHeroCopyIn')
-    expect(globalsSource).toContain('@keyframes homeStatCardIn')
+  test('keeps SEO-critical hero text visible while retaining ambient motion', () => {
+    expect(globalsSource).not.toContain('@keyframes homeHeroTitleIn')
+    expect(globalsSource).not.toContain('@keyframes homeHeroCopyIn')
     expect(globalsSource).toContain('@keyframes homeHeroGlowDrift')
+    expect(globalsSource).toContain('@keyframes homeScanBeamSweep')
     expect(globalsSource).toContain('.home-hero-shell::before')
     expect(globalsSource).toContain('@media (prefers-reduced-motion: reduce)')
   })
