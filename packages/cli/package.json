@@ -1,11 +1,14 @@
 {
   "name": "skillshield-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SkillShield CLI - Scan AI agent skills for security risks",
   "type": "module",
   "bin": {
     "skillshield": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"

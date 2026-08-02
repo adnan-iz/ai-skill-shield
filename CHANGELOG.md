@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-08-02
 
 ### Added
 
@@ -17,6 +17,8 @@
 - New environments create their SQLite tables automatically.
 - Resolved a history-page hydration issue caused by nested buttons.
 - The export route now clearly identifies print-friendly HTML used for PDF-style exports.
+- CI and CodeQL now run on the default `master` branch.
+- Updated Next.js and Sharp to patched releases.
 
 ## 0.1.0 - 2026-05-26
 
