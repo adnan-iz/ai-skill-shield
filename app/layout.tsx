@@ -39,6 +39,9 @@ export const metadata: Metadata = {
   creator: "Support Engine",
   publisher: "Support Engine",
   category: "Security",
+  verification: {
+    google: "aaC_UzhNYtDw9wL2SOHe4JekCBK6kGAzlPHqhAxGoqQ",
+  },
   alternates: {
     canonical: "/",
   },
