@@ -172,20 +172,9 @@ export async function POST(request: NextRequest) {
 
     const data = await treeRes.json()
     const skillDirectories = listSkillDirectories(data.tree || [])
-    const analyzeAllSkills = !treePath && !requestedSkillFile && skillDirectories.length > 1 && skillDirectories.length <= MAX_BATCH_SKILLS
-    if (!treePath && !requestedSkillFile && skillDirectories.length > MAX_BATCH_SKILLS) {
-      return addRateLimitHeaders(Response.json({
-        requiresSkillSelection: true,
-        skills: skillDirectories.map((skillPath) => ({
-          path: skillPath,
-          skillFile: skillPath ? `${skillPath}/SKILL.md` : 'SKILL.md',
-        })),
-        owner,
-        repo,
-        path: '',
-        branch: resolvedBranch,
-        sha: resolvedSha,
-      }), rl)
+    const analyzeAllSkills = !treePath && !requestedSkillFile && skillDirectories.length > 1
+    if (analyzeAllSkills && skillDirectories.length > MAX_BATCH_SKILLS) {
+      return badRequest(`Repository contains ${skillDirectories.length} skills; batch scans support up to ${MAX_BATCH_SKILLS}`)
     }
     if (!treePath && !requestedSkillFile && skillDirectories.length === 1) {
       treePath = skillDirectories[0]
@@ -247,7 +236,10 @@ export async function POST(request: NextRequest) {
         analyzeAllSkills: true,
       }, { source })
 
-      return addRateLimitHeaders(Response.json({ validationResult }), rl)
+      return addRateLimitHeaders(Response.json({
+        validationResultId: validationResult.id,
+        skillCount: validationResult.batch?.totalSkills || 0,
+      }), rl)
     }
 
     return addRateLimitHeaders(response, rl)

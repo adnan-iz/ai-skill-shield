@@ -3,6 +3,20 @@ import { validationResults } from '@/lib/db/schema'
 import { eq, count, desc, gt, inArray, isNull, lt, or } from 'drizzle-orm'
 import { normalizeGitHubSkillPath, trustTargetForResult } from '@/lib/trust'
 import type { ValidationResult } from '@/lib/validator/types'
+import { gzipSync, gunzipSync } from 'node:zlib'
+
+const GZIP_PREFIX = 'gzip:'
+
+function serializeResult(result: ValidationResult): string {
+  return GZIP_PREFIX + gzipSync(JSON.stringify(result)).toString('base64')
+}
+
+function parseResult(value: string): ValidationResult {
+  const json = value.startsWith(GZIP_PREFIX)
+    ? gunzipSync(Buffer.from(value.slice(GZIP_PREFIX.length), 'base64')).toString('utf8')
+    : value
+  return JSON.parse(json) as ValidationResult
+}
 
 export async function saveResult(result: ValidationResult): Promise<void> {
   await ensureDatabase()
@@ -10,7 +24,7 @@ export async function saveResult(result: ValidationResult): Promise<void> {
 
   await db.insert(validationResults).values({
     id: result.id,
-    result: JSON.stringify(result),
+    result: serializeResult(result),
     createdAt: Date.now(),
     expiresAt:
       trustTargetForResult(result)
@@ -26,7 +40,7 @@ export async function getResult(id: string): Promise<ValidationResult | undefine
   const row = await db.select().from(validationResults).where(eq(validationResults.id, id)).limit(1)
   const found = row[0]
   if (!found) return undefined
-  return JSON.parse(found.result) as ValidationResult
+  return parseResult(found.result)
 }
 
 export async function getResultCount(): Promise<number> {
@@ -58,7 +72,7 @@ export async function getLatestGitHubResult(
 
   for (const row of rows) {
     try {
-      const result = JSON.parse(row.result) as ValidationResult
+      const result = parseResult(row.result)
       const source = result.source
       if (
         source?.type === 'github' &&

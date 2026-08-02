@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { gunzipSync } from 'node:zlib'
 import { afterEach, expect, test, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 import type { ValidationResult } from '@/lib/validator/types'
 
 let databaseFile: string | undefined
@@ -38,20 +40,36 @@ function makeGitHubResult(): ValidationResult {
   }
 }
 
-test('GitHub scans are durable and resolve through their canonical source path', async () => {
+test('GitHub scans are compressed, durable, and backward compatible', async () => {
   databaseFile = join(tmpdir(), `skillshield-trust-${randomUUID()}.db`)
   process.env.DATABASE_URL = `file:${databaseFile}`
 
-  const { getLatestGitHubResult, saveResult } = await import('@/lib/store')
+  const { getLatestGitHubResult, getResult, saveResult } = await import('@/lib/store')
   const { getDatabase } = await import('@/lib/db')
   const { client } = getDatabase()
   const result = makeGitHubResult()
+  result.batch = { totalSkills: 1, results: [] }
 
   await saveResult(result)
 
   expect(await getLatestGitHubResult('openai', 'SKILLS', 'skills/reviewer')).toEqual(result)
-  const stored = await client.execute({ sql: 'SELECT expires_at FROM validation_results WHERE id = ?', args: [result.id] })
+  const stored = await client.execute({ sql: 'SELECT result, expires_at FROM validation_results WHERE id = ?', args: [result.id] })
   expect(stored.rows[0]?.expires_at).toBeNull()
+  expect(String(stored.rows[0]?.result)).toMatch(/^gzip:/)
+
+  const { GET } = await import('@/app/api/validate/route')
+  const response = await GET(new NextRequest(`http://localhost/api/validate?id=${result.id}`, {
+    headers: { 'Accept-Encoding': 'gzip' },
+  }))
+  expect(response.headers.get('Content-Encoding')).toBe('gzip')
+  expect(JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString('utf8'))).toEqual(result)
+
+  const legacy = makeGitHubResult()
+  await client.execute({
+    sql: 'INSERT INTO validation_results (id, result, created_at, expires_at) VALUES (?, ?, ?, ?)',
+    args: [legacy.id, JSON.stringify(legacy), Date.now(), null],
+  })
+  expect(await getResult(legacy.id)).toEqual(legacy)
 
   client.close()
 })

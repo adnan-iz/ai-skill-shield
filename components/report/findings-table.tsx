@@ -34,11 +34,14 @@ const filterOptions: { label: string; value: Severity | 'all' }[] = [
   { label: 'Info', value: 'info' },
 ]
 
+const PAGE_SIZE = 100
+
 export default function FindingsTable({ findings }: FindingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('severity')
   const [sortAsc, setSortAsc] = useState(false)
   const [filterSeverity, setFilterSeverity] = useState<Severity | 'all'>('all')
   const [expandedRow, setExpandedRow] = useState<number | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const filtered = useMemo(() => {
     let list = findings
@@ -123,7 +126,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((finding, idx) => {
+            {filtered.slice(0, visibleCount).map((finding, idx) => {
               const isExpanded = expandedRow === idx
               return (
                 <tr
@@ -176,6 +179,17 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
           </tbody>
         </table>
       </div>
+      {visibleCount < filtered.length && (
+        <div className="flex justify-center border-t border-outline p-4">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            className="rounded-lg border border-outline bg-surface-container px-4 py-2 text-sm font-medium text-on-surface hover:bg-surface-secondary"
+          >
+            Show 100 more ({filtered.length - visibleCount} remaining)
+          </button>
+        </div>
+      )}
     </div>
   )
 }

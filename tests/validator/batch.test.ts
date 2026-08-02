@@ -25,6 +25,7 @@ describe('batch skill validation', () => {
       'skills/risky/SKILL.md',
     ])
     expect(result.findings.some((finding) => finding.filePath === 'skills/risky/SKILL.md')).toBe(true)
+    expect(result.axes.every((axis) => axis.findings.length === 0)).toBe(true)
     expect(result.skillName).toBe('acme/skills (2 skills)')
   })
 })

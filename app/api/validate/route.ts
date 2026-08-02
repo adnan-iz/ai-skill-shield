@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
 import type { SkillInput } from '@/lib/validator/types'
+import { gzipSync } from 'node:zlib'
 
 function ipFromRequest(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -54,6 +55,16 @@ export async function GET(request: NextRequest) {
   const result = await getResult(id)
   if (!result) {
     return notFound('Result not found')
+  }
+
+  if (result.batch && request.headers.get('accept-encoding')?.includes('gzip')) {
+    return new Response(new Uint8Array(gzipSync(JSON.stringify(result))), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Encoding': 'gzip',
+        Vary: 'Accept-Encoding',
+      },
+    })
   }
 
   return Response.json(result)

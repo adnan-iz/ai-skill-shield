@@ -217,7 +217,7 @@ async function runAllSkillValidation(
       score,
       status,
       summary: `${matching.filter((axis) => axis.status === 'pass').length}/${matching.length} skills passed; ${score}/100 average`,
-      findings: findings.filter((finding) => finding.axis === firstAxis.key),
+      findings: [],
     }
   })
 
