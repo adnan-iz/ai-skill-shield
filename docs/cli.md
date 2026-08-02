@@ -1,21 +1,10 @@
 # CLI Reference
 
-The repository contains the `skillshield-cli` package in `packages/cli/`. Its executable is named `skillshield`.
+The repository contains an experimental CLI package in `packages/cli/`. It is not published to npm yet.
 
-## Run with `npx`
+For the complete scanner without installing anything, use the [live web app](https://ai-skill-shield.suppeng.com/).
 
-```bash
-npx skillshield-cli scan ./path/to/skill
-```
-
-## Install globally
-
-```bash
-npm install --global skillshield-cli
-skillshield scan ./path/to/skill
-```
-
-## Build from source
+## Run from source
 
 ```bash
 npm install --prefix packages/cli
@@ -34,12 +23,12 @@ skillshield scan <path> [options]
 | `--format <format>` | `json` | Output format: `json`, `html`, `sarif`, or `markdown`. |
 | `--fail-on <severity>` | `high` | Exit with status `1` when the result meets or exceeds `critical`, `high`, `medium`, or `low`. |
 | `--output <file>` | Standard output | Write the report to a file. |
-| `--policy <path>` | — | Reserved option; the current CLI does not apply the supplied policy file. |
+| `--policy <path>` | - | Reserved option; the current CLI does not apply the supplied policy file. |
 
 ### Example
 
 ```bash
-skillshield scan ./my-skill --format sarif --output result.sarif
+node packages/cli/dist/index.js scan ./my-skill --format sarif --output result.sarif
 ```
 
 ## Current scope

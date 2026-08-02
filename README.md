@@ -1,111 +1,89 @@
-# SkillShield — AI Agent Skill Security Scanner
+# SkillShield
 
-Validate AI agent skills and `SKILL.md` files before they run or install.
+**Check an AI agent skill before you trust it.**
 
-SkillShield is an open-source AI agent skill security scanner and `SKILL.md` validator. It reviews local skills and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
+[Try the live scanner](https://ai-skill-shield.suppeng.com/) - no installation, account, or API key required for the standard scan.
 
-![SkillShield AI agent skill security report showing a pre-install GitHub repository verdict](artifacts/ux-audit-2026-07-18/03-report-summary.png)
+SkillShield reviews `SKILL.md` packages and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
 
-## AI agent skill security checks
+![SkillShield report showing a pre-install verdict and repository evidence](artifacts/ux-audit-2026-07-18/03-report-summary.png)
 
-- Validates skill packages across 11 axes, including security, structure, quality, compatibility, dependencies, and installation risk
-- Audits GitHub repositories before import for lifecycle scripts, install scripts, registries, workflows, submodules, and related execution surfaces
-- Highlights dangerous lines such as `curl | bash`, dynamic execution, custom registries, and install-time shell commands
-- Produces a pre-install verdict with a checklist, repository trust metadata, and approval status
-- Stores reports in SQLite and keeps browser-local history for quick revisit
-- Exports JSON, HTML, print-friendly PDF HTML, and SARIF reports
+## Scan a skill
 
-## Quick start
+1. Open the [live scanner](https://ai-skill-shield.suppeng.com/)
+2. Paste a GitHub repository URL, upload a skill package, or paste a `SKILL.md`
+3. Review the verdict, risky lines, and install-surface evidence
+
+The standard static scan works without an AI provider. Optional AI review supports OpenAI, Anthropic, OpenCode Go, and OpenCode Zen when self-hosting.
+
+## What it checks
+
+- prompt injection and suspicious agent instructions
+- exposed API keys, tokens, and private keys
+- dangerous shell commands such as `curl | bash` and destructive file operations
+- dynamic code execution and excessive file, environment, or network access
+- package lifecycle scripts, custom registries, submodules, and GitHub workflows
+- skill structure, compatibility, dependencies, and installation risk
+
+## What the report includes
+
+- a `Safe to Review`, `Needs Manual Review`, or `Do Not Install` verdict
+- dangerous-line evidence with file and line references
+- repository trust metadata and an install-surface map
+- findings across 11 validation axes
+- JSON, HTML, print-friendly HTML, and SARIF exports
+- local report history and approve/reject actions
+
+## Run locally (optional)
+
+The hosted scanner is the fastest path. To keep scans on your own machine:
 
 ```bash
-npm install
+git clone https://github.com/adnan-iz/ai-skill-shield.git
+cd ai-skill-shield
+npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). For optional AI review, copy `.env.example` to `.env.local` and add a supported provider key.
 
-To enable AI review, copy `.env.example` to `.env.local` and set one supported provider key: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENCODE_GO_API_KEY`, or `OPENCODE_ZEN_API_KEY`.
+## CLI (source only)
 
-Recommended flow:
+The CLI is not published to npm yet. Run the included package from source:
 
-1. Use the `GitHub Repo` tab on the homepage
-2. Import a repository or skill path
-3. Review the pre-install verdict and install-surface evidence on the report page
+```bash
+npm install --prefix packages/cli
+npm run build --prefix packages/cli
+node packages/cli/dist/index.js scan ./path/to/skill
+```
 
-## Core workflows
+The CLI uses a compact local rule set. The live web scanner provides the complete repository audit and 11-axis report.
 
-### GitHub repository security scan
+## Current scope
 
-This is the main product workflow. The GitHub path:
-
-- fetches repository files
-- audits repository-level install surfaces before validation
-- attaches trust metadata such as stars, forks, issues, license, and archive state
-- returns a report with dangerous-line evidence and install-surface mapping
-
-### Local AI skill validation
-
-Upload a local skill package when you already have the files and want validator coverage without repository context.
-
-### Paste `SKILL.md` for security review
-
-Paste raw `SKILL.md` content for quick inspection. This is useful for authoring and spot-checking, but it does not provide repository-level install auditing.
-
-## Security report and pre-install verdict
-
-Each report includes:
-
-- pre-install verdict: `Safe to Review`, `Needs Manual Review`, or `Do Not Install`
-- score and risk summary
-- 11-axis assessment cards in the UI
-- repository audit panel for GitHub scans
-- install-surface map and dangerous-line snippets
-- findings table, AI review, compatibility grid, and `SKILL.md` preview
-- approval status with approve/reject actions
+SkillShield performs best-effort static analysis. A clean report means no configured rule found a problem; it is not a guarantee that a skill is safe. SkillShield does not execute untrusted skills or provide a runtime sandbox.
 
 ## Tech stack
 
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- Drizzle ORM
-- SQLite by default
-
-## Project layout
-
-```text
-app/                     Next.js routes and API handlers
-components/              UI and report components
-docs/                    Product and operational documentation
-lib/                     Validation engine, report builders, storage, policy, security
-packages/cli/            CLI package
-packages/core/           Shared scanner and validator package
-public/examples/         Example skill content
-samples/                 Safe, suspicious, and malicious sample skills
-tests/                   Vitest coverage
-```
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle ORM, and SQLite.
 
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)
-- [Roadmap](ROADMAP.md)
 - [API reference](docs/api.md)
 - [CLI reference](docs/cli.md)
-- [Deployment guide](docs/deployment.md)
-- [Enterprise notes](docs/enterprise.md)
-- [Policy engine](docs/policy-engine.md)
-- [Scoring model](docs/scoring.md)
 - [GitHub Action](docs/github-action.md)
+- [Scoring model](docs/scoring.md)
+- [Deployment guide](docs/deployment.md)
+- [Roadmap](ROADMAP.md)
 
-## Verification
+## Development
 
 ```bash
 npm run lint
-npm run build
+npm run typecheck
 npm test
+npm run build
 ```
 
-## Status
-
-SkillShield is usable today as a local-first web app with GitHub import, repository auditing, approval tracking, exports, and history. Several enterprise features mentioned in older drafts are still planned rather than shipped; see the roadmap for the current priority list.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
