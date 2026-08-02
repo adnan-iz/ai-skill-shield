@@ -7,8 +7,8 @@ export const VALID_COMMIT_SHA = /^[0-9a-f]{7,40}$/
 export const MAX_FILE_SIZE = 3 * 1024 * 1024 // 3MB per file
 export const MAX_TOTAL_SIZE = 15 * 1024 * 1024 // 15MB total
 export const MAX_FILES = 30
-// ponytail: bounded bulk scan; raise or paginate when repositories exceed 1,000 skills within the payload limit.
-export const MAX_BATCH_SKILLS = 1000
+// ponytail: stored reports grow with every finding; paginate reports before raising this limit.
+export const MAX_BATCH_SKILLS = 100
 
 export function validateOwnerRepo(owner: string, repo: string): string | null {
   if (!owner || !VALID_OWNER_REPO.test(owner)) return 'Invalid owner'

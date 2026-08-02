@@ -22,6 +22,11 @@ interface GitHubTarget {
   sha?: string
 }
 
+interface SkillChoice {
+  path: string
+  skillFile: string
+}
+
 const faqItems = [
   {
     question: 'What does SkillShield check?',
@@ -81,6 +86,9 @@ export default function HomePage() {
   const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
   const [resolutionHint, setResolutionHint] = useState('')
+  const [skillChoices, setSkillChoices] = useState<SkillChoice[]>([])
+  const [selectedSkillFile, setSelectedSkillFile] = useState('')
+  const [pendingTarget, setPendingTarget] = useState<GitHubTarget | null>(null)
   const scanPath =
     tab === 'url'
       ? 'github.com/owner/repo'
@@ -160,6 +168,8 @@ export default function HomePage() {
   const handleUrlParse = useCallback(async (data: GitHubTarget) => {
     setLoading(true)
     setResolutionHint('')
+    setSkillChoices([])
+    setPendingTarget(null)
     try {
       const res = await fetch('/api/github', {
         method: 'POST',
@@ -182,12 +192,25 @@ export default function HomePage() {
         path: string
         branch?: string
         sha?: string
+        requiresSkillSelection?: boolean
+        skills?: SkillChoice[]
         analyzeAllSkills?: boolean
         skillCount?: number
         repositoryAudit?: RepositoryAudit
         repositoryMeta?: RepositoryMeta
         warning?: string
         validationResult?: ValidationResult
+      }
+      if (result.requiresSkillSelection && result.skills?.length) {
+        setSkillChoices(result.skills)
+        setSelectedSkillFile(result.skills[0].skillFile)
+        setPendingTarget({
+          ...data,
+          branch: result.branch || data.branch,
+          sha: result.sha || data.sha,
+        })
+        setResolutionHint(`Found ${result.skills.length} skills. Choose one to scan.`)
+        return
       }
       if (result.validationResult) {
         saveValidation(result.validationResult)
@@ -332,7 +355,38 @@ export default function HomePage() {
             {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
 
             {tab === 'url' && (
-              <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
+              <>
+                <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
+                {pendingTarget && skillChoices.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-shield-200 bg-shield-50/70 p-4">
+                    <label htmlFor="skill-choice" className="block text-sm font-semibold text-on-surface">
+                      Choose the skill to scan
+                    </label>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <select
+                        id="skill-choice"
+                        value={selectedSkillFile}
+                        onChange={(event) => setSelectedSkillFile(event.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-outline bg-surface-container px-3 py-2 text-sm text-on-surface focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
+                      >
+                        {skillChoices.map((choice) => (
+                          <option key={choice.skillFile} value={choice.skillFile}>
+                            {choice.path || '(repository root)'}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={loading || !selectedSkillFile}
+                        onClick={() => void handleUrlParse({ ...pendingTarget, path: selectedSkillFile })}
+                        className="rounded-lg bg-shield-600 px-5 py-2 text-sm font-semibold text-white hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Scan selected skill
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {tab === 'paste' && (
