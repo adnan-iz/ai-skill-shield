@@ -89,22 +89,39 @@ function ipFromRequest(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        ...githubHeaders(),
-        ...(options.headers || {}),
-      },
-    })
-    return res
-  } finally {
-    clearTimeout(timer)
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
+  // ponytail: one retry covers transient GitHub disconnects; add backoff only if rate-limit data warrants it.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          ...githubHeaders(),
+          ...(options.headers || {}),
+        },
+      })
+      const body = response.status === 204 || response.status === 304
+        ? null
+        : await response.arrayBuffer()
+      const headers = new Headers(response.headers)
+      headers.delete('content-encoding')
+      headers.delete('content-length')
+      return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
+    } catch (error) {
+      if (attempt === 1) throw error
+    } finally {
+      clearTimeout(timer)
+    }
   }
+
+  throw new Error('GitHub request failed')
 }
 
 function githubHeaders(): HeadersInit {
