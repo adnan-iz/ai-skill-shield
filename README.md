@@ -1,4 +1,4 @@
-# SkillShield
+# AI Skill Shield
 
 **Check an AI agent skill before you trust it.**
 
