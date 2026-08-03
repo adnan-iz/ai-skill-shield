@@ -45,7 +45,7 @@ export default function ExportBar({ result }: ExportBarProps) {
   }
 
   function exportPdf() {
-    window.open(`/api/report?id=${result.id}&format=html`, '_blank')
+    window.open(`/api/report?id=${result.id}&format=pdf`, '_blank')
   }
 
   async function exportSarif() {
@@ -100,7 +100,7 @@ export default function ExportBar({ result }: ExportBarProps) {
     } catch {}
   }
 
-  const btnClass = "inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container px-4 py-2 text-sm font-medium text-on-surface hover:bg-surface-secondary transition-colors"
+  const btnClass = "inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:border-outline-variant hover:bg-outline"
   const primaryBtnClass = "inline-flex items-center gap-1.5 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700 transition-colors"
 
   return (

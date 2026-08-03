@@ -1,6 +1,7 @@
 "use client"
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
@@ -248,7 +249,7 @@ export default function HomePage() {
       <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <div className="home-hero-content">
           <Link href="/" className="mb-6 inline-flex items-center gap-3" aria-label="AI Skill Shield home">
-            <span className="material-symbols-outlined flex h-11 w-11 items-center justify-center rounded-xl bg-shield-600 text-2xl text-white">shield</span>
+            <Image src="/skill-shield-logo.svg" alt="" width={44} height={44} priority />
             <span>
               <span className="block text-xl font-bold text-on-surface">AI Skill Shield</span>
               <span className="block text-xs text-on-surface-secondary">by Support Engine</span>

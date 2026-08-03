@@ -78,6 +78,8 @@ describe('GET /api/report', () => {
     expect(response.headers.get('Content-Type')).toContain('text/html')
     expect(body).toContain('<!DOCTYPE html>')
     expect(body).toContain('AI Skill Shield')
+    expect(body).toContain('ai-skill-shield.suppeng.com')
+    expect(body).toContain('/skill-shield-logo.svg')
   })
 
   it('escapes scan-controlled values in HTML exports', async () => {
@@ -109,5 +111,32 @@ describe('GET /api/report', () => {
     expect(body).not.toContain('<iframe srcdoc=bad>')
     expect(body).toContain('&lt;img src=x onerror=alert(1)&gt;')
     expect(body).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('keeps large printable reports readable by limiting the detailed table', async () => {
+    const result = makeResult()
+    result.findings = Array.from({ length: 105 }, (_, index) => ({
+      id: `finding-${index}`,
+      axis: 'security',
+      severity: index === 104 ? 'critical' as const : 'low' as const,
+      category: 'quality',
+      title: `Finding ${index}`,
+      message: 'Review this finding.',
+      filePath: 'SKILL.md',
+      lineNumber: index + 1,
+      snippet: '',
+      recommendation: 'Fix it.',
+    }))
+    result.tokenAnalysis.breakdown = Array.from({ length: 30 }, (_, index) => ({ section: `Section ${index}`, tokens: index }))
+    vi.mocked(getResult).mockResolvedValue(result)
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/report?id=123e4567-e89b-12d3-a456-426614174000&format=pdf'))
+    const body = await response.text()
+
+    expect(body).toContain('Showing the 25 highest-priority findings of 105')
+    expect(body.match(/class="finding-row"/g)).toHaveLength(25)
+    expect(body.indexOf('Finding 104')).toBeLessThan(body.indexOf('Finding 0'))
+    expect(body).toContain('Showing the 25 largest token sections of 30')
+    expect(body.indexOf('Section 29')).toBeLessThan(body.indexOf('Section 5'))
   })
 })

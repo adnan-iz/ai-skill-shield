@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import ThemeToggle from "@/components/ui/theme-toggle"
 
@@ -23,7 +24,7 @@ export function SideNavBar() {
         aria-label="AI Skill Shield home"
         className="mb-4 flex h-11 items-center gap-3 rounded-xl px-2 text-white"
       >
-        <span className="material-symbols-outlined flex h-9 w-9 items-center justify-center rounded-xl bg-shield-500 text-xl">shield</span>
+        <Image src="/skill-shield-logo.svg" alt="" width={36} height={36} />
         <span>
           <span className="block text-sm font-bold">AI Skill Shield</span>
           <span className="block text-[10px] text-slate-400">by Support Engine</span>
@@ -67,7 +68,7 @@ export function TopNavBar() {
         aria-label="AI Skill Shield home"
         className="flex items-center gap-2 text-sm font-semibold text-on-surface md:hidden"
       >
-        <span className="material-symbols-outlined flex h-7 w-7 items-center justify-center rounded-lg bg-shield-600 text-base text-white">shield</span>
+        <Image src="/skill-shield-logo.svg" alt="" width={28} height={28} />
         <span>AI Skill Shield</span>
       </Link>
       <div className="ml-auto flex items-center gap-2">
