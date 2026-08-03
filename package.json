@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "index:skills": "tsx scripts/index-public-skills.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
