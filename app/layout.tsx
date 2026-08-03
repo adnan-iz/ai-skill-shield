@@ -5,7 +5,11 @@ import "./globals.css";
 import { SideNavBar, TopNavBar, BottomNavBar } from "@/components/layout/nav";
 import { ToastProvider } from "@/components/ui/toast";
 import { Analytics } from "@vercel/analytics/next";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, SOCIAL_IMAGE } from "@/lib/site";
+
+const title = "SkillShield - Validate Agent Skills Before You Run Them";
+const description =
+  "Free security scanner for AI agent skills. Upload SKILL.md files, audit GitHub repos, and get instant trust scores, risk reports, and install recommendations.";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,20 +25,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "SkillShield",
   title: {
-    default: "SkillShield - Validate Agent Skills Before You Run Them",
+    default: title,
     template: "%s - SkillShield",
   },
-  description:
-    "Pre-flight validation, security scanning, and professional reports for the open Agent Skills ecosystem.",
-  keywords: [
-    "AI security",
-    "agent skills",
-    "skill validation",
-    "MCP security",
-    "Claude skills",
-    "AI agent security",
-    "DevSecOps",
-  ],
+  description,
   authors: [{ name: "Support Engine", url: "https://suppeng.com" }],
   creator: "Support Engine",
   publisher: "Support Engine",
@@ -57,19 +51,19 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "SkillShield - Validate Agent Skills Before You Run Them",
-    description:
-      "Pre-flight validation, security scanning, and professional reports for AI agent skills.",
+    title,
+    description,
     type: "website",
     url: "/",
     siteName: "SkillShield",
     locale: "en_US",
+    images: [SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SkillShield - Validate Agent Skills Before You Run Them",
-    description:
-      "Pre-flight validation, security scanning, and professional reports for AI agent skills.",
+    title,
+    description,
+    images: [SOCIAL_IMAGE],
   },
 };
 

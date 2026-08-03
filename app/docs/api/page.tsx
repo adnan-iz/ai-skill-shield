@@ -3,16 +3,23 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import Link from 'next/link'
 import { marked } from 'marked'
+import { SOCIAL_IMAGE } from '@/lib/site'
+
+const title = 'API Reference'
+const socialTitle = 'SkillShield API Reference'
+const description = 'Use the complete SkillShield API reference to validate AI agent skills, audit GitHub repositories, enforce policies, and export SARIF, PDF, and CSV reports.'
 
 export const metadata: Metadata = {
-  title: 'API Reference',
-  description: 'SkillShield API endpoints, request formats, and response details.',
+  title,
+  description,
   alternates: { canonical: '/docs/api' },
   openGraph: {
-    title: 'SkillShield API Reference',
-    description: 'Integrate AI agent skill validation, repository auditing, policies, and security reports.',
+    title: socialTitle,
+    description,
     url: '/docs/api',
+    images: [SOCIAL_IMAGE],
   },
+  twitter: { card: 'summary_large_image', title: socialTitle, description, images: [SOCIAL_IMAGE] },
 }
 
 export default async function ApiDocsPage() {
