@@ -1,7 +1,6 @@
 "use client"
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
@@ -248,13 +247,6 @@ export default function HomePage() {
       <div className="mx-auto max-w-6xl px-4">
       <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <div className="home-hero-content">
-          <Link href="/" className="mb-6 inline-flex items-center gap-3" aria-label="AI Skill Shield home">
-            <Image src="/skill-shield-logo.svg" alt="" width={44} height={44} priority />
-            <span>
-              <span className="block text-xl font-bold text-on-surface">AI Skill Shield</span>
-              <span className="block text-xs text-on-surface-secondary">by Support Engine</span>
-            </span>
-          </Link>
           <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
             <span className="material-symbols-outlined text-sm">shield</span>
             Pre-install skill security

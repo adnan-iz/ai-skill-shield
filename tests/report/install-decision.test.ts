@@ -86,3 +86,23 @@ it('still requires review for a medium repository finding', () => {
 
   expect(decision.label).toBe('Needs Manual Review')
 })
+
+it('ignores legacy prepublish-only findings when deciding whether installation is blocked', () => {
+  const result = resultWithRepoFinding({
+    id: 'lifecycle:package-json:prepublishOnly',
+    severity: 'critical',
+    category: 'Install Script',
+    title: 'Detected lifecycle script: prepublishOnly',
+    message: 'Legacy finding from an earlier scanner version.',
+  })
+  result.source!.repositoryAudit!.riskLevel = 'critical'
+  result.source!.repositoryAudit!.findings.push({
+    id: 'lifecycle:package-json:prepare',
+    severity: 'high',
+    category: 'Install Script',
+    title: 'Detected lifecycle script: prepare',
+    message: 'Review this install-time hook.',
+  })
+
+  expect(buildInstallDecision(result, null).label).toBe('Needs Manual Review')
+})
