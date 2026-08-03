@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { escapeMarkdownTableCell } from './markdown.js';
 const dangerousPatterns = [
     { pattern: /rm\s+-(?:rf|fr)\s+\//, severity: 'critical', title: 'Dangerous rm -rf /', category: 'command-injection' },
     { pattern: /curl\s+.*\|\s*(?:sh|bash)/, severity: 'critical', title: 'curl pipe to shell', category: 'command-injection' },
@@ -211,7 +212,7 @@ function outputMarkdown(result) {
     else {
         md += `| Severity | Category | Title | File |\n| --- | --- | --- | --- |\n`;
         for (const f of result.findings) {
-            md += `| ${f.severity.toUpperCase()} | ${f.category.replace(/\|/g, '\\|')} | ${f.title.replace(/\|/g, '\\|')} | ${f.filePath.replace(/\|/g, '\\|')}:${f.lineNumber} |\n`;
+            md += `| ${f.severity.toUpperCase()} | ${escapeMarkdownTableCell(f.category)} | ${escapeMarkdownTableCell(f.title)} | ${escapeMarkdownTableCell(f.filePath)}:${f.lineNumber} |\n`;
         }
     }
     return md;

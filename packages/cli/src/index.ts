@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { escapeMarkdownTableCell } from './markdown.js';
 
 interface Finding {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -242,7 +243,7 @@ function outputMarkdown(result: ScanResult): string {
   } else {
     md += `| Severity | Category | Title | File |\n| --- | --- | --- | --- |\n`;
     for (const f of result.findings) {
-      md += `| ${f.severity.toUpperCase()} | ${f.category.replace(/\|/g, '\\|')} | ${f.title.replace(/\|/g, '\\|')} | ${f.filePath.replace(/\|/g, '\\|')}:${f.lineNumber} |\n`;
+      md += `| ${f.severity.toUpperCase()} | ${escapeMarkdownTableCell(f.category)} | ${escapeMarkdownTableCell(f.title)} | ${escapeMarkdownTableCell(f.filePath)}:${f.lineNumber} |\n`;
     }
   }
   return md;
