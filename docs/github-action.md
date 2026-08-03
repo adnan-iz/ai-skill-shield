@@ -5,7 +5,7 @@ The repository includes a local JavaScript action at `.github/actions/validate-s
 ## Example workflow
 
 ```yaml
-name: SkillShield Scan
+name: AI Skill Shield Scan
 
 on:
   pull_request:

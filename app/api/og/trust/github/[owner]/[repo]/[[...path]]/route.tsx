@@ -26,7 +26,7 @@ export async function GET(
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#07110d', color: '#f8fafc', padding: '64px', fontFamily: 'sans-serif' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', color: '#86efac', fontSize: 26, fontWeight: 700 }}>
           <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #22c55e', borderRadius: 10 }}>S</div>
-          SkillShield public trust report
+          AI Skill Shield public trust report
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', fontSize: 56, fontWeight: 800, letterSpacing: '-2px' }}>{repoLabel}</div>

@@ -1,6 +1,5 @@
 "use client"
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -24,20 +23,20 @@ interface GitHubTarget {
 
 const faqItems = [
   {
-    question: 'What does SkillShield check?',
-    answer: 'SkillShield reviews AI agent skill files for exposed secrets, destructive commands, shell-execution risk, external network access, permission concerns, compatibility, and unsafe install-time behavior.',
+    question: 'What does AI Skill Shield check?',
+    answer: 'AI Skill Shield reviews AI agent skill files for exposed secrets, destructive commands, shell-execution risk, external network access, permission concerns, compatibility, and unsafe install-time behavior.',
   },
   {
     question: 'How can I scan an AI agent skill?',
-    answer: 'Paste a public GitHub repository URL, upload the skill files, or paste the SKILL.md content. SkillShield returns a score, risk level, findings, evidence, and an install recommendation.',
+    answer: 'Paste a public GitHub repository URL, upload the skill files, or paste the SKILL.md content. AI Skill Shield returns a static score, highest finding severity, evidence, and an install recommendation.',
   },
   {
-    question: 'Does SkillShield support repository audits?',
+    question: 'Does AI Skill Shield support repository audits?',
     answer: 'Yes. GitHub imports can inspect install scripts, workflows, registries, submodules, and repository metadata in addition to the skill files.',
   },
   {
-    question: 'Can SkillShield be used in automated workflows?',
-    answer: 'Yes. The SkillShield API supports validation, repository auditing, policy checks, comparisons, and report exports for development and CI workflows.',
+    question: 'Can AI Skill Shield be used in automated workflows?',
+    answer: 'Yes. The AI Skill Shield API supports validation, repository auditing, policy checks, comparisons, and report exports for development and CI workflows.',
   },
 ]
 
@@ -47,7 +46,7 @@ const pageSchema = {
     {
       '@type': 'WebApplication',
       '@id': 'https://ai-skill-shield.suppeng.com/#application',
-      name: 'SkillShield',
+      name: 'AI Skill Shield',
       url: 'https://ai-skill-shield.suppeng.com/',
       applicationCategory: 'SecurityApplication',
       operatingSystem: 'Web',
@@ -58,7 +57,7 @@ const pageSchema = {
         'GitHub repository auditing',
         'AI agent ecosystem compatibility checks',
         'Security policy validation',
-        'SARIF, JSON, HTML, PDF, CSV, and Markdown reports',
+        'SARIF, JSON, HTML, print-to-PDF, CSV, and Markdown reports',
       ],
       provider: { '@id': 'https://ai-skill-shield.suppeng.com/#organization' },
     },
@@ -248,20 +247,13 @@ export default function HomePage() {
       <div className="mx-auto max-w-6xl px-4">
       <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <div className="home-hero-content">
-          <div className="mb-6">
-            <div className="inline-flex">
-              <Image
-                src="/support-engine-logo.png"
-                alt="Support Engine"
-                width={360}
-                height={200}
-                sizes="(min-width: 1024px) 180px, (min-width: 640px) 160px, 140px"
-                quality={60}
-                priority
-                className="h-auto w-[140px] object-contain sm:w-[160px] lg:w-[180px]"
-              />
-            </div>
-          </div>
+          <Link href="/" className="mb-6 inline-flex items-center gap-3" aria-label="AI Skill Shield home">
+            <span className="material-symbols-outlined flex h-11 w-11 items-center justify-center rounded-xl bg-shield-600 text-2xl text-white">shield</span>
+            <span>
+              <span className="block text-xl font-bold text-on-surface">AI Skill Shield</span>
+              <span className="block text-xs text-on-surface-secondary">by Support Engine</span>
+            </span>
+          </Link>
           <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
             <span className="material-symbols-outlined text-sm">shield</span>
             Pre-install skill security
@@ -272,6 +264,9 @@ export default function HomePage() {
           <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
             Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
           </p>
+          <Link href="/explore" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-shield-700 hover:text-shield-800">
+            Explore public GitHub scans
+          </Link>
         </div>
 
         <div className="home-scan-stage hidden lg:block" aria-hidden="true">
@@ -379,13 +374,13 @@ export default function HomePage() {
         <div className="home-stat-card home-stat-card-3 glass-card p-6">
           <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
           <div className="text-3xl font-bold text-shield-600">23</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">agent ecosystems recognized</div>
+          <div className="mt-1 text-sm text-on-surface-secondary">agent-specific signatures checked</div>
         </div>
       </div>
 
       <section className="home-feature-shell">
         <div className="glass-card p-8">
-          <h2 className="mb-6 text-center text-2xl font-bold text-on-surface">What SkillShield does</h2>
+          <h2 className="mb-6 text-center text-2xl font-bold text-on-surface">What AI Skill Shield does</h2>
           <div className="home-feature-grid grid grid-cols-1 gap-8 sm:grid-cols-3">
             <div className="home-feature-card text-center">
               <span className="material-symbols-outlined mb-2 inline-block text-4xl text-shield-500">cloud_upload</span>
@@ -414,9 +409,9 @@ export default function HomePage() {
 
       <section aria-labelledby="what-is-skillshield" className="mt-12 grid gap-6 lg:grid-cols-2">
         <div className="glass-card p-8">
-          <h2 id="what-is-skillshield" className="text-2xl font-bold text-on-surface">What is SkillShield?</h2>
+          <h2 id="what-is-skillshield" className="text-2xl font-bold text-on-surface">What is AI Skill Shield?</h2>
           <p className="mt-3 leading-7 text-on-surface-secondary">
-            SkillShield is an AI agent skill security scanner. It helps developers and teams inspect a skill before installation by combining static validation, repository evidence, compatibility checks, and a clear install-risk report.
+            AI Skill Shield is an AI agent skill security scanner. It helps developers and teams inspect a skill before installation by combining static validation, repository evidence, compatibility checks, and a clear install-risk report.
           </p>
           <p className="mt-3 leading-7 text-on-surface-secondary">
             It is designed for Agent Skills, SKILL.md packages, MCP-adjacent workflows, and public GitHub repositories used by AI agents.

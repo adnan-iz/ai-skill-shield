@@ -1,6 +1,6 @@
-name: 'SkillShield Validate'
+name: 'AI Skill Shield Validate'
 description: 'Validate agent skills for security, quality, and compatibility'
-author: 'SkillShield'
+author: 'AI Skill Shield'
 
 inputs:
   skill-path:

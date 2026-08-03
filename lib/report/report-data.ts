@@ -9,11 +9,11 @@ export interface ReportSection {
 
 function getRiskLabel(riskLevel: ValidationResult['riskLevel']): string {
   switch (riskLevel) {
-    case 'critical': return 'Critical Risk'
-    case 'high': return 'High Risk'
-    case 'medium': return 'Medium Risk'
-    case 'low': return 'Low Risk'
-    case 'safe': return 'Safe'
+    case 'critical': return 'Critical severity'
+    case 'high': return 'High severity'
+    case 'medium': return 'Medium severity'
+    case 'low': return 'Low severity'
+    case 'safe': return 'No severity-rated findings'
   }
 }
 
@@ -95,7 +95,7 @@ export function generateReportData(result: ValidationResult): {
     ...categorizedRecs.info,
   ]
 
-  const summary = `Skill "${result.skillName}" scored ${result.overallScore}/100 (${scoreLabel}) with ${result.riskLevel.toUpperCase()} risk level. ${result.findings.length} total findings: ${result.summary.criticalCount} critical, ${result.summary.highCount} high, ${result.summary.mediumCount} medium, ${result.summary.lowCount} low, ${result.summary.infoCount} info. ${result.summary.passed} axes passed, ${result.summary.warnings} warnings, ${result.summary.failed} failed.`
+  const summary = `Skill "${result.skillName}" scored ${result.overallScore}/100 (${scoreLabel}); its highest finding severity is ${result.riskLevel.toUpperCase()}. ${result.findings.length} total findings: ${result.summary.criticalCount} critical, ${result.summary.highCount} high, ${result.summary.mediumCount} medium, ${result.summary.lowCount} low, ${result.summary.infoCount} info. ${result.summary.passed} axes passed, ${result.summary.warnings} warnings, ${result.summary.failed} failed.`
 
   const sections: ReportSection[] = [
     {
@@ -103,8 +103,8 @@ export function generateReportData(result: ValidationResult): {
       title: 'Executive Summary',
       content: `## Validation Results for "${result.skillName}"
 
-**Overall Score:** ${result.overallScore}/100 (${scoreLabel})
-**Risk Level:** ${riskLabel}
+**Static Score:** ${result.overallScore}/100 (${scoreLabel})
+**Highest Finding Severity:** ${riskLabel}
 **Total Findings:** ${result.findings.length}
 **Validated At:** ${new Date(result.timestamp).toLocaleString()}
 

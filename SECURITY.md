@@ -17,7 +17,7 @@ Security fixes are applied to the latest release line.
 
 ## Current security controls
 
-- Skill content is analyzed statically; SkillShield does not execute submitted skill code.
+- Skill content is analyzed statically; AI Skill Shield does not execute submitted skill code.
 - Validation requests enforce file-count, per-file, total-payload, path, and binary-content checks.
 - Rate limits are stored server-side and applied per IP address.
 - CI runs `npm audit` and GitHub CodeQL analysis.
@@ -29,7 +29,7 @@ Security fixes are applied to the latest release line.
 - Validation results are stored in SQLite or the configured libSQL-compatible database.
 - Results that are not eligible for public GitHub trust pages receive a 30-day expiration timestamp. Public, commit-bound default-branch GitHub results are retained for trust-page lookups.
 - Browser history is stored in the user's local storage for convenience.
-- Database encryption is provided by the selected storage platform; SkillShield does not add application-layer encryption at rest.
+- Database encryption is provided by the selected storage platform; AI Skill Shield does not add application-layer encryption at rest.
 - When AI review is enabled, redacted finding data is sent to the configured provider. Review that provider's data-handling terms before enabling the feature.
 
 ## Request limits

@@ -43,7 +43,7 @@ export function githubTrustPath(target: GitHubTrustTarget): string {
 }
 
 export function githubBadgePath(target: GitHubTrustTarget): string {
-  return artifactPath('/api/badge/github', target)
+  return `${artifactPath('/api/badge/github', target)}?v=2`
 }
 
 export function githubTrustImagePath(target: GitHubTrustTarget): string {

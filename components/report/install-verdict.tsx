@@ -29,9 +29,12 @@ export default function InstallVerdict({ result, approvalStatus }: InstallVerdic
     <div className={`rounded-xl border p-5 ${toneClasses[decision.tone]}`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em]">Pre-install verdict</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em]">Primary install decision</div>
           <h2 className="mt-2 text-2xl font-bold">{decision.label}</h2>
           <p className="mt-2 text-sm opacity-90">{decision.summary}</p>
+          <p className="mt-2 text-xs opacity-75">
+            Based on a {result.overallScore}/100 static score and {result.riskLevel === 'safe' ? 'no severity-rated findings' : `${result.riskLevel} as the highest finding severity`}.
+          </p>
         </div>
 
         {metadata && (

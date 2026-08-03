@@ -44,9 +44,9 @@ The Compose configuration publishes the application on port `3000` and stores SQ
 
 ## Storage
 
-By default, SkillShield stores data in `data/skillshield.db`. Docker uses `/app/data/skillshield.db` inside the named volume. Required tables are created when the database is first used, so initial deployment does not require a separate migration command.
+By default, AI Skill Shield stores data in `data/skillshield.db`. Docker uses `/app/data/skillshield.db` inside the named volume. Required tables are created when the database is first used, so initial deployment does not require a separate migration command.
 
-On Vercel, configure a remote libSQL database with `DATABASE_URL` and `DATABASE_AUTH_TOKEN`, or use the Turso aliases. Without a remote database, SkillShield falls back to ephemeral `/tmp` storage. Scans will run, but reports, approvals, rate limits, and public trust pages will not persist reliably across function instances.
+On Vercel, configure a remote libSQL database with `DATABASE_URL` and `DATABASE_AUTH_TOKEN`, or use the Turso aliases. Without a remote database, AI Skill Shield falls back to ephemeral `/tmp` storage. Scans will run, but reports, approvals, rate limits, and public trust pages will not persist reliably across function instances.
 
 ## Operational considerations
 

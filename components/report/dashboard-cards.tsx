@@ -12,13 +12,10 @@ export default function DashboardCards({ result }: DashboardCardsProps) {
   const dangerousCommands = result.findings.filter(f => f.category === 'command-injection' || f.category === 'shell-execution').length
   const externalDomains = result.findings.filter(f => f.category === 'external-calls' || f.category === 'network').length
 
-  const trustDecision = result.overallScore >= 70 ? 'Trusted' : result.overallScore >= 50 ? 'Caution' : 'Untrusted'
-  const trustColor = result.overallScore >= 70 ? 'text-shield-500' : result.overallScore >= 50 ? 'text-yellow-500' : 'text-red-500'
-
   const cards = [
-    { label: 'Overall Score', value: `${result.overallScore}/100`, icon: 'speed', color: result.overallScore >= 70 ? 'text-shield-500' : result.overallScore >= 50 ? 'text-yellow-500' : 'text-red-500' },
-    { label: 'Risk Level', value: result.riskLevel.toUpperCase(), icon: 'shield', color: result.riskLevel === 'safe' || result.riskLevel === 'low' ? 'text-shield-500' : result.riskLevel === 'medium' ? 'text-yellow-500' : 'text-red-500' },
-    { label: 'Trust Decision', value: trustDecision, icon: 'verified', color: trustColor },
+    { label: 'Static Score', value: `${result.overallScore}/100`, icon: 'speed', color: result.overallScore >= 70 ? 'text-shield-500' : result.overallScore >= 50 ? 'text-yellow-500' : 'text-red-500' },
+    { label: 'Highest Finding', value: result.riskLevel.toUpperCase(), icon: 'shield', color: result.riskLevel === 'safe' || result.riskLevel === 'low' ? 'text-shield-500' : result.riskLevel === 'medium' ? 'text-yellow-500' : 'text-red-500' },
+    { label: 'Total Findings', value: String(result.findings.length), icon: 'fact_check', color: result.findings.length > 0 ? 'text-yellow-500' : 'text-shield-500' },
     { label: 'Critical Findings', value: String(criticalCount), icon: 'report', color: criticalCount > 0 ? 'text-red-500' : 'text-shield-500' },
     { label: 'Secrets Found', value: String(secretsCount), icon: 'key', color: secretsCount > 0 ? 'text-red-500' : 'text-shield-500' },
     { label: 'Dangerous Commands', value: String(dangerousCommands), icon: 'terminal', color: dangerousCommands > 0 ? 'text-red-500' : 'text-shield-500' },

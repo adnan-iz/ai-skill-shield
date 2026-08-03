@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react'
 interface ScoreGaugeProps {
   score: number
   riskLevel: string
+  compact?: boolean
 }
 
-export default function ScoreGauge({ score, riskLevel }: ScoreGaugeProps) {
+export default function ScoreGauge({ score, riskLevel, compact = false }: ScoreGaugeProps) {
   const [animatedScore, setAnimatedScore] = useState(0)
 
   useEffect(() => {
@@ -25,37 +26,40 @@ export default function ScoreGauge({ score, riskLevel }: ScoreGaugeProps) {
       : 'text-red-600'
 
   const strokeColorVar = score >= 70 ? 'var(--color-shield-600)' : score >= 50 ? 'var(--color-threat-medium)' : score >= 30 ? 'var(--color-threat-high)' : 'var(--color-threat-critical)'
+  const riskStrokeColorVar = riskLevel === 'critical' ? 'var(--color-threat-critical)' : riskLevel === 'high' ? 'var(--color-threat-high)' : riskLevel === 'medium' ? 'var(--color-threat-medium)' : 'var(--color-outline)'
 
-  const radius = 72
+  const size = compact ? 112 : 180
+  const radius = compact ? 44 : 72
+  const center = size / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (animatedScore / 100) * circumference
 
   const riskLabel: Record<string, string> = {
-    safe: 'Safe',
-    low: 'Low Risk',
-    medium: 'Medium Risk',
-    high: 'High Risk',
-    critical: 'Critical',
+    safe: 'None',
+    low: 'Low severity',
+    medium: 'Medium severity',
+    high: 'High severity',
+    critical: 'Critical severity',
   }
 
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex items-center justify-center">
-        <svg width="180" height="180" className="-rotate-90">
+        <svg width={size} height={size} className="-rotate-90">
           <circle
-            cx="90"
-            cy="90"
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
-            strokeWidth="10"
-            style={{ stroke: 'var(--color-outline)' }}
+            strokeWidth={compact ? 9 : 10}
+            style={{ stroke: compact ? riskStrokeColorVar : 'var(--color-outline)' }}
           />
           <circle
-            cx="90"
-            cy="90"
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
-            strokeWidth="10"
+            strokeWidth={compact ? 9 : 10}
             style={{ stroke: strokeColorVar }}
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -64,14 +68,23 @@ export default function ScoreGauge({ score, riskLevel }: ScoreGaugeProps) {
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className={`text-5xl font-bold ${color} transition-colors duration-500`}>
-            {animatedScore}
+          <span className={`${compact ? 'text-3xl' : 'text-5xl'} font-bold ${color} transition-colors duration-500`}>
+            {animatedScore}{compact && <span className="text-base">%</span>}
           </span>
-          <span className="text-xs font-medium text-on-surface-secondary">/ 100</span>
+          {!compact && <span className="text-xs font-medium text-on-surface-secondary">/ 100</span>}
+          {compact && <span className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-secondary">Static score</span>}
         </div>
       </div>
-      <span className="mt-2 text-sm font-semibold text-on-surface uppercase">
-        {riskLabel[riskLevel] || riskLevel}
+      {compact ? (
+        <div className="mt-2 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wider">
+          <span className="text-shield-600">{score}% score</span>
+          <span className="text-on-surface-secondary">{100 - score}% score gap</span>
+        </div>
+      ) : (
+        <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Static analysis score</span>
+      )}
+      <span className={`${compact ? 'text-xs' : 'text-sm'} mt-1 font-semibold text-on-surface`}>
+        Highest finding: {riskLabel[riskLevel] || riskLevel}
       </span>
     </div>
   )

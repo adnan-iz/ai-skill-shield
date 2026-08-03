@@ -2,12 +2,12 @@ export async function GET() {
   const spec = {
     openapi: '3.0.0',
     info: {
-      title: 'SkillShield API',
-      version: '0.1.0',
+      title: 'AI Skill Shield API',
+      version: '0.2.0',
       description: 'Validate, score, and secure AI agent skills before they run.',
     },
     servers: [
-      { url: '/', description: 'SkillShield API' },
+      { url: '/', description: 'AI Skill Shield API' },
     ],
     paths: {
       '/api/validate': {
@@ -30,13 +30,6 @@ export async function GET() {
                           path: { type: 'string', example: 'SKILL.md' },
                           content: { type: 'string', example: '---\nname: my-skill\n---' },
                         },
-                      },
-                    },
-                    options: {
-                      type: 'object',
-                      properties: {
-                        policy: { type: 'string', example: 'default' },
-                        failOn: { type: 'string', enum: ['critical', 'high', 'medium', 'low'] },
                       },
                     },
                   },
@@ -267,7 +260,7 @@ export async function GET() {
       '/api/docs': {
         get: {
           summary: 'OpenAPI specification',
-          description: 'This document — the full OpenAPI 3.0 spec for the SkillShield API',
+          description: 'This document — the full OpenAPI 3.0 spec for the AI Skill Shield API',
           responses: {
             '200': { description: 'OpenAPI JSON specification' },
           },

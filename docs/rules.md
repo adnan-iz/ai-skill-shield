@@ -1,6 +1,6 @@
 # Security Scanner Rule Inventory
 
-SkillShield combines threat signatures, secret detection, obfuscation checks, Semgrep-compatible rules, and permission-manifest checks. The source files linked below are authoritative when this inventory and the implementation differ.
+AI Skill Shield combines threat signatures, secret detection, obfuscation checks, Semgrep-compatible rules, and permission-manifest checks. The source files linked below are authoritative when this inventory and the implementation differ.
 
 ## Scanner layers
 
@@ -65,9 +65,9 @@ These rules use local string and regular-expression matching; they do not invoke
 
 ## Severity and scoring
 
-Semgrep-compatible severities map to SkillShield severities as follows:
+Semgrep-compatible severities map to AI Skill Shield severities as follows:
 
-| Rule severity | SkillShield severity |
+| Rule severity | AI Skill Shield severity |
 | --- | --- |
 | `CRITICAL` | `critical` |
 | `ERROR` | `high` |

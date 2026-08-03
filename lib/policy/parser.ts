@@ -1,4 +1,3 @@
-import { readFile } from 'fs/promises'
 import { parse as parseYaml } from 'yaml'
 import type { PolicyConfig, PolicyMode, SeverityOverride } from './types'
 
@@ -58,9 +57,24 @@ function getModeDefaults(mode: PolicyMode): Partial<PolicyConfig> {
 }
 
 const ALLOWED_SEVERITIES: SeverityOverride['overrideSeverity'][] = ['critical', 'high', 'medium', 'low', 'info']
+const ALLOWED_KEYS = new Set<keyof PolicyConfig>([
+  'mode', 'failOn', 'blockSecrets', 'blockDestructiveCommands', 'requirePermissionManifest',
+  'allowExternalDomains', 'blockedCommands', 'maxFileSizeMB', 'maxFiles',
+  'severityOverrides', 'allowedFileExtensions', 'blockedFindings',
+])
+
+function validateStringArray(value: unknown, key: string, errors: string[]): void {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    errors.push(`${key} must be an array of strings`)
+  }
+}
 
 function validateConfig(config: Partial<PolicyConfig>): string[] {
   const errors: string[] = []
+
+  for (const key of Object.keys(config)) {
+    if (!ALLOWED_KEYS.has(key as keyof PolicyConfig)) errors.push(`Unknown policy field: ${key}`)
+  }
 
   if (config.mode && !ALLOWED_MODES.includes(config.mode)) {
     errors.push(`Invalid mode: ${config.mode}. Allowed: ${ALLOWED_MODES.join(', ')}`)
@@ -70,13 +84,22 @@ function validateConfig(config: Partial<PolicyConfig>): string[] {
     errors.push(`Invalid failOn: ${config.failOn}. Allowed: ${ALLOWED_FAILON.join(', ')}`)
   }
 
-  if (config.maxFileSizeMB != null && config.maxFileSizeMB < 0) {
-    errors.push('maxFileSizeMB must be non-negative')
+  for (const key of ['blockSecrets', 'blockDestructiveCommands', 'requirePermissionManifest'] as const) {
+    if (config[key] != null && typeof config[key] !== 'boolean') errors.push(`${key} must be true or false`)
   }
 
-  if (config.maxFiles != null && config.maxFiles < 0) {
-    errors.push('maxFiles must be non-negative')
+  if (config.maxFileSizeMB != null && (typeof config.maxFileSizeMB !== 'number' || !Number.isFinite(config.maxFileSizeMB) || config.maxFileSizeMB < 0)) {
+    errors.push('maxFileSizeMB must be a non-negative number')
   }
+
+  if (config.maxFiles != null && (typeof config.maxFiles !== 'number' || !Number.isInteger(config.maxFiles) || config.maxFiles < 0)) {
+    errors.push('maxFiles must be a non-negative integer')
+  }
+
+  if (config.allowExternalDomains != null) validateStringArray(config.allowExternalDomains, 'allowExternalDomains', errors)
+  if (config.blockedCommands != null) validateStringArray(config.blockedCommands, 'blockedCommands', errors)
+  if (config.allowedFileExtensions != null) validateStringArray(config.allowedFileExtensions, 'allowedFileExtensions', errors)
+  if (config.blockedFindings != null) validateStringArray(config.blockedFindings, 'blockedFindings', errors)
 
   if (config.severityOverrides) {
     if (!Array.isArray(config.severityOverrides)) {
@@ -84,6 +107,10 @@ function validateConfig(config: Partial<PolicyConfig>): string[] {
     } else {
       for (let i = 0; i < config.severityOverrides.length; i++) {
         const o = config.severityOverrides[i]
+        if (!o || typeof o !== 'object') {
+          errors.push(`severityOverrides[${i}] must be an object`)
+          continue
+        }
         if (!o.ruleId && !o.category) {
           errors.push(`severityOverrides[${i}]: must specify ruleId or category`)
         }
@@ -94,22 +121,18 @@ function validateConfig(config: Partial<PolicyConfig>): string[] {
     }
   }
 
-  if (config.allowedFileExtensions != null && !Array.isArray(config.allowedFileExtensions)) {
-    errors.push('allowedFileExtensions must be an array')
-  }
-
-  if (config.blockedFindings != null && !Array.isArray(config.blockedFindings)) {
-    errors.push('blockedFindings must be an array')
-  }
-
   return errors
 }
 
 export function parsePolicy(content: string): PolicyConfig {
   const parsed = parseYaml(content)
 
-  if (!parsed || typeof parsed !== 'object') {
+  if (!parsed) {
     return { ...DEFAULT_POLICY }
+  }
+
+  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Invalid policy configuration:\nPolicy must be a YAML object')
   }
 
   const partial = parsed as Partial<PolicyConfig>
@@ -125,9 +148,4 @@ export function parsePolicy(content: string): PolicyConfig {
   merged.mode = mode
 
   return merged
-}
-
-export async function loadPolicy(path: string): Promise<PolicyConfig> {
-  const content = await readFile(path, 'utf-8')
-  return parsePolicy(content)
 }

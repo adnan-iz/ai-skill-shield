@@ -77,7 +77,7 @@ describe('GET /api/report', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Type')).toContain('text/html')
     expect(body).toContain('<!DOCTYPE html>')
-    expect(body).toContain('SkillShield')
+    expect(body).toContain('AI Skill Shield')
   })
 
   it('escapes scan-controlled values in HTML exports', async () => {

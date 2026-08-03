@@ -68,9 +68,9 @@ export default function ExportBar({ result }: ExportBarProps) {
     const resp = await fetch(`/api/report?id=${result.id}&format=json`)
     if (!resp.ok) return
     const data = await resp.json()
-    let md = `# SkillShield Report: ${data.skillName}\n\n`
-    md += `**Overall Score:** ${data.overallScore}/100\n`
-    md += `**Risk Level:** ${data.riskLevel}\n`
+    let md = `# AI Skill Shield Report: ${data.skillName}\n\n`
+    md += `**Static Score:** ${data.overallScore}/100\n`
+    md += `**Highest Finding Severity:** ${data.riskLevel}\n`
     md += `**Findings:** ${data.findings.length}\n\n`
     if (data.findings.length > 0) {
       md += `| Severity | Category | Title | File:Line | Recommendation |\n`
@@ -95,7 +95,7 @@ export default function ExportBar({ result }: ExportBarProps) {
     if (!badgePath || !trustPath) return
     const origin = window.location.origin
     try {
-      await navigator.clipboard.writeText(`[![SkillShield](${origin}${badgePath})](${origin}${trustPath})`)
+      await navigator.clipboard.writeText(`[![AI Skill Shield](${origin}${badgePath})](${origin}${trustPath})`)
       track('report.badge_copy')
     } catch {}
   }

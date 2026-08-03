@@ -4,9 +4,9 @@
 
 [Try the live scanner](https://ai-skill-shield.suppeng.com/) - no installation, account, or API key required for the standard scan.
 
-SkillShield reviews `SKILL.md` packages and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
+AI Skill Shield reviews `SKILL.md` packages and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
 
-![SkillShield report showing a pre-install verdict and repository evidence](artifacts/ux-audit-2026-07-18/03-report-summary.png)
+![AI Skill Shield report showing a pre-install verdict and repository evidence](artifacts/ux-audit-2026-07-18/03-report-summary.png)
 
 ## Scan a skill
 
@@ -61,7 +61,7 @@ The CLI uses a compact local rule set. The live web scanner provides the complet
 
 ## Current scope
 
-SkillShield performs best-effort static analysis. A clean report means no configured rule found a problem; it is not a guarantee that a skill is safe. SkillShield does not execute untrusted skills or provide a runtime sandbox.
+AI Skill Shield performs best-effort static analysis. A clean report means no configured rule found a problem; it is not a guarantee that a skill is safe. AI Skill Shield does not execute untrusted skills or provide a runtime sandbox.
 
 ## Tech stack
 

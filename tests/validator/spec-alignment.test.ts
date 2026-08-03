@@ -10,13 +10,23 @@ describe('Agent Skills specification alignment', () => {
     expect(result.findings).toEqual([])
   })
 
-  it('treats a standard SKILL.md as portable when vendor behavior is not declared', () => {
+  it('does not claim runtime compatibility from the standard filename alone', () => {
     const matrix = detectCompatibility(
       '---\nname: reviewer\ndescription: Reviews pull requests\n---\n# Reviewer',
       [{ path: 'SKILL.md', content: '# Reviewer' }]
     )
 
-    expect(matrix.agents.every((agent) => agent.status !== 'unknown')).toBe(true)
-    expect(matrix.agents[0].notes).toContain('Standard Agent Skills format')
+    expect(matrix.agents.every((agent) => agent.status === 'unknown')).toBe(true)
+    expect(matrix.overallCompatibility).toBe(10)
+  })
+
+  it('reports explicit agent markers without inflating unrelated agents', () => {
+    const matrix = detectCompatibility(
+      '# Reviewer\nUse this skill with Claude Code and ToolUse()',
+      [{ path: 'SKILL.md', content: '# Reviewer' }]
+    )
+
+    expect(matrix.agents.find((agent) => agent.id === 'claude-code')?.status).toBe('full')
+    expect(matrix.agents.find((agent) => agent.id === 'cursor')?.status).toBe('unknown')
   })
 })

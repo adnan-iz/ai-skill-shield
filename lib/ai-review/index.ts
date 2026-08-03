@@ -49,7 +49,7 @@ export function redactSecrets(content: string): string {
 }
 
 function buildPromptForFindings(findings: Finding[], skillName: string): string {
-  return `You are SkillShield AI, a security expert for AI agent skills. Analyze the following findings for "${skillName}" and provide:
+  return `You are AI Skill Shield, a security expert for AI agent skills. Analyze the following findings for "${skillName}" and provide:
 
 1. A brief executive summary (2-3 sentences)
 2. Risk explanation for each finding

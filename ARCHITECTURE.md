@@ -1,8 +1,8 @@
-# SkillShield Architecture
+# AI Skill Shield Architecture
 
 ## Overview
 
-SkillShield is a full-stack Next.js 16 application built around one core job: decide whether an AI skill is safe to review or install.
+AI Skill Shield is a full-stack Next.js 16 application built around one core job: decide whether an AI skill is safe to review or install.
 
 The system has four major layers:
 

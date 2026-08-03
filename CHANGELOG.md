@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to SkillShield are documented here.
+Notable changes to AI Skill Shield are documented here.
 
 ## Unreleased
 

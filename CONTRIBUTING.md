@@ -1,6 +1,6 @@
-# Contributing to SkillShield
+# Contributing to AI Skill Shield
 
-Thank you for helping improve SkillShield. Contributions should be focused, tested, and aligned with the project's pre-install security review goals.
+Thank you for helping improve AI Skill Shield. Contributions should be focused, tested, and aligned with the project's pre-install security review goals.
 
 ## Before you begin
 

@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getValidation } from '@/lib/state'
+import { getValidation, saveValidation } from '@/lib/state'
 import ScoreGauge from '@/components/report/score-gauge'
 import FindingsTable from '@/components/report/findings-table'
 import CompatibilityGrid from '@/components/report/compatibility-grid'
@@ -51,6 +51,7 @@ export default function ReportPage({
         }
 
         const remoteResult = await response.json() as ValidationResult
+        saveValidation(remoteResult)
         if (!cancelled) setResult(remoteResult)
       } catch {
         if (!cancelled) setResult(null)
@@ -482,6 +483,9 @@ export default function ReportPage({
             <span className="material-symbols-outlined text-lg">device_hub</span>
             Agent Compatibility
           </h3>
+          <p className="mb-4 text-xs text-on-surface-secondary">
+            Compatibility requires explicit agent or protocol markers. A standard SKILL.md filename alone is not treated as runtime verification.
+          </p>
           <CompatibilityGrid agents={result.compatibility.agents} />
         </div>
       </div>}

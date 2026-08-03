@@ -1,6 +1,6 @@
 # Enterprise Deployment Notes
 
-SkillShield includes several controls that support internal security review, but it remains a local-first application rather than a complete multi-tenant enterprise platform.
+AI Skill Shield includes several controls that support internal security review, but it remains a local-first application rather than a complete multi-tenant enterprise platform.
 
 ## Available capabilities
 
@@ -31,7 +31,7 @@ This review supports software supply-chain assessment before a skill is installe
 
 ## Current limitations
 
-SkillShield does not currently provide:
+AI Skill Shield does not currently provide:
 
 - Built-in authentication, SSO, or SAML
 - Role-based access control
@@ -43,12 +43,12 @@ Deployments that require these controls should provide them through an identity-
 
 ## Recommended internal deployment
 
-1. Run SkillShield in a controlled internal environment.
+1. Run AI Skill Shield in a controlled internal environment.
 2. Configure durable remote storage for shared reports and approvals.
 3. Set `GITHUB_TOKEN` for more reliable repository scanning.
 4. Protect the application with your organization's access-control layer.
 5. Forward relevant audit events to an internal webhook receiver.
-6. Treat SkillShield as a pre-install review aid, not as a replacement for runtime isolation or endpoint security.
+6. Treat AI Skill Shield as a pre-install review aid, not as a replacement for runtime isolation or endpoint security.
 
 ## Recommended next steps
 
