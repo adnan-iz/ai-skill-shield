@@ -1,4 +1,5 @@
 import type { RepositoryAudit } from '@/lib/github/repository-audit'
+import { countFileTree } from '@/lib/report/metrics'
 import type { ValidationResult } from '@/lib/validator/types'
 
 type ApprovalState = 'pending' | 'approved' | 'rejected' | null
@@ -80,10 +81,12 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     ? 'warn'
     : 'safe'
 
+  const fileCount = countFileTree(result.skillPreview.fileTree) || 1
+
   const checklist: InstallChecklistItem[] = [
     {
-      label: 'Skill file parsed',
-      detail: `Validated ${result.skillPreview.fileTree.length || 1} scanned file${result.skillPreview.fileTree.length === 1 ? '' : 's'}.`,
+      label: result.batch ? 'Skill files parsed' : 'Skill file parsed',
+      detail: `Validated ${fileCount.toLocaleString('en-US')} scanned file${fileCount === 1 ? '' : 's'}.`,
       status: 'pass',
     },
     {
