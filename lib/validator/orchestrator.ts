@@ -11,6 +11,7 @@ import { validateContent } from '@/lib/validator/content'
 import { validateDependencies } from '@/lib/validator/dependencies'
 import { validateBestPractices } from '@/lib/validator/best-practices'
 import { validateInstallation } from '@/lib/validator/installation'
+import { normalizeValidationResult } from '@/lib/validator/normalize-result'
 import {
   SkillFile, SkillInput, SkillPreview, FileTreeItem,
   ValidationResult, ValidationSummary, Finding, AxisResult,
@@ -115,26 +116,21 @@ function buildSummary(findings: Finding[], axes: AxisResult[]): ValidationSummar
 function buildCompatibilityAxis(result: CompatibilityMatrix): AxisResult {
   const fullCount = result.agents.filter(a => a.status === 'full').length
   const partialCount = result.agents.filter(a => a.status === 'partial').length
-  const _unknownCount = result.agents.filter(a => a.status === 'unknown').length
+  const unknownCount = result.agents.filter(a => a.status === 'unknown').length
   const totalKnown = fullCount + partialCount
-  const ratio = totalKnown / result.agents.length
 
   let score: number
   let status: AxisResult['status']
   let summary: string
 
-  if (ratio >= 0.5) {
-    score = 80 + Math.round((fullCount / result.agents.length) * 20)
-    status = 'pass'
-    summary = `Compatible with ${totalKnown}/${result.agents.length} agents (${fullCount} full, ${partialCount} partial)`
-  } else if (ratio >= 0.2) {
-    score = 40 + Math.round(ratio * 40)
-    status = 'warn'
-    summary = `Limited compatibility: ${totalKnown}/${result.agents.length} agents detected`
+  if (totalKnown > 0) {
+    score = result.overallCompatibility
+    status = score >= 70 ? 'pass' : score >= 40 ? 'warn' : 'fail'
+    summary = `Explicit markers: ${fullCount} full, ${partialCount} partial; ${unknownCount} unverified`
   } else {
-    score = Math.round(ratio * 40)
+    score = 0
     status = 'fail'
-    summary = `Low compatibility: only ${totalKnown}/${result.agents.length} agents detected`
+    summary = 'No agent-specific runtime markers detected'
   }
 
   const findings: Finding[] = []
@@ -162,12 +158,6 @@ function buildCompatibilityAxis(result: CompatibilityMatrix): AxisResult {
       message: 'The skill does not reference any known agent. Add agent-specific instructions or configuration files.',
       recommendation: 'Include agent-specific tags, tool calls, or configuration files (.cursor/, .claude/, .opencode/, etc.)',
     })
-  }
-
-  if (unknownNames.length > 0 && unknownNames.length === result.agents.length) {
-    score = 0
-    status = 'fail'
-    summary = 'No agent compatibility detected'
   }
 
   return { name: 'Agent Compatibility', key: 'compatibility', score, status, summary, findings }
@@ -230,7 +220,7 @@ async function runAllSkillValidation(
   const totalTokens = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.totalTokens, 0)
   const totalLimit = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.limit, 0)
 
-  return {
+  return normalizeValidationResult({
     id: options?.id || uuidv4(),
     timestamp: new Date().toISOString(),
     skillName: `${baseName} (${validated.length} skills)`,
@@ -266,7 +256,7 @@ async function runAllSkillValidation(
         highCount: result.summary.highCount,
       })),
     },
-  }
+  })
 }
 
 export async function runFullValidation(
@@ -389,5 +379,5 @@ export async function runFullValidation(
     source: options?.source || input.source,
   }
 
-  return result
+  return normalizeValidationResult(result)
 }

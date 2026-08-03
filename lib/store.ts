@@ -3,6 +3,7 @@ import { validationResults } from '@/lib/db/schema'
 import { eq, count, desc, gt, inArray, isNull, lt, or } from 'drizzle-orm'
 import { normalizeGitHubSkillPath, trustTargetForResult } from '@/lib/trust'
 import type { ValidationResult } from '@/lib/validator/types'
+import { normalizeValidationResult } from '@/lib/validator/normalize-result'
 import { gzipSync, gunzipSync } from 'node:zlib'
 
 const GZIP_PREFIX = 'gzip:'
@@ -15,19 +16,20 @@ function parseResult(value: string): ValidationResult {
   const json = value.startsWith(GZIP_PREFIX)
     ? gunzipSync(Buffer.from(value.slice(GZIP_PREFIX.length), 'base64')).toString('utf8')
     : value
-  return JSON.parse(json) as ValidationResult
+  return normalizeValidationResult(JSON.parse(json) as ValidationResult)
 }
 
 export async function saveResult(result: ValidationResult): Promise<void> {
   await ensureDatabase()
   const { db } = getDatabase()
+  const normalized = normalizeValidationResult(result)
 
   await db.insert(validationResults).values({
-    id: result.id,
-    result: serializeResult(result),
+    id: normalized.id,
+    result: serializeResult(normalized),
     createdAt: Date.now(),
     expiresAt:
-      trustTargetForResult(result)
+      trustTargetForResult(normalized)
         ? null
         : Date.now() + getRetentionDays() * 24 * 60 * 60 * 1000,
   })
@@ -89,6 +91,35 @@ export async function getLatestGitHubResult(
   }
 
   return undefined
+}
+
+export async function getRecentPublicResults(limit = 100): Promise<ValidationResult[]> {
+  await ensureDatabase()
+  const { db } = getDatabase()
+  const rows = await db
+    .select({ result: validationResults.result })
+    .from(validationResults)
+    .where(or(isNull(validationResults.expiresAt), gt(validationResults.expiresAt, Date.now())))
+    .orderBy(desc(validationResults.createdAt))
+
+  const results: ValidationResult[] = []
+  const seen = new Set<string>()
+  for (const row of rows) {
+    try {
+      const result = parseResult(row.result)
+      const target = trustTargetForResult(result)
+      if (!target) continue
+      const key = `${target.owner.toLowerCase()}/${target.repo.toLowerCase()}/${target.path.toLowerCase()}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      results.push(result)
+      if (results.length >= limit) break
+    } catch {
+      // Ignore corrupt legacy rows and keep the public directory available.
+    }
+  }
+
+  return results
 }
 
 export function getRetentionDays(): number {

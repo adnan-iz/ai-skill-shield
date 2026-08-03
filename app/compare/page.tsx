@@ -1,305 +1,239 @@
 "use client"
 
-import { useState } from 'react'
-import { getValidation } from '@/lib/state'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import {
+  getValidation,
+  getValidationHistorySnapshot,
+  parseValidationHistory,
+  saveValidation,
+  subscribeValidationHistory,
+} from '@/lib/state'
 import { runFullValidation } from '@/lib/validator/orchestrator'
-import type { ValidationResult, SkillInput } from '@/lib/validator/types'
+import type { SkillInput, ValidationResult } from '@/lib/validator/types'
 import ScoreGauge from '@/components/report/score-gauge'
 import FindingsTable from '@/components/report/findings-table'
 
+type SourceMode = 'saved' | 'paste'
+
+interface CompareSlotState {
+  key: string
+  mode: SourceMode
+  input: string
+  result: ValidationResult | null
+  loading: boolean
+  error: string
+}
+
+const initialSlots: CompareSlotState[] = [
+  { key: 'a', mode: 'saved', input: '', result: null, loading: false, error: '' },
+  { key: 'b', mode: 'saved', input: '', result: null, loading: false, error: '' },
+]
+
+const riskColor: Record<ValidationResult['riskLevel'], string> = {
+  safe: 'text-shield-600',
+  low: 'text-shield-600',
+  medium: 'text-yellow-600',
+  high: 'text-orange-600',
+  critical: 'text-red-600',
+}
+
 export default function ComparePage() {
-  const [leftInput, setLeftInput] = useState('')
-  const [rightInput, setRightInput] = useState('')
-  const [leftResult, setLeftResult] = useState<ValidationResult | null>(null)
-  const [rightResult, setRightResult] = useState<ValidationResult | null>(null)
-  const [leftSource, setLeftSource] = useState<'paste' | 'id'>('paste')
-  const [rightSource, setRightSource] = useState<'paste' | 'id'>('paste')
+  const [slots, setSlots] = useState<CompareSlotState[]>(initialSlots)
+  const historySnapshot = useSyncExternalStore(
+    subscribeValidationHistory,
+    getValidationHistorySnapshot,
+    () => '[]'
+  )
+  const savedReports = useMemo(() => parseValidationHistory(historySnapshot), [historySnapshot])
 
-  function runCompare(which: 'left' | 'right') {
-    const input = which === 'left' ? leftInput : rightInput
-    const source = which === 'left' ? leftSource : rightSource
-    const setResult = which === 'left' ? setLeftResult : setRightResult
-
-    if (!input.trim()) return
-
-    if (source === 'id') {
-      const stored = getValidation(input.trim())
-      if (stored) {
-        setResult(stored)
-      } else {
-        setResult(null)
-      }
-      return
+  const compared = slots.filter((slot) => slot.result).map((slot) => slot.result as ValidationResult)
+  const axes = useMemo(() => {
+    const keys = new Map<string, string>()
+    for (const result of compared) {
+      for (const axis of result.axes) keys.set(axis.key, axis.name)
     }
+    return [...keys.entries()].map(([key, name]) => ({ key, name }))
+  }, [compared])
 
-    const skillInput: SkillInput = {
-      files: [{ path: 'SKILL.md', content: input }],
-    }
-    runFullValidation(skillInput).then(result => setResult(result))
+  function updateSlot(index: number, update: Partial<CompareSlotState>) {
+    setSlots((current) => current.map((slot, slotIndex) => slotIndex === index ? { ...slot, ...update } : slot))
   }
 
-  function computeDiff(
-    key: string,
-    left: ValidationResult | null,
-    right: ValidationResult | null
-  ): string {
-    if (!left && !right) return ''
-    if (!left) return 'N/A'
-    if (!right) return 'N/A'
+  async function analyze(index: number) {
+    const slot = slots[index]
+    const input = slot.input.trim()
+    if (!input) return
 
-    if (key === 'score') return `${left.overallScore} vs ${right.overallScore} (diff: ${Math.abs(left.overallScore - right.overallScore)})`
-    if (key === 'findings') return `${left.findings.length} vs ${right.findings.length}`
-    if (key === 'risk') return `${left.riskLevel} vs ${right.riskLevel}`
-    return ''
+    updateSlot(index, { loading: true, error: '' })
+    try {
+      let result: ValidationResult | null = null
+
+      if (slot.mode === 'paste') {
+        const skillInput: SkillInput = { files: [{ path: 'SKILL.md', content: input }] }
+        result = await runFullValidation(skillInput)
+      } else {
+        result = getValidation(input)
+        if (!result) {
+          const response = await fetch(`/api/validate?id=${encodeURIComponent(input)}`)
+          if (!response.ok) throw new Error('Report not found or expired')
+          result = await response.json() as ValidationResult
+          saveValidation(result)
+        }
+      }
+
+      updateSlot(index, { result, loading: false })
+    } catch (error) {
+      updateSlot(index, {
+        result: null,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Comparison failed',
+      })
+    }
+  }
+
+  function addThirdSlot() {
+    setSlots((current) => current.length === 2
+      ? [...current, { key: 'c', mode: 'saved', input: '', result: null, loading: false, error: '' }]
+      : current
+    )
+  }
+
+  function removeThirdSlot() {
+    setSlots((current) => current.slice(0, 2))
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-on-surface mb-1">Compare</h1>
-      <p className="text-sm text-on-surface-secondary mb-8">
-        Compare two skills side by side
-      </p>
-
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="glass-card p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-sm font-semibold text-on-surface">Left</span>
-            <button
-              onClick={() => setLeftSource('paste')}
-              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                leftSource === 'paste'
-                  ? 'bg-shield-100 text-shield-700'
-                  : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
-              }`}
-            >
-              Paste Content
-            </button>
-            <button
-              onClick={() => setLeftSource('id')}
-              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                leftSource === 'id'
-                  ? 'bg-shield-100 text-shield-700'
-                  : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
-              }`}
-            >
-              Load by ID
-            </button>
-          </div>
-          {leftSource === 'paste' ? (
-            <textarea
-              value={leftInput}
-              onChange={(e) => setLeftInput(e.target.value)}
-              placeholder="Paste SKILL.md content here..."
-              rows={10}
-              className="w-full rounded-lg border border-outline bg-surface-container p-3 text-sm font-mono text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-            />
-          ) : (
-            <input
-              value={leftInput}
-              onChange={(e) => setLeftInput(e.target.value)}
-              placeholder="Enter validation ID..."
-              className="w-full rounded-lg border border-outline bg-surface-container p-3 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-            />
-          )}
-          <button
-            onClick={() => runCompare('left')}
-            className="mt-3 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700 transition-colors"
-          >
-            Analyze
-          </button>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-on-surface">Compare</h1>
+          <p className="mt-1 text-sm text-on-surface-secondary">
+            Compare two or three saved reports, report IDs, or pasted SKILL.md files.
+          </p>
         </div>
-
-        <div className="glass-card p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-sm font-semibold text-on-surface">Right</span>
-            <button
-              onClick={() => setRightSource('paste')}
-              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                rightSource === 'paste'
-                  ? 'bg-shield-100 text-shield-700'
-                  : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
-              }`}
-            >
-              Paste Content
-            </button>
-            <button
-              onClick={() => setRightSource('id')}
-              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                rightSource === 'id'
-                  ? 'bg-shield-100 text-shield-700'
-                  : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
-              }`}
-            >
-              Load by ID
-            </button>
-          </div>
-          {rightSource === 'paste' ? (
-            <textarea
-              value={rightInput}
-              onChange={(e) => setRightInput(e.target.value)}
-              placeholder="Paste SKILL.md content here..."
-              rows={10}
-              className="w-full rounded-lg border border-outline bg-surface-container p-3 text-sm font-mono text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-            />
-          ) : (
-            <input
-              value={rightInput}
-              onChange={(e) => setRightInput(e.target.value)}
-              placeholder="Enter validation ID..."
-              className="w-full rounded-lg border border-outline bg-surface-container p-3 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-            />
-          )}
-          <button
-            onClick={() => runCompare('right')}
-            className="mt-3 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700 transition-colors"
-          >
-            Analyze
+        {slots.length === 2 ? (
+          <button onClick={addThirdSlot} className="rounded-xl border border-outline bg-surface-container px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-secondary">
+            Add third skill
           </button>
-        </div>
+        ) : (
+          <button onClick={removeThirdSlot} className="rounded-xl border border-outline bg-surface-container px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-secondary">
+            Remove third skill
+          </button>
+        )}
       </div>
 
-          {(leftResult || rightResult) && (
+      <div className={`mb-8 grid grid-cols-1 gap-5 ${slots.length === 3 ? 'xl:grid-cols-3' : 'lg:grid-cols-2'}`}>
+        {slots.map((slot, index) => (
+          <section key={slot.key} className="glass-card rounded-xl p-5" aria-labelledby={`compare-${slot.key}-title`}>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <h2 id={`compare-${slot.key}-title`} className="mr-auto text-sm font-semibold text-on-surface">Skill {index + 1}</h2>
+              {(['saved', 'paste'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={slot.mode === mode}
+                  onClick={() => updateSlot(index, { mode, input: '', result: null, error: '' })}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    slot.mode === mode
+                      ? 'bg-shield-100 text-shield-700'
+                      : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
+                  }`}
+                >
+                  {mode === 'saved' ? 'Saved / ID' : 'Paste SKILL.md'}
+                </button>
+              ))}
+            </div>
+
+            {slot.mode === 'saved' ? (
+              <>
+                <label htmlFor={`compare-${slot.key}-id`} className="mb-2 block text-xs font-medium text-on-surface-secondary">
+                  Search saved reports or enter a report ID
+                </label>
+                <input
+                  id={`compare-${slot.key}-id`}
+                  list={`compare-${slot.key}-reports`}
+                  value={slot.input}
+                  onChange={(event) => updateSlot(index, { input: event.target.value, error: '' })}
+                  placeholder="Report ID"
+                  className="w-full rounded-lg border border-outline bg-surface-container p-3 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
+                />
+                <datalist id={`compare-${slot.key}-reports`}>
+                  {savedReports.map((report) => (
+                    <option key={report.id} value={report.id}>{report.skillName} · {report.overallScore}/100</option>
+                  ))}
+                </datalist>
+              </>
+            ) : (
+              <>
+                <label htmlFor={`compare-${slot.key}-content`} className="mb-2 block text-xs font-medium text-on-surface-secondary">SKILL.md content</label>
+                <textarea
+                  id={`compare-${slot.key}-content`}
+                  value={slot.input}
+                  onChange={(event) => updateSlot(index, { input: event.target.value, error: '' })}
+                  placeholder="Paste SKILL.md content"
+                  rows={9}
+                  className="w-full rounded-lg border border-outline bg-surface-container p-3 font-mono text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
+                />
+              </>
+            )}
+
+            {slot.error && <p role="alert" className="mt-2 text-xs text-error">{slot.error}</p>}
+            <button
+              type="button"
+              onClick={() => void analyze(index)}
+              disabled={!slot.input.trim() || slot.loading}
+              className="mt-3 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {slot.loading ? 'Loading…' : 'Add to comparison'}
+            </button>
+          </section>
+        ))}
+      </div>
+
+      {compared.length > 0 ? (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="glass-card p-4 text-center">
-              <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary mb-1">Score diff</div>
-              <div className="text-lg font-bold text-on-surface">{computeDiff('score', leftResult, rightResult)}</div>
+          <section className="glass-card mb-8 overflow-hidden rounded-xl" aria-labelledby="comparison-summary">
+            <div className="border-b border-outline p-4">
+              <h2 id="comparison-summary" className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">Comparison summary</h2>
+              {compared.length < 2 && <p className="mt-1 text-xs text-on-surface-secondary">Add at least one more skill for a direct comparison.</p>}
             </div>
-            <div className="glass-card p-4 text-center">
-              <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary mb-1">Findings diff</div>
-              <div className="text-lg font-bold text-on-surface">{computeDiff('findings', leftResult, rightResult)}</div>
-            </div>
-            <div className="glass-card p-4 text-center">
-              <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary mb-1">Risk diff</div>
-              <div className="text-lg font-bold text-on-surface">{computeDiff('risk', leftResult, rightResult)}</div>
-            </div>
-          </div>
-
-          {leftResult && rightResult && (
-            <div className="glass-card rounded-xl p-4 mt-6">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary mb-3">Axis-by-Axis Comparison</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-outline text-left text-xs font-semibold uppercase text-on-surface-secondary">
-                      <th className="px-3 py-2">Axis</th>
-                      <th className="px-3 py-2">Left Score</th>
-                      <th className="px-3 py-2">Right Score</th>
-                      <th className="px-3 py-2">Difference</th>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-outline text-left text-xs uppercase text-on-surface-secondary">
+                    <th className="px-4 py-3">Metric</th>
+                    {compared.map((result) => <th key={result.id} className="px-4 py-3">{result.skillName}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline">
+                  <tr><th className="px-4 py-3 text-left font-medium">Static score</th>{compared.map((result) => <td key={result.id} className="px-4 py-3 text-lg font-bold">{result.overallScore}/100</td>)}</tr>
+                  <tr><th className="px-4 py-3 text-left font-medium">Highest finding</th>{compared.map((result) => <td key={result.id} className={`px-4 py-3 font-semibold uppercase ${riskColor[result.riskLevel]}`}>{result.riskLevel}</td>)}</tr>
+                  <tr><th className="px-4 py-3 text-left font-medium">Total findings</th>{compared.map((result) => <td key={result.id} className="px-4 py-3">{result.findings.length}</td>)}</tr>
+                  {axes.map((axis) => (
+                    <tr key={axis.key}>
+                      <th className="px-4 py-3 text-left font-medium">{axis.name}</th>
+                      {compared.map((result) => <td key={result.id} className="px-4 py-3">{result.axes.find((item) => item.key === axis.key)?.score ?? '—'}</td>)}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {leftResult.axes.map((leftAxis) => {
-                      const rightAxis = rightResult.axes.find(a => a.key === leftAxis.key)
-                      if (!rightAxis) return null
-                      const diff = leftAxis.score - rightAxis.score
-                      return (
-                        <tr key={leftAxis.key} className="border-b border-outline">
-                          <td className="px-3 py-2 font-medium">{leftAxis.name}</td>
-                          <td className="px-3 py-2" style={{ color: leftAxis.score >= 70 ? '#16a34a' : leftAxis.score >= 50 ? '#ca8a04' : leftAxis.score >= 30 ? '#ea580c' : '#dc2626' }}>
-                            {leftAxis.score}
-                          </td>
-                          <td className="px-3 py-2" style={{ color: rightAxis.score >= 70 ? '#16a34a' : rightAxis.score >= 50 ? '#ca8a04' : rightAxis.score >= 30 ? '#ea580c' : '#dc2626' }}>
-                            {rightAxis.score}
-                          </td>
-                          <td className={`px-3 py-2 font-semibold ${diff > 0 ? 'text-shield-500' : diff < 0 ? 'text-red-500' : 'text-on-surface-secondary'}`}>
-                            {diff > 0 ? `+${diff}` : diff}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </section>
 
-          {leftResult && rightResult && (
-            <div className="glass-card rounded-xl p-4 mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary mb-3">Findings Overlap</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-lg border border-outline p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-red-400 mb-2">Unique to Left ({leftResult.findings.filter(lf => !rightResult.findings.some(rf => rf.title === lf.title)).length})</p>
-                  <ul className="space-y-1">
-                    {leftResult.findings.filter(lf => !rightResult.findings.some(rf => rf.title === lf.title)).map(f => (
-                      <li key={f.id} className="text-xs text-on-surface-secondary">{f.title}</li>
-                    ))}
-                    {leftResult.findings.filter(lf => !rightResult.findings.some(rf => rf.title === lf.title)).length === 0 && (
-                      <li className="text-xs text-on-surface-secondary/50 italic">None</li>
-                    )}
-                  </ul>
-                </div>
-                <div className="rounded-lg border border-outline p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-shield-400 mb-2">Unique to Right ({rightResult.findings.filter(rf => !leftResult.findings.some(lf => lf.title === rf.title)).length})</p>
-                  <ul className="space-y-1">
-                    {rightResult.findings.filter(rf => !leftResult.findings.some(lf => lf.title === rf.title)).map(f => (
-                      <li key={f.id} className="text-xs text-on-surface-secondary">{f.title}</li>
-                    ))}
-                    {rightResult.findings.filter(rf => !leftResult.findings.some(lf => lf.title === rf.title)).length === 0 && (
-                      <li className="text-xs text-on-surface-secondary/50 italic">None</li>
-                    )}
-                  </ul>
-                </div>
-                <div className="rounded-lg border border-outline p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-green-400 mb-2">In Both ({leftResult.findings.filter(lf => rightResult.findings.some(rf => rf.title === lf.title)).length})</p>
-                  <ul className="space-y-1">
-                    {leftResult.findings.filter(lf => rightResult.findings.some(rf => rf.title === lf.title)).map(f => (
-                      <li key={f.id} className="text-xs text-on-surface-secondary">{f.title}</li>
-                    ))}
-                    {leftResult.findings.filter(lf => rightResult.findings.some(rf => rf.title === lf.title)).length === 0 && (
-                      <li className="text-xs text-on-surface-secondary/50 italic">None</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <div>
-              {leftResult && (
-                <>
-                  <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">Left: {leftResult.skillName}</h3>
-                  <ScoreGauge score={leftResult.overallScore} riskLevel={leftResult.riskLevel} />
-                  <div className="mt-4">
-                    <FindingsTable findings={leftResult.findings} />
-                  </div>
-                  <div className="mt-4 rounded-lg border border-outline p-4">
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Frontmatter</h4>
-                    <pre className="overflow-auto text-xs text-on-surface-secondary">
-                      {JSON.stringify(leftResult.skillPreview.frontmatter, null, 2)}
-                    </pre>
-                  </div>
-                </>
-              )}
-            </div>
-            <div>
-              {rightResult && (
-                <>
-                  <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">Right: {rightResult.skillName}</h3>
-                  <ScoreGauge score={rightResult.overallScore} riskLevel={rightResult.riskLevel} />
-                  <div className="mt-4">
-                    <FindingsTable findings={rightResult.findings} />
-                  </div>
-                  <div className="mt-4 rounded-lg border border-outline p-4">
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Frontmatter</h4>
-                    <pre className="overflow-auto text-xs text-on-surface-secondary">
-                      {JSON.stringify(rightResult.skillPreview.frontmatter, null, 2)}
-                    </pre>
-                  </div>
-                </>
-              )}
-            </div>
+          <div className={`grid grid-cols-1 gap-6 ${compared.length === 3 ? 'xl:grid-cols-3' : 'lg:grid-cols-2'}`}>
+            {compared.map((result) => (
+              <section key={result.id} className="min-w-0" aria-labelledby={`result-${result.id}`}>
+                <h2 id={`result-${result.id}`} className="mb-3 truncate text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">{result.skillName}</h2>
+                <div className="glass-card rounded-xl p-4"><ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} /></div>
+                <div className="glass-card mt-4 overflow-hidden rounded-xl"><FindingsTable findings={result.findings} /></div>
+              </section>
+            ))}
           </div>
         </>
-      )}
-
-      {!leftResult && !rightResult && (
-        <div className="glass-card p-16 text-center">
-          <span className="material-symbols-outlined text-4xl text-on-surface-secondary/40 mb-2 inline-block">compare_arrows</span>
-          <p className="text-sm text-on-surface-secondary">
-            Paste SKILL.md content or load by ID on both sides to compare
-          </p>
+      ) : (
+        <div className="glass-card rounded-xl p-14 text-center">
+          <span className="material-symbols-outlined mb-2 inline-block text-4xl text-on-surface-secondary/40">compare_arrows</span>
+          <p className="text-sm text-on-surface-secondary">Choose saved reports or paste SKILL.md content to start comparing.</p>
         </div>
       )}
     </div>

@@ -1,10 +1,13 @@
 "use client"
 
 import { useState } from 'react'
+import { parsePolicy as parsePolicyYaml } from '@/lib/policy/parser'
+import type { PolicyConfig } from '@/lib/policy/types'
 
-const DEFAULT_POLICY_YAML = `# SkillShield Policy Configuration
+const DEFAULT_POLICY_YAML = `# AI Skill Shield Policy Configuration
 # Define security rules for skill validation
 
+mode: default
 failOn: high
 blockSecrets: true
 blockDestructiveCommands: true
@@ -21,56 +24,34 @@ maxFiles: 200
 `
 
 const POLICY_PRESETS: Record<string, string> = {
-  default: `failOn: high\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: false\nmaxFileSizeMB: 2\nmaxFiles: 200`,
-  strict: `failOn: medium\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: true\nblockedCommands:\n  - rm -rf\n  - curl | bash\n  - wget | sh\n  - powershell -EncodedCommand\n  - sudo\nmaxFileSizeMB: 1\nmaxFiles: 100`,
-  enterprise: `failOn: low\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: true\nallowExternalDomains:\n  - api.openai.com\n  - api.anthropic.com\n  - api.google.com\nblockedCommands:\n  - rm -rf\n  - curl | bash\n  - wget | sh\n  - powershell -EncodedCommand\n  - sudo\n  - chmod 777\nmaxFileSizeMB: 2\nmaxFiles: 200\nseverityOverrides:\n  - category: "network"\n    overrideSeverity: "low"\n    reason: "Network calls are reviewed separately"\nblockedFindings:\n  - "curl pipe to shell"\n  - "wget pipe to shell"`,
+  default: `mode: default\nfailOn: high\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: false\nmaxFileSizeMB: 2\nmaxFiles: 200`,
+  strict: `mode: strict\nfailOn: medium\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: true\nblockedCommands:\n  - rm -rf\n  - curl | bash\n  - wget | sh\n  - powershell -EncodedCommand\n  - sudo\nmaxFileSizeMB: 1\nmaxFiles: 100`,
+  enterprise: `mode: enterprise\nfailOn: low\nblockSecrets: true\nblockDestructiveCommands: true\nrequirePermissionManifest: true\nallowExternalDomains:\n  - api.openai.com\n  - api.anthropic.com\n  - api.google.com\nblockedCommands:\n  - rm -rf\n  - curl | bash\n  - wget | sh\n  - powershell -EncodedCommand\n  - sudo\n  - chmod 777\nmaxFileSizeMB: 2\nmaxFiles: 200\nseverityOverrides:\n  - category: "network"\n    overrideSeverity: "low"\n    reason: "Network calls are reviewed separately"\nblockedFindings:\n  - "curl pipe to shell"\n  - "wget pipe to shell"`,
 }
 
 export default function RulesPage() {
   const [yaml, setYaml] = useState(DEFAULT_POLICY_YAML)
   const [preset, setPreset] = useState('default')
-  const [parsed, setParsed] = useState<Record<string, string | boolean | number> | null>(null)
+  const [parsed, setParsed] = useState<PolicyConfig | null>(null)
   const [error, setError] = useState('')
-  const [validationResult, setValidationResult] = useState<{ passed: boolean; violations: string[] } | null>(null)
 
   function applyPreset(name: string) {
     setPreset(name)
     if (name in POLICY_PRESETS) {
       setYaml(POLICY_PRESETS[name])
       setParsed(null)
-      setValidationResult(null)
       setError('')
     }
   }
 
   function parsePolicy() {
     setError('')
-    setValidationResult(null)
     try {
-      const lines = yaml.split('\n')
-      const parsed: Record<string, string | boolean | number> = {}
-      for (const line of lines) {
-        const match = line.match(/^(\w+):\s*(.+)$/)
-        if (match) {
-          const val = match[2].trim()
-          if (val === 'true') parsed[match[1]] = true
-          else if (val === 'false') parsed[match[1]] = false
-          else if (/^\d+$/.test(val)) parsed[match[1]] = parseInt(val, 10)
-          else parsed[match[1]] = val
-        }
-      }
-      setParsed(parsed)
-    } catch {
-      setError('Failed to parse YAML')
+      setParsed(parsePolicyYaml(yaml))
+    } catch (cause) {
+      setParsed(null)
+      setError(cause instanceof Error ? cause.message : 'Invalid policy YAML')
     }
-  }
-
-  function validatePolicy() {
-    setValidationResult(null)
-    setValidationResult({
-      passed: true,
-      violations: [],
-    })
   }
 
   return (
@@ -78,7 +59,10 @@ export default function RulesPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-on-surface">Policy Configuration</h1>
         <p className="text-sm text-on-surface-secondary mt-1">
-          Define security rules for AI skill validation
+          Validate a policy configuration before sending it to the policy evaluation API.
+        </p>
+        <p className="mt-2 text-xs text-on-surface-secondary">
+          Policies are evaluated through POST /api/policy. They are not applied automatically to scans or stored for an organization.
         </p>
       </div>
 
@@ -87,13 +71,14 @@ export default function RulesPage() {
           <button
             key={key}
             onClick={() => applyPreset(key)}
+            aria-pressed={preset === key}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               preset === key
                 ? 'bg-shield-600 text-white'
                 : 'border border-outline bg-surface-container text-on-surface-secondary hover:bg-surface-secondary'
             }`}
           >
-            {key.charAt(0).toUpperCase() + key.slice(1)}
+            {key === 'enterprise' ? 'Maximum controls' : key.charAt(0).toUpperCase() + key.slice(1)}
           </button>
         ))}
       </div>
@@ -101,24 +86,19 @@ export default function RulesPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="glass-card rounded-xl p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
+            <h3 id="policy-yaml-heading" className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
               <span className="material-symbols-outlined text-lg align-middle mr-1">code</span>
               Policy YAML
             </h3>
-            <button
-              onClick={parsePolicy}
-              className="rounded-lg bg-shield-600 px-3 py-1 text-xs font-semibold text-white hover:bg-shield-700 transition-colors"
-            >
-              Parse
-            </button>
           </div>
           <textarea
+            aria-labelledby="policy-yaml-heading"
             value={yaml}
-            onChange={(e) => { setYaml(e.target.value); setParsed(null); setValidationResult(null) }}
+            onChange={(e) => { setYaml(e.target.value); setParsed(null); setError('') }}
             rows={24}
             className="w-full rounded-lg border border-outline bg-surface-container p-3 text-xs font-mono text-on-surface focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
           />
-          {error && <p className="mt-2 text-xs text-error">{error}</p>}
+          {error && <p role="alert" className="mt-2 text-xs text-error">{error}</p>}
         </div>
 
         <div>
@@ -133,45 +113,37 @@ export default function RulesPage() {
                   <div key={key} className="flex items-center justify-between rounded-lg border border-outline px-3 py-2">
                     <span className="text-xs font-medium text-on-surface-secondary">{key}</span>
                     <span className="text-xs font-semibold text-on-surface">
-                      {typeof value === 'boolean' ? (value ? '\u2705' : '\u274C') : String(value)}
+                      {typeof value === 'boolean'
+                        ? (value ? 'Enabled' : 'Disabled')
+                        : typeof value === 'object'
+                        ? JSON.stringify(value)
+                        : String(value)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="py-8 text-center text-xs text-on-surface-secondary">
-                Click &quot;Parse&quot; to view the configuration
+                Validate the YAML to view its normalized configuration
               </div>
             )}
           </div>
 
           <div className="mt-4 flex gap-3">
             <button
-              onClick={validatePolicy}
-              disabled={!parsed}
+              onClick={parsePolicy}
               className="flex-1 rounded-lg bg-shield-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-shield-700 disabled:opacity-50 transition-colors"
             >
-              Validate Policy
+              Validate Configuration
             </button>
           </div>
 
-          {validationResult && (
-            <div className={`mt-4 rounded-xl p-4 ${validationResult.passed ? 'bg-shield-50 border border-shield-200' : 'bg-red-50 border border-red-200'}`}>
+          {parsed && (
+            <div className="mt-4 rounded-xl border border-shield-200 bg-shield-50 p-4">
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined ${validationResult.passed ? 'text-shield-600' : 'text-red-600'}`}>
-                  {validationResult.passed ? 'check_circle' : 'error'}
-                </span>
-                <span className={`text-sm font-semibold ${validationResult.passed ? 'text-shield-800' : 'text-red-800'}`}>
-                  {validationResult.passed ? 'Policy is valid' : 'Policy has violations'}
-                </span>
+                <span className="material-symbols-outlined text-shield-600">check_circle</span>
+                <span className="text-sm font-semibold text-shield-800">Policy configuration is valid</span>
               </div>
-              {validationResult.violations.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {validationResult.violations.map((v, i) => (
-                    <div key={i} className="text-xs text-red-700">{v}</div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>

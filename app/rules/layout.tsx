@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { SOCIAL_IMAGE } from '@/lib/site'
 
 const title = 'AI Agent Skill Security Rules'
-const socialTitle = `${title} - SkillShield`
-const description = 'Configure SkillShield security policies to block exposed secrets, destructive commands, unsafe network access, risky permissions, and dangerous agent behavior.'
+const socialTitle = `${title} - AI Skill Shield`
+const description = 'Configure AI Skill Shield security policies to block exposed secrets, destructive commands, unsafe network access, risky permissions, and dangerous agent behavior.'
 
 export const metadata: Metadata = {
   title,

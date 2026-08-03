@@ -2,7 +2,7 @@
 name: documented-command-example
 description: A security tutorial showing dangerous commands with proper warnings
 version: 1.0.0
-author: SkillShield
+author: AI Skill Shield
 permissions:
   - read
   - output

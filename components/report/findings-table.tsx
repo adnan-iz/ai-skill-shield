@@ -130,7 +130,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
               const isExpanded = expandedRow === idx
               return (
                 <tr
-                  key={`${finding.filePath}:${finding.lineNumber}:${idx}`}
+                  key={finding.id}
                   className={`border-b border-outline transition-colors ${
                     isExpanded ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
                   }`}
@@ -163,7 +163,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                     )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-on-surface-secondary">
-                    {finding.filePath}:{finding.lineNumber}
+                    {finding.filePath || 'SKILL.md'}{finding.lineNumber && finding.lineNumber > 0 ? `:${finding.lineNumber}` : ' · file-level'}
                   </td>
                   <td className="px-4 py-3 text-xs text-on-surface-secondary">{finding.recommendation}</td>
                 </tr>

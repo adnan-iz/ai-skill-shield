@@ -31,17 +31,17 @@ export async function GET(
       : decision?.tone === 'danger'
         ? '#dc2626'
         : '#ca8a04'
-  const leftWidth = 82
+  const leftWidth = 102
   const rightWidth = 148
   const width = leftWidth + rightWidth
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="SkillShield: ${escapeXml(status)}">
-  <title>SkillShield: ${escapeXml(status)}</title>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="AI Skill Shield: ${escapeXml(status)}">
+  <title>AI Skill Shield: ${escapeXml(status)}</title>
   <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-opacity=".12"/></linearGradient>
   <clipPath id="r"><rect width="${width}" height="20" rx="3"/></clipPath>
   <g clip-path="url(#r)"><rect width="${leftWidth}" height="20" fill="#0f172a"/><rect x="${leftWidth}" width="${rightWidth}" height="20" fill="${color}"/><rect width="${width}" height="20" fill="url(#s)"/></g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="${leftWidth / 2}" y="15" fill="#010101" fill-opacity=".3">skillshield</text><text x="${leftWidth / 2}" y="14">skillshield</text>
+    <text x="${leftWidth / 2}" y="15" fill="#010101" fill-opacity=".3">AI Skill Shield</text><text x="${leftWidth / 2}" y="14">AI Skill Shield</text>
     <text x="${leftWidth + rightWidth / 2}" y="15" fill="#010101" fill-opacity=".3">${escapeXml(status)}</text><text x="${leftWidth + rightWidth / 2}" y="14">${escapeXml(status)}</text>
   </g>
 </svg>`

@@ -3,6 +3,7 @@ import { getResult } from '@/lib/store'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound } from '@/lib/api-error'
+import { validateId } from '@/lib/security/input-validation'
 import type { Finding } from '@/lib/validator/types'
 
 function ipFromRequest(request: NextRequest): string {
@@ -31,6 +32,9 @@ export async function POST(request: NextRequest) {
   const { scanAId, scanBId } = body
   if (!scanAId || !scanBId) {
     return badRequest('Missing scanAId or scanBId')
+  }
+  if (validateId(scanAId) || validateId(scanBId)) {
+    return badRequest('Invalid scan ID')
   }
 
   const [scanA, scanB] = await Promise.all([getResult(scanAId), getResult(scanBId)])

@@ -104,7 +104,7 @@ export function generateSarifReport(result: ValidationResult): SarifResult {
       {
         tool: {
           driver: {
-            name: 'SkillShield',
+            name: 'AI Skill Shield',
             version: packageJson.version,
             informationUri: 'https://github.com/anomalyco/skill-shield',
           },

@@ -1,8 +1,14 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAllValidations, deleteValidation, clearHistory } from '@/lib/state'
+import {
+  clearHistory,
+  deleteValidation,
+  getValidationHistorySnapshot,
+  parseValidationHistory,
+  subscribeValidationHistory,
+} from '@/lib/state'
 import type { ValidationResult } from '@/lib/validator/types'
 
 const PAGE_SIZE = 20
@@ -26,10 +32,14 @@ type SortMethod = 'newest' | 'oldest' | 'highest' | 'lowest' | 'mostFindings'
 
 export default function HistoryPage() {
   const router = useRouter()
-  const [validations, setValidations] = useState<ValidationResult[]>(() =>
-    getAllValidations()
+  const historySnapshot = useSyncExternalStore(
+    subscribeValidationHistory,
+    getValidationHistorySnapshot,
+    () => '[]'
   )
+  const validations = useMemo(() => parseValidationHistory(historySnapshot), [historySnapshot])
   const [searchQuery, setSearchQuery] = useState('')
+  const [reportId, setReportId] = useState('')
   const [sortMethod, setSortMethod] = useState<SortMethod>('newest')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
@@ -66,7 +76,6 @@ export default function HistoryPage() {
   function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation()
     deleteValidation(id)
-    setValidations((prev) => prev.filter((v) => v.id !== id))
   }
 
   async function handleShare(e: React.MouseEvent, id: string) {
@@ -80,9 +89,8 @@ export default function HistoryPage() {
   }
 
   function handleClear() {
-    if (confirm('Clear all validation history?')) {
+    if (confirm('Clear reports saved in this browser? Server reports will not be deleted.')) {
       clearHistory()
-      setValidations([])
     }
   }
 
@@ -92,6 +100,11 @@ export default function HistoryPage() {
 
   function openValidation(id: string) {
     router.push(`/validate/${id}`)
+  }
+
+  function openReportById(e: React.FormEvent) {
+    e.preventDefault()
+    if (reportId.trim()) router.push(`/validate/${encodeURIComponent(reportId.trim())}`)
   }
 
   const sourceLabel = (v: ValidationResult) => {
@@ -110,7 +123,7 @@ export default function HistoryPage() {
         <div>
           <h1 className="text-2xl font-bold text-on-surface">History</h1>
           <p className="text-sm text-on-surface-secondary">
-            {validations.length} validation{validations.length !== 1 ? 's' : ''} recorded
+            {validations.length} report{validations.length !== 1 ? 's' : ''} saved in this browser
           </p>
         </div>
         {validations.length > 0 && (
@@ -118,15 +131,33 @@ export default function HistoryPage() {
             onClick={handleClear}
             className="rounded-lg border border-error/20 bg-error-container px-4 py-2 text-sm font-semibold text-error hover:bg-error-container/80 transition-colors"
           >
-            Clear History
+            Clear Browser History
           </button>
         )}
       </div>
 
       <div className="mb-4 rounded-xl border border-shield-200/30 bg-shield-50/50 px-4 py-3 text-sm text-shield-700">
         <span className="material-symbols-outlined mr-2 inline-block align-middle text-base">info</span>
-        Scan results are cached locally in this browser. Server-side copies remain available by report ID until retention expiry.
+        Reports you create or open are saved in this browser. Server copies remain private-by-link and available by report ID until retention expiry.
       </div>
+
+      <form onSubmit={openReportById} className="mb-6 flex flex-col gap-2 sm:flex-row" aria-label="Open a report by ID">
+        <label htmlFor="history-report-id" className="sr-only">Report ID</label>
+        <input
+          id="history-report-id"
+          value={reportId}
+          onChange={(e) => setReportId(e.target.value)}
+          placeholder="Open a report by ID"
+          className="min-w-0 flex-1 rounded-xl border border-outline bg-surface-container px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-secondary/60 focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
+        />
+        <button
+          type="submit"
+          disabled={!reportId.trim()}
+          className="rounded-xl bg-shield-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Open Report
+        </button>
+      </form>
 
       {validations.length > 0 && (
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -184,52 +215,60 @@ export default function HistoryPage() {
             {visibleValidations.map((v) => (
               <div
                 key={v.id}
-                onClick={() => openValidation(v.id)}
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-secondary cursor-pointer"
+                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-secondary"
               >
-                <div className="flex-shrink-0 text-center w-14">
-                  <div
-                    className={`text-xl font-bold ${
-                      v.overallScore >= 70
-                        ? 'text-shield-600'
-                        : v.overallScore >= 50
-                        ? 'text-yellow-600'
-                        : v.overallScore >= 30
-                        ? 'text-orange-600'
-                        : 'text-red-600'
+                <button
+                  type="button"
+                  onClick={() => openValidation(v.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500"
+                  aria-label={`Open report for ${v.skillName}`}
+                >
+                  <div className="flex-shrink-0 text-center w-14">
+                    <div
+                      className={`text-xl font-bold ${
+                        v.overallScore >= 70
+                          ? 'text-shield-600'
+                          : v.overallScore >= 50
+                          ? 'text-yellow-600'
+                          : v.overallScore >= 30
+                          ? 'text-orange-600'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      {v.overallScore}
+                    </div>
+                    <div className="text-[10px] font-medium uppercase text-on-surface-secondary/60">Score</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-on-surface truncate">{v.skillName}</div>
+                    <div className="flex items-center text-xs text-on-surface-secondary">
+                      <span>{new Date(v.timestamp).toLocaleString()}</span>
+                      <span className="mx-1.5">&middot;</span>
+                      <span>{v.findings.length} finding{v.findings.length !== 1 ? 's' : ''}</span>
+                      {sourceLabel(v)}
+                    </div>
+                  </div>
+                  <span
+                    className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
+                      riskBadgeColor[v.riskLevel]
                     }`}
                   >
-                    {v.overallScore}
-                  </div>
-                  <div className="text-[10px] font-medium uppercase text-on-surface-secondary/60">Score</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-on-surface truncate">{v.skillName}</div>
-                  <div className="flex items-center text-xs text-on-surface-secondary">
-                    <span>{new Date(v.timestamp).toLocaleString()}</span>
-                    <span className="mx-1.5">&middot;</span>
-                    <span>{v.findings.length} finding{v.findings.length !== 1 ? 's' : ''}</span>
-                    {sourceLabel(v)}
-                  </div>
-                </div>
-                <span
-                  className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                    riskBadgeColor[v.riskLevel]
-                  }`}
-                >
-                  {v.riskLevel}
-                </span>
+                    {v.riskLevel}
+                  </span>
+                </button>
                 <button
                   onClick={(e) => handleShare(e, v.id)}
                   className="flex-shrink-0 rounded-lg p-2 text-on-surface-secondary/50 hover:text-shield-600 hover:bg-shield-50 transition-colors"
                   title="Copy validation URL"
+                  aria-label={`Copy link to ${v.skillName}`}
                 >
                   <span className="material-symbols-outlined text-lg">share</span>
                 </button>
                 <button
                   onClick={(e) => handleDelete(e, v.id)}
                   className="flex-shrink-0 rounded-lg p-2 text-on-surface-secondary/50 hover:text-error hover:bg-error/10 transition-colors"
-                  title="Delete entry"
+                  title="Remove from this browser"
+                  aria-label={`Remove ${v.skillName} from this browser`}
                 >
                   <span className="material-symbols-outlined text-lg">delete</span>
                 </button>

@@ -35,10 +35,24 @@ const statusConfig: Record<
 
 export default function CompatibilityGrid({ agents }: CompatibilityGridProps) {
   const [hovered, setHovered] = useState<string | null>(null)
+  const detected = agents.filter((agent) => agent.status !== 'unknown')
+  const unverifiedCount = agents.length - detected.length
+
+  if (detected.length === 0) {
+    return (
+      <div className="rounded-lg border border-outline bg-surface-secondary/50 p-4 text-sm text-on-surface-secondary">
+        No agent-specific runtime markers were detected. {agents.length} signatures were checked; no compatibility claim is being made.
+      </div>
+    )
+  }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {agents.map((agent) => {
+    <div>
+      <p className="mb-3 text-xs text-on-surface-secondary">
+        {detected.length} explicit match{detected.length === 1 ? '' : 'es'} · {unverifiedCount} unverified
+      </p>
+      <div role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {detected.map((agent) => {
         const config = statusConfig[agent.status]
         const isHovered = hovered === agent.name
         return (
@@ -75,6 +89,7 @@ export default function CompatibilityGrid({ agents }: CompatibilityGridProps) {
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

@@ -32,7 +32,7 @@ export default function TrustActions({ badgePath, repoLabel, scanId, trustPath }
     const url = `${window.location.origin}${trustPath}`
     try {
       if (navigator.share) {
-        await navigator.share({ title: `SkillShield trust report for ${repoLabel}`, url })
+        await navigator.share({ title: `AI Skill Shield trust report for ${repoLabel}`, url })
       } else {
         await navigator.clipboard.writeText(url)
         setCopied('link')
@@ -45,7 +45,7 @@ export default function TrustActions({ badgePath, repoLabel, scanId, trustPath }
 
   async function copyBadge() {
     const origin = window.location.origin
-    const markdown = `[![SkillShield](${origin}${badgePath})](${origin}${trustPath})`
+    const markdown = `[![AI Skill Shield](${origin}${badgePath})](${origin}${trustPath})`
     try {
       await navigator.clipboard.writeText(markdown)
       setCopied('badge')

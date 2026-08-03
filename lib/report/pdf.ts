@@ -1,5 +1,9 @@
 import { ValidationResult, AgentCompatibility } from '@/lib/validator/types'
 import { generateReportData } from '@/lib/report/report-data'
+import { SITE_URL } from '@/lib/site'
+
+const PRINT_FINDING_LIMIT = 25
+const PRINT_TOKEN_SECTION_LIMIT = 25
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '')
@@ -48,6 +52,14 @@ export async function generatePdfReport(result: ValidationResult): Promise<Buffe
 
 export function generateHtmlReport(result: ValidationResult): string {
   const { summary, recommendations, riskLabel, scoreLabel } = generateReportData(result)
+  const severityRank = { critical: 0, high: 1, medium: 2, low: 3, info: 4 }
+  const printableFindings = [...result.findings]
+    .sort((a, b) => severityRank[a.severity] - severityRank[b.severity])
+    .slice(0, PRINT_FINDING_LIMIT)
+  const printableRecommendations = [...new Set(recommendations)].slice(0, 25)
+  const printableTokenSections = [...result.tokenAnalysis.breakdown]
+    .sort((a, b) => b.tokens - a.tokens)
+    .slice(0, PRINT_TOKEN_SECTION_LIMIT)
 
   const scoreColor = scoreToColor(result.overallScore)
   const gaugeRotation = Math.min((result.overallScore / 100) * 180, 180)
@@ -81,13 +93,13 @@ export function generateHtmlReport(result: ValidationResult): string {
       </div>`
   }).join('')
 
-  const findingsHtml = result.findings.map(f => `
-    <tr>
+  const findingsHtml = printableFindings.map(f => `
+    <tr class="finding-row">
       <td><span class="badge badge-${classToken(f.severity)}">${escapeHtml(f.severity.toUpperCase())}</span></td>
       <td>${escapeHtml(f.title)}</td>
-      <td>${escapeHtml(f.category)}</td>
-      <td>${escapeHtml(f.filePath || '-')}</td>
-      <td>${escapeHtml(f.message.substring(0, 80))}${f.message.length > 80 ? '...' : ''}</td>
+      <td class="screen-detail">${escapeHtml(f.category)}</td>
+      <td>${escapeHtml(f.filePath || '-')}${f.lineNumber ? `:${escapeHtml(f.lineNumber)}` : ''}</td>
+      <td class="screen-detail">${escapeHtml(f.message.substring(0, 80))}${f.message.length > 80 ? '...' : ''}</td>
     </tr>
   `).join('')
 
@@ -101,11 +113,11 @@ export function generateHtmlReport(result: ValidationResult): string {
       </tr>
     `).join('')
 
-  const recHtml = recommendations.map((r) =>
+  const recHtml = printableRecommendations.map((r) =>
     `<li>${escapeHtml(r)}</li>`
   ).join('')
 
-  const tokenSectionsHtml = result.tokenAnalysis.breakdown.map(s =>
+  const tokenSectionsHtml = printableTokenSections.map(s =>
     `<tr><td>${escapeHtml(s.section)}</td><td>${escapeHtml(s.tokens)}</td><td>${escapeHtml(result.tokenAnalysis.totalTokens > 0 ? `${((s.tokens / result.tokenAnalysis.totalTokens) * 100).toFixed(1)}%` : '0%')}</td></tr>`
   ).join('')
 
@@ -114,15 +126,20 @@ export function generateHtmlReport(result: ValidationResult): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkillShield Report - ${escapeHtml(result.skillName)}</title>
+  <title>AI Skill Shield Report - ${escapeHtml(result.skillName)}</title>
   <style>
+    @page { size: A4; margin: 14mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a2e; background: #f8fafc; line-height: 1.6; }
     .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
     .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 48px; border-radius: 16px; margin-bottom: 32px; position: relative; overflow: hidden; }
     .header::after { content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px; background: rgba(255,255,255,0.03); border-radius: 50%; }
     .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; position: relative; z-index: 1; }
-    .header .subtitle { font-size: 14px; opacity: 0.8; margin-bottom: 24px; position: relative; z-index: 1; }
+    .header .subtitle { font-size: 14px; opacity: 0.8; margin-bottom: 2px; position: relative; z-index: 1; }
+    .brand-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; position: relative; z-index: 1; }
+    .brand-logo { width: 52px; height: 52px; border-radius: 12px; }
+    .brand-copy { flex: 1; }
+    .brand-url { color: white; font-size: 13px; text-decoration: none; opacity: 0.8; }
     .header-meta { display: flex; gap: 24px; flex-wrap: wrap; position: relative; z-index: 1; }
     .header-meta-item { display: flex; flex-direction: column; }
     .header-meta-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
@@ -187,19 +204,38 @@ export function generateHtmlReport(result: ValidationResult): string {
     .file-tree { font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8; white-space: pre; }
     .footer { text-align: center; padding: 32px; color: #9ca3af; font-size: 12px; }
     .footer strong { color: #6b7280; }
+    .report-note { margin-bottom: 12px; color: #6b7280; font-size: 12px; }
     @media print {
-      .header { break-inside: avoid; }
-      .section { break-inside: avoid; }
-      body { background: white; }
+      html, body { background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
       .container { padding: 0; }
+      .header { padding: 28px; margin-bottom: 18px; break-inside: avoid; }
+      .gauge-container { padding: 22px; margin-bottom: 18px; box-shadow: none; border: 1px solid #e5e7eb; break-inside: avoid; }
+      .summary-row { grid-template-columns: repeat(6, 1fr); margin-bottom: 18px; break-inside: avoid; }
+      .summary-card { padding: 14px 8px; }
+      .summary-card .count { font-size: 22px; }
+      .summary-card, .section { box-shadow: none; border: 1px solid #e5e7eb; }
+      .section { padding: 22px; margin-bottom: 16px; }
+      .axis-card, tr { break-inside: avoid; }
+      .axes-section { break-before: page; }
+      details { display: none; }
+      .screen-detail { display: none; }
+      thead { display: table-header-group; }
+      .findings-section { break-before: page; }
+      tr:hover td { background: transparent; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>SkillShield Validation Report</h1>
-      <p class="subtitle">Agent Skills Compliance & Quality Analysis</p>
+      <div class="brand-row">
+        <img class="brand-logo" src="/skill-shield-logo.svg" alt="AI Skill Shield logo">
+        <div class="brand-copy">
+          <h1>AI Skill Shield Validation Report</h1>
+          <p class="subtitle">Agent Skills Compliance & Quality Analysis</p>
+          <a class="brand-url" href="${escapeHtml(SITE_URL)}">${escapeHtml(SITE_URL.replace(/^https?:\/\//, ''))}</a>
+        </div>
+      </div>
       <div class="header-meta">
         <div class="header-meta-item">
           <span class="label">Skill Name</span>
@@ -223,7 +259,7 @@ export function generateHtmlReport(result: ValidationResult): string {
           <div class="gauge-fill" style="transform: rotate(${gaugeRotation}deg);"></div>
           <div class="gauge-cover"><span>${escapeHtml(result.overallScore)}</span></div>
         </div>
-        <div class="gauge-label">Overall Score</div>
+        <div class="gauge-label">Static Score</div>
       </div>
       <div class="gauge-info">
         <span class="risk-badge risk-badge-${classToken(result.riskLevel)}">${escapeHtml(riskLabel)}</span>
@@ -233,13 +269,15 @@ export function generateHtmlReport(result: ValidationResult): string {
     </div>
 
     <div class="summary-row">
+      <div class="summary-card"><div class="count">${escapeHtml(result.findings.length.toLocaleString('en-US'))}</div><div class="label">Total Findings</div></div>
+      ${result.batch ? `<div class="summary-card"><div class="count">${escapeHtml(result.batch.totalSkills.toLocaleString('en-US'))}</div><div class="label">Skills Scanned</div></div>` : ''}
       <div class="summary-card"><div class="count count-critical">${escapeHtml(result.summary.criticalCount)}</div><div class="label">Critical</div></div>
       <div class="summary-card"><div class="count count-high">${escapeHtml(result.summary.highCount)}</div><div class="label">High</div></div>
       <div class="summary-card"><div class="count count-medium">${escapeHtml(result.summary.mediumCount)}</div><div class="label">Medium</div></div>
       <div class="summary-card"><div class="count count-passed">${escapeHtml(result.summary.passed)}</div><div class="label">Passed Axes</div></div>
     </div>
 
-    <div class="section">
+    <div class="section axes-section">
       <h2>Validation Axes</h2>
       ${axesHtml}
     </div>
@@ -249,6 +287,7 @@ export function generateHtmlReport(result: ValidationResult): string {
       <p><strong>Total:</strong> ${escapeHtml(result.tokenAnalysis.totalTokens)} / ${escapeHtml(result.tokenAnalysis.limit)} tokens (${result.tokenAnalysis.isUnderLimit ? 'Within limit' : 'Exceeds limit'})</p>
       <p><strong>Frontmatter:</strong> ${escapeHtml(result.tokenAnalysis.frontmatterTokens)} tokens | <strong>Body:</strong> ${escapeHtml(result.tokenAnalysis.bodyTokens)} tokens</p>
       ${result.tokenAnalysis.breakdown.length > 0 ? `
+        ${result.tokenAnalysis.breakdown.length > printableTokenSections.length ? `<p class="report-note">Showing the ${printableTokenSections.length} largest token sections of ${escapeHtml(result.tokenAnalysis.breakdown.length.toLocaleString('en-US'))}.</p>` : ''}
         <table>
           <thead><tr><th>Section</th><th>Tokens</th><th>%</th></tr></thead>
           <tbody>${tokenSectionsHtml}</tbody>
@@ -267,11 +306,12 @@ export function generateHtmlReport(result: ValidationResult): string {
       ` : '<p>No agent-specific patterns detected.</p>'}
     </div>
 
-    <div class="section">
+    <div class="section findings-section">
       <h2>Detailed Findings</h2>
       ${result.findings.length > 0 ? `
+        ${result.findings.length > printableFindings.length ? `<p class="report-note">Showing the ${printableFindings.length} highest-priority findings of ${escapeHtml(result.findings.length.toLocaleString('en-US'))}. Export CSV or SARIF for the complete result.</p>` : ''}
         <table>
-          <thead><tr><th>Severity</th><th>Title</th><th>Category</th><th>File</th><th>Message</th></tr></thead>
+          <thead><tr><th>Severity</th><th>Title</th><th class="screen-detail">Category</th><th>File</th><th class="screen-detail">Message</th></tr></thead>
           <tbody>${findingsHtml}</tbody>
         </table>
       ` : '<p>No findings to report.</p>'}
@@ -279,11 +319,11 @@ export function generateHtmlReport(result: ValidationResult): string {
 
     <div class="section">
       <h2>Recommendations</h2>
-      ${recommendations.length > 0 ? `<ol class="recommendations">${recHtml}</ol>` : '<p>No recommendations. Skill meets all validation criteria.</p>'}
+      ${recommendations.length > 0 ? `<ol class="recommendations">${recHtml}</ol>${recommendations.length > printableRecommendations.length ? `<p class="report-note">Showing ${printableRecommendations.length} of ${recommendations.length} recommendations.</p>` : ''}` : '<p>No recommendations. Skill meets all validation criteria.</p>'}
     </div>
 
     <div class="footer">
-      <p>Generated by <strong>SkillShield</strong> - Agent Skills Validator</p>
+      <p>Generated by <strong>AI Skill Shield</strong> - Agent Skills Validator</p>
       <p>Report ID: ${escapeHtml(result.id)} | ${escapeHtml(new Date(result.timestamp).toISOString())}</p>
     </div>
   </div>

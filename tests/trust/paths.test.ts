@@ -12,7 +12,7 @@ describe('public trust paths', () => {
 
     expect(target).toEqual({ owner: 'openai', repo: 'skills', path: 'skills/reviewer' })
     expect(githubTrustPath(target!)).toBe('/trust/github/openai/skills/skills/reviewer')
-    expect(githubBadgePath(target!)).toBe('/api/badge/github/openai/skills/skills/reviewer')
+    expect(githubBadgePath(target!)).toBe('/api/badge/github/openai/skills/skills/reviewer?v=2')
     expect(parseGitHubTrustTarget('openai', 'skills', '../private')).toBeNull()
   })
 

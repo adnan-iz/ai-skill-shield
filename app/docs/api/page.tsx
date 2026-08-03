@@ -6,8 +6,8 @@ import { marked } from 'marked'
 import { SOCIAL_IMAGE } from '@/lib/site'
 
 const title = 'API Reference'
-const socialTitle = 'SkillShield API Reference'
-const description = 'Use the complete SkillShield API reference to validate AI agent skills, audit GitHub repositories, enforce policies, and export SARIF, PDF, and CSV reports.'
+const socialTitle = 'AI Skill Shield API Reference'
+const description = 'Use the complete AI Skill Shield API reference to validate AI agent skills, audit GitHub repositories, evaluate policies, and export SARIF, print-ready HTML, and CSV reports.'
 
 export const metadata: Metadata = {
   title,

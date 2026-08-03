@@ -23,7 +23,6 @@ skillshield scan <path> [options]
 | `--format <format>` | `json` | Output format: `json`, `html`, `sarif`, or `markdown`. |
 | `--fail-on <severity>` | `high` | Exit with status `1` when the result meets or exceeds `critical`, `high`, `medium`, or `low`. |
 | `--output <file>` | Standard output | Write the report to a file. |
-| `--policy <path>` | - | Reserved option; the current CLI does not apply the supplied policy file. |
 
 ### Example
 
@@ -33,4 +32,4 @@ node packages/cli/dist/index.js scan ./my-skill --format sarif --output result.s
 
 ## Current scope
 
-The CLI provides a compact local scanner for frontmatter and common dangerous patterns. It does not run the web application's complete 11-axis validator, GitHub repository metadata review, or repository install-surface audit.
+The CLI provides a compact local scanner for frontmatter and common dangerous patterns. It does not run the web application's complete 11-axis validator, GitHub repository metadata review, repository install-surface audit, or policy engine.

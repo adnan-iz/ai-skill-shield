@@ -1,6 +1,6 @@
 # Policy Engine
 
-SkillShield can evaluate scan findings and scores against a policy configuration. Policies are available through the policy library and `POST /api/policy`; the `/rules` page provides a client-side configuration preview.
+AI Skill Shield can evaluate scan findings and scores against a policy configuration. Policies are available through the policy library and `POST /api/policy`; the `/rules` page provides a client-side configuration preview.
 
 ## Modes
 
@@ -51,4 +51,4 @@ allowedFileExtensions:
 
 ## Current integration
 
-The policy endpoint evaluates caller-supplied findings and a score; it is not applied automatically by `POST /api/validate`. The current CLI accepts a `--policy` option but does not yet apply the referenced file. Organization-scoped policy storage and multi-tenant administration are not implemented.
+The policy endpoint evaluates caller-supplied findings and a score; it is not applied automatically by `POST /api/validate`. The source-only CLI does not expose the policy engine. Organization-scoped policy storage and multi-tenant administration are not implemented.

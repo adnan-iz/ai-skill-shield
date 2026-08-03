@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { validateAndSave } from '@/lib/validator/service'
-import { validateFiles, validatePayloadSize } from '@/lib/security/input-validation'
+import { validateFiles, validateId, validatePayloadSize } from '@/lib/security/input-validation'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
   if (!id) {
     return badRequest('Missing id parameter')
   }
+  const idError = validateId(id)
+  if (idError) return badRequest(idError)
 
   const { getResult } = await import('@/lib/store')
   const result = await getResult(id)

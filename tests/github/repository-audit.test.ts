@@ -62,4 +62,21 @@ describe('auditRepositoryTree', () => {
     expect(audit.summary.installSurfaceCount).toBe(0)
     expect(audit.findings).toHaveLength(0)
   })
+
+  it('does not treat publish-only scripts or ordinary build commands as critical install risk', () => {
+    const audit = auditRepositoryTree({
+      owner: 'acme',
+      repo: 'published-skill',
+      branch: 'main',
+      tree: [{ path: 'package.json', type: 'blob', size: 180 }],
+      files: [{
+        path: 'package.json',
+        content: JSON.stringify({ scripts: { prepublishOnly: 'npm run build', prepare: 'husky' } }),
+      }],
+    })
+
+    expect(audit.riskLevel).toBe('high')
+    expect(audit.findings).toHaveLength(1)
+    expect(audit.findings[0]).toMatchObject({ severity: 'high', title: 'Detected lifecycle script: prepare' })
+  })
 })

@@ -89,13 +89,11 @@ const LIFECYCLE_SCRIPT_NAMES = new Set([
   'postinstall',
   'prepare',
   'prepublish',
-  'prepublishOnly',
   'prepack',
-  'postpack',
 ])
 
 const SUSPICIOUS_COMMAND_PATTERN =
-  /(curl|wget|Invoke-WebRequest|iwr).*(\||&&)|\b(Invoke-Expression|iex)\b|\b(bash|sh|powershell|pwsh|cmd|node|npx|npm|pnpm|yarn)\b/i
+  /(?:curl|wget)[^|]*(?:\||&&)\s*(?:bash|sh|zsh|node|python|powershell|pwsh|cmd)\b|(?:Invoke-WebRequest|iwr)[^|]*\|\s*(?:Invoke-Expression|iex)\b|\b(?:Invoke-Expression|iex|eval)\b/i
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, '/')

@@ -40,14 +40,6 @@ function matchPattern(content: string, pattern: string): boolean {
   return regex.test(content)
 }
 
-function countPatternMatches(content: string, patterns: string[]): number {
-  let count = 0
-  for (const pattern of patterns) {
-    if (matchPattern(content, pattern)) count++
-  }
-  return count
-}
-
 function findPatternMatches(content: string, patterns: string[]): string[] {
   const found: string[] = []
   for (const pattern of patterns) {
@@ -74,40 +66,16 @@ export function detectCompatibility(
   files: SkillFile[]
 ): CompatibilityMatrix {
   const filePaths = files.map(f => f.path.replace(/\\/g, '/'))
-  const fullText = [content, ...files.map(f => f.content)].join('\n')
-  const hasStandardSkill = filePaths.some(path => /(^|\/)SKILL\.md$/i.test(path))
 
   const agents: AgentCompatibility[] = SUPPORTED_AGENTS.map(agent => {
     const contentMatches = findPatternMatches(content, agent.detectionPatterns)
     const fileMatches = findPatternMatches(filePaths.join('\n'), agent.detectionPatterns)
-    const _totalMatchCount = countPatternMatches(fullText, agent.detectionPatterns)
 
     const status = determineStatus(contentMatches.length, fileMatches.length)
     const notes = buildNotes(contentMatches.length, fileMatches.length, contentMatches, fileMatches)
 
     return { name: agent.name, id: agent.id, status, notes: notes || undefined }
   })
-
-  const hasNewSpecPatterns = /allowed-tools|allowed_tools|allowedTools/i.test(content)
-  if (hasNewSpecPatterns) {
-    for (const agent of agents) {
-      if (agent.status === 'unknown') {
-        agent.status = 'partial'
-        agent.notes = agent.notes
-          ? `${agent.notes}; Uses allowed-tools (new spec, broad compatibility)`
-          : 'Uses allowed-tools (new spec, broad compatibility)'
-      }
-    }
-  }
-
-  if (hasStandardSkill) {
-    for (const agent of agents) {
-      if (agent.status === 'unknown') {
-        agent.status = 'partial'
-        agent.notes = 'Standard Agent Skills format; runtime-specific behavior not verified'
-      }
-    }
-  }
 
   const hasMCP = /mcp|model\.context\.protocol/i.test(content)
   if (hasMCP) {
@@ -124,9 +92,6 @@ export function detectCompatibility(
 
   const fullCount = agents.filter(a => a.status === 'full').length
   const partialCount = agents.filter(a => a.status === 'partial').length
-  const _knownCount = fullCount + partialCount
-  const _unknownCount = agents.filter(a => a.status === 'unknown').length
-
   let overallCompatibility: number
   if (fullCount >= 3) {
     overallCompatibility = 90

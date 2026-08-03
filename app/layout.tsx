@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { SideNavBar, TopNavBar, BottomNavBar } from "@/components/layout/nav";
@@ -7,7 +8,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL, SOCIAL_IMAGE } from "@/lib/site";
 
-const title = "SkillShield - Validate Agent Skills Before You Run Them";
+const title = "AI Skill Shield - Validate Agent Skills Before You Run Them";
 const description =
   "Free security scanner for AI agent skills. Upload SKILL.md files, audit GitHub repos, and get instant trust scores, risk reports, and install recommendations.";
 
@@ -23,10 +24,10 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  applicationName: "SkillShield",
+  applicationName: "AI Skill Shield",
   title: {
     default: title,
-    template: "%s - SkillShield",
+    template: "%s - AI Skill Shield",
   },
   description,
   authors: [{ name: "Support Engine", url: "https://suppeng.com" }],
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: "/",
-    siteName: "SkillShield",
+    siteName: "AI Skill Shield",
     locale: "en_US",
     images: [SOCIAL_IMAGE],
   },
@@ -80,7 +81,7 @@ const organizationSchema = {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
-      name: "SkillShield",
+      name: "AI Skill Shield",
       description: "Security validation for AI agent skills before installation.",
       inLanguage: "en",
       publisher: { "@id": `${SITE_URL}/#organization` },
@@ -112,13 +113,28 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-dvh bg-surface text-on-surface">
+        <a
+          href="#main-content"
+          className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white transition-transform focus:translate-y-0"
+        >
+          Skip to main content
+        </a>
         <SideNavBar />
         <TopNavBar />
-        <main className="flex min-h-[calc(100dvh-3.5rem)] md:min-h-dvh flex-col pb-20 md:ml-16 md:pb-0">
+        <main id="main-content" tabIndex={-1} className="flex min-h-[calc(100dvh-3.5rem)] flex-col pb-20 md:ml-56 md:min-h-dvh md:pb-0">
           <div className="flex-1">
             <ToastProvider>{children}</ToastProvider>
           </div>
           <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-6 text-center text-sm text-on-surface-secondary">
+            <a
+              href="https://suppeng.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Support Engine"
+              className="rounded-lg bg-stitch-sidebar px-2 py-1 transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shield-500"
+            >
+              <Image src="/support-engine-logo.png" alt="Support Engine" width={112} height={62} className="h-9 w-auto" />
+            </a>
             <span>
               Made by{" "}
               <a href="https://suppeng.com" target="_blank" rel="noopener noreferrer" className="hover:text-on-surface">

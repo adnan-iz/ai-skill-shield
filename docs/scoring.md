@@ -1,6 +1,6 @@
 # Scoring Model
 
-SkillShield calculates a weighted score across 11 validation axes. Finding severity determines the reported risk level, while repository audit and approval data contribute to the separate installation verdict shown in the report UI.
+AI Skill Shield calculates a weighted score across 11 validation axes. Finding severity determines the reported risk level, while repository audit and approval data contribute to the separate installation verdict shown in the report UI.
 
 ## Validation axes
 

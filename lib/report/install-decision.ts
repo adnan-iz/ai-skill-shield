@@ -1,4 +1,5 @@
 import type { RepositoryAudit } from '@/lib/github/repository-audit'
+import { countFileTree } from '@/lib/report/metrics'
 import type { ValidationResult } from '@/lib/validator/types'
 
 type ApprovalState = 'pending' | 'approved' | 'rejected' | null
@@ -29,34 +30,25 @@ function countInstallFindings(result: ValidationResult): number {
   return result.findings.filter(isInstallFinding).length
 }
 
-function countSevereRepoFindings(audit?: RepositoryAudit): number {
-  if (!audit) return 0
-  return audit.findings.filter((finding) => finding.severity === 'critical' || finding.severity === 'high').length
-}
-
-function countReviewableRepoFindings(audit?: RepositoryAudit): number {
-  if (!audit) return 0
-  return audit.findings.filter((finding) =>
-    finding.severity === 'critical' || finding.severity === 'high' || finding.severity === 'medium'
-  ).length
+function isPublishOnlyLifecycleFinding(finding: RepositoryAudit['findings'][number]): boolean {
+  return finding.id.toLowerCase().endsWith(':prepublishonly')
 }
 
 export function buildInstallDecision(result: ValidationResult, approval: ApprovalState): InstallDecision {
   const repositoryAudit = result.source?.repositoryAudit
+  const repositoryFindings = repositoryAudit?.findings.filter((finding) => !isPublishOnlyLifecycleFinding(finding)) ?? []
   const installFindingCount = countInstallFindings(result)
-  const severeRepoFindingCount = countSevereRepoFindings(repositoryAudit)
-  const reviewableRepoFindingCount = countReviewableRepoFindings(repositoryAudit)
+  const severeRepoFindingCount = repositoryFindings.filter((finding) => finding.severity === 'critical' || finding.severity === 'high').length
+  const reviewableRepoFindingCount = repositoryFindings.filter((finding) => finding.severity === 'critical' || finding.severity === 'high' || finding.severity === 'medium').length
+  const hasCriticalRepoFinding = repositoryFindings.some((finding) => finding.severity === 'critical')
   const hasSevereInstallFinding = result.findings.some((finding) =>
     isInstallFinding(finding) && (finding.severity === 'critical' || finding.severity === 'high')
   )
-  const hasSevereRepositoryRisk =
-    repositoryAudit?.riskLevel === 'critical' ||
-    repositoryAudit?.riskLevel === 'high' ||
-    severeRepoFindingCount >= 2
+  const hasSevereRepositoryRisk = severeRepoFindingCount > 0
   const hasCriticalStopSignal =
     result.riskLevel === 'critical' ||
     result.summary.criticalCount > 0 ||
-    repositoryAudit?.riskLevel === 'critical' ||
+    hasCriticalRepoFinding ||
     severeRepoFindingCount >= 2
   const hasAutomaticExecutionRisk = hasSevereInstallFinding || hasSevereRepositoryRisk
 
@@ -80,10 +72,12 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     ? 'warn'
     : 'safe'
 
+  const fileCount = countFileTree(result.skillPreview.fileTree) || 1
+
   const checklist: InstallChecklistItem[] = [
     {
-      label: 'Skill file parsed',
-      detail: `Validated ${result.skillPreview.fileTree.length || 1} scanned file${result.skillPreview.fileTree.length === 1 ? '' : 's'}.`,
+      label: result.batch ? 'Skill files parsed' : 'Skill file parsed',
+      detail: `Validated ${fileCount.toLocaleString('en-US')} scanned file${fileCount === 1 ? '' : 's'}.`,
       status: 'pass',
     },
     {
@@ -102,7 +96,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
         ? 'GitHub import completed without repository audit data.'
         : 'Repository-level audit is only available for GitHub repo scans.',
       status: repositoryAudit
-        ? repositoryAudit.riskLevel === 'critical' || repositoryAudit.riskLevel === 'high'
+        ? severeRepoFindingCount > 0
           ? 'fail'
           : reviewableRepoFindingCount > 0
           ? 'warn'

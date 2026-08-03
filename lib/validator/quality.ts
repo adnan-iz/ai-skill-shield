@@ -219,21 +219,6 @@ function assessCompleteness(content: string, _body: string): QualityDimension {
   const hasExamples = /```[\s\S]*?```/.test(fullContent) || /##\s+(examples?|demo|sample)/i.test(fullContent)
   if (hasExamples) {
     score += 25
-  } else {
-    findings.push({
-      id: makeId(),
-      axis: 'quality',
-      severity: 'medium',
-      category: 'quality',
-      title: 'Missing examples',
-      message: 'Skill documentation contains no code examples or demonstrations',
-      filePath: 'SKILL.md',
-      lineNumber: 0,
-      column: 0,
-      snippet: '',
-      recommendation: 'Add code examples demonstrating skill usage',
-      ruleId: 'quality-completeness-examples',
-    })
   }
 
   const hasEdgeCases = /##\s+(edge\s+cases|error\s+handling|limitations?|troubleshooting|faq|known\s+issues)/i.test(fullContent)
@@ -371,13 +356,13 @@ function assessExamples(content: string, _body: string): QualityDimension {
       axis: 'quality',
       severity: 'medium',
       category: 'quality',
-      title: 'No code examples',
-      message: 'Skill documentation contains no code examples',
+      title: 'No usage examples',
+      message: 'Skill documentation contains no examples or demonstrations',
       filePath: 'SKILL.md',
       lineNumber: 0,
       column: 0,
       snippet: '',
-      recommendation: 'Add code examples showing how to use the skill',
+      recommendation: 'Add a concrete usage example with an expected result',
       ruleId: 'quality-examples-none',
     })
   }
@@ -385,7 +370,7 @@ function assessExamples(content: string, _body: string): QualityDimension {
   const hasIOExamples = /(input|output|result|returns?|prints?|logs?|=>|->|→)/i.test(fullContent)
   if (hasIOExamples) {
     score += 30
-  } else {
+  } else if (codeBlocks.length > 0) {
     findings.push({
       id: makeId(),
       axis: 'quality',

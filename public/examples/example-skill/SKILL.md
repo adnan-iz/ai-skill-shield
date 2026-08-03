@@ -1,9 +1,9 @@
 ---
 name: example-skill
-description: A clean demonstration skill. Use this to test basic validation and see SkillShield reporting features.
+description: A clean demonstration skill. Use this to test basic validation and see AI Skill Shield reporting features.
 agent: opencode
 version: 1.0.0
-author: SkillShield
+author: AI Skill Shield
 license: MIT
 tags:
   - demonstration
@@ -13,7 +13,7 @@ tags:
 
 # Example Skill
 
-A safe example skill for testing SkillShield's validation pipeline.
+A safe example skill for testing AI Skill Shield's validation pipeline.
 
 ## Usage
 

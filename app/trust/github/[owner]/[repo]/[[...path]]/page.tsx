@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import ScoreGauge from '@/components/report/score-gauge'
 import { notFound } from 'next/navigation'
 import TrustActions from '@/components/trust/trust-actions'
 import { buildInstallDecision } from '@/lib/report/install-decision'
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const decision = buildInstallDecision(result, null)
   const title = `${target.owner}/${target.repo} — ${decision.label}`
-  const description = `${result.skillName} scored ${result.overallScore}/100 with ${result.findings.length} findings in its latest default-branch SkillShield scan.`
+  const description = `${result.skillName} scored ${result.overallScore}/100 with ${result.findings.length} findings in its latest default-branch AI Skill Shield scan.`
   const canonical = githubTrustPath(target)
   const image = githubTrustImagePath(target)
 
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical },
-    openGraph: { title, description, type: 'article', url: canonical, images: [{ url: image, width: 1200, height: 630, alt: 'SkillShield public trust report' }] },
+    openGraph: { title, description, type: 'article', url: canonical, images: [{ url: image, width: 1200, height: 630, alt: 'AI Skill Shield public trust report' }] },
     twitter: { card: 'summary_large_image', title, description, images: [image] },
   }
 }
@@ -69,18 +70,12 @@ export default async function TrustPage({ params }: Props) {
     warn: 'border-yellow-200 bg-yellow-50 text-yellow-900',
     danger: 'border-red-200 bg-red-50 text-red-900',
   }
-  const scoreColor = result.overallScore >= 70
-    ? 'text-shield-600'
-    : result.overallScore >= 50
-      ? 'text-yellow-600'
-      : 'text-red-600'
-
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-on-surface-secondary hover:text-on-surface">
           <span className="material-symbols-outlined text-lg">arrow_back</span>
-          SkillShield
+          AI Skill Shield
         </Link>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-shield-200 bg-shield-50 px-3 py-1 text-xs font-semibold text-shield-800">
           <span className="material-symbols-outlined text-sm">public</span>
@@ -106,9 +101,8 @@ export default async function TrustPage({ params }: Props) {
                 <span className="material-symbols-outlined text-base">open_in_new</span>
               </a>
             </div>
-            <div className="flex shrink-0 items-center gap-4 sm:flex-col sm:items-end">
-              <div className={`text-5xl font-bold ${scoreColor}`}>{result.overallScore}</div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">out of 100</div>
+            <div className="shrink-0">
+              <ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} compact />
             </div>
           </div>
         </div>
@@ -163,7 +157,7 @@ export default async function TrustPage({ params }: Props) {
       <div className="mt-6 flex justify-center">
         <Image
           src={badgePath}
-          alt={`SkillShield status for ${repoLabel}`}
+          alt={`AI Skill Shield status for ${repoLabel}`}
           width={230}
           height={20}
           unoptimized
@@ -173,8 +167,8 @@ export default async function TrustPage({ params }: Props) {
         <TrustActions badgePath={badgePath} repoLabel={repoLabel} scanId={result.id} trustPath={trustPath} />
       </div>
       <p className="mt-5 text-center text-xs leading-5 text-on-surface-secondary">
-        SkillShield is an automated pre-install review, not a guarantee of safety. Confirm sensitive permissions and execution paths before installation.
+        AI Skill Shield is an automated pre-install review, not a guarantee of safety. Confirm sensitive permissions and execution paths before installation.
       </p>
-    </main>
+    </div>
   )
 }
