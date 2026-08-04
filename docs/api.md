@@ -22,7 +22,7 @@ Validate a set of skill files and store the resulting report.
 }
 ```
 
-The endpoint accepts up to 30 files, 3 MB per file, and 15 MB for the complete request.
+The endpoint accepts up to 30 regular files, 3 MB per file, and 15 MB for the complete request. Batch validation of `SKILL.md` files supports up to 10,000 skill files, subject to the same per-file and total-request limits.
 
 ### Response
 
@@ -64,7 +64,7 @@ Import a skill from GitHub and audit repository-level installation and execution
 }
 ```
 
-`branch`, `sha`, extension filters, and ignore paths are optional. When a repository root contains multiple skills and no path is supplied, the endpoint returns `requiresSkillSelection: true` with the discovered skill paths.
+`branch`, `sha`, extension filters, and ignore paths are optional. `excludeExtensions` can be used to remove extensions from the default file set. When a repository root contains multiple skills and no path is supplied, the endpoint validates all discovered skills as a batch and returns a `validationResultId` with the batch skill count.
 
 ### Response
 
@@ -99,6 +99,8 @@ Import a skill from GitHub and audit repository-level installation and execution
 }
 ```
 
+For a multi-skill repository scanned from its root, the response instead contains `{ "validationResultId": "...", "skillCount": 123 }`; retrieve the combined report with `GET /api/validate?id=...`.
+
 `repositoryAudit` covers install and execution surfaces. `repositoryMeta` provides repository trust signals for the report UI. Configure `GITHUB_TOKEN` to improve API limits and scan private repositories accessible to that token.
 
 ## `GET /api/report`
@@ -128,11 +130,12 @@ Run provider-backed analysis on an existing set of findings.
     }
   ],
   "skillName": "my-skill",
+  "totalFindings": 1,
   "provider": "openai"
 }
 ```
 
-Supported request providers are `openai`, `anthropic`, `opencode-go`, and `opencode-zen`. Configure the matching `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENCODE_GO_API_KEY`, or `OPENCODE_ZEN_API_KEY` environment variable. When `provider` is omitted, AI Skill Shield uses the first configured provider in that order. OpenCode model selection can be overridden with `OPENCODE_GO_MODEL` or `OPENCODE_ZEN_MODEL`; both default to `kimi-k2.7-code`. Finding snippets are redacted for common secret formats before they are sent to the provider.
+Supported request providers are `openai`, `anthropic`, `opencode-go`, and `opencode-zen`. Configure the matching `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENCODE_GO_API_KEY`, or `OPENCODE_ZEN_API_KEY` environment variable. When `provider` is omitted, AI Skill Shield uses the first configured provider in that order. `totalFindings` is the full repository count when reviewing a bounded batch. At most the first 50 prioritized findings are sent to the provider. OpenCode model selection can be overridden with `OPENCODE_GO_MODEL` or `OPENCODE_ZEN_MODEL`; both default to `kimi-k2.7-code`. Finding snippets are redacted for common secret formats before they are sent to the provider.
 
 ## Approvals
 

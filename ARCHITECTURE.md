@@ -26,7 +26,8 @@ It:
 - downloads install-surface candidates such as `package.json`, install scripts, `.npmrc`, `.gitmodules`, `requirements.txt`, and workflows
 - runs `auditRepositoryTree()` to build repository findings, surfaces, and repo-level risk
 - fetches scanable files for the selected skill path
-- returns `files`, `repositoryAudit`, and `repositoryMeta`
+- returns `files`, `repositoryAudit`, and `repositoryMeta` for a single-skill import
+- returns `validationResultId` and `skillCount` when a repository root contains multiple skills
 
 ### 2. Validation
 
@@ -139,6 +140,7 @@ Primary routes:
 - `POST /api/validate`
 - `GET /api/validate?id=...`
 - `GET /api/report`
+- `POST /api/ai-review`
 - `GET/POST /api/approvals`
 - `GET /api/audit`
 - `GET/POST/DELETE /api/webhooks`

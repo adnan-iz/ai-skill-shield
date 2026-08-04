@@ -6,7 +6,7 @@ AI Skill Shield combines threat signatures, secret detection, obfuscation checks
 
 | Layer | Built-in checks | Source |
 | --- | ---: | --- |
-| Threat patterns | 100 | [`lib/scanner/patterns.ts`](../lib/scanner/patterns.ts) |
+| Threat patterns | 109 | [`lib/scanner/patterns.ts`](../lib/scanner/patterns.ts) |
 | Secret detection | 14 | [`lib/scanner/secrets.ts`](../lib/scanner/secrets.ts) |
 | Runtime obfuscation checks | 13 | [`lib/scanner/obfuscation.ts`](../lib/scanner/obfuscation.ts) |
 | Semgrep-compatible rules | 15 | [`lib/semgrep/builtin-rules.ts`](../lib/semgrep/builtin-rules.ts) |
@@ -25,6 +25,8 @@ AI Skill Shield combines threat signatures, secret detection, obfuscation checks
 | `EXT` | 10 | External downloads, remote execution, reverse shells, and binary retrieval. |
 | `PER` | 8 | Startup entries, scheduled jobs, services, shell profiles, and other persistence mechanisms. |
 | `SOC` | 7 | Fake updates, CAPTCHA instructions, security alerts, and other social-engineering patterns. |
+| `CFX` | 5 | Click-fix and permission-bypass social engineering patterns. |
+| `SML` | 4 | Staged-malware and delayed-payload patterns. |
 | `SOI` | 5 | Delayed execution through hooks, configuration files, environment pollution, cron, and triggers. |
 
 Each threat pattern returns at most one finding per scanned file. Findings include severity, category, file path, location, evidence, and a remediation recommendation when available.

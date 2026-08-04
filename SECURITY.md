@@ -12,7 +12,7 @@ Security fixes are applied to the latest release line.
 
 | Version | Supported |
 | --- | --- |
-| `0.1.x` | Yes |
+| `0.2.x` | Yes |
 | Earlier versions | No |
 
 ## Current security controls
@@ -34,4 +34,4 @@ Security fixes are applied to the latest release line.
 
 ## Request limits
 
-The validation API currently accepts up to 30 files, 3 MB per file, and 15 MB for the complete request. Validation and GitHub import endpoints allow 30 requests per minute per IP; other rate-limited endpoints generally use a 60-request-per-minute default. Rate-limited responses include limit, remaining, and reset headers.
+The validation API accepts up to 30 regular files, or up to 10,000 `SKILL.md` files for batch validation, with a 3 MB per-file limit and 15 MB complete-request limit. Validation and GitHub import endpoints allow 30 requests per minute per IP; other rate-limited endpoints generally use a 60-request-per-minute default. Rate-limited responses include limit, remaining, and reset headers.

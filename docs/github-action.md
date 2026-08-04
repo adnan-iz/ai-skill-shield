@@ -43,6 +43,6 @@ jobs:
 ## Behavior and limitations
 
 - The action emits workflow annotations for detected findings.
-- With the default `high` threshold, high and critical results fail the job.
+- Critical results fail the job for every `fail-on` value. With the default `high` value, high results also fail the job. The current action accepts `medium` and `low` values but does not yet enforce those lower thresholds.
 - HTML output is written to `skillshield-report.html` in the scanned directory; upload it separately if it should be retained as a workflow artifact.
 - The action uses a compact local rule set. The web application's GitHub import route provides the complete repository metadata and install-surface audit.

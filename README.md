@@ -14,7 +14,7 @@ AI Skill Shield reviews `SKILL.md` packages and GitHub repositories for prompt i
 2. Paste a GitHub repository URL, upload a skill package, or paste a `SKILL.md`
 3. Review the verdict, risky lines, and install-surface evidence
 
-The standard static scan works without an AI provider. Optional AI review supports OpenAI, Anthropic, OpenCode Go, and OpenCode Zen when self-hosting.
+The standard static scan works without an AI provider. Optional AI review supports OpenAI, Anthropic, OpenCode Go, and OpenCode Zen when the deployment has matching provider credentials configured.
 
 ## What it checks
 
