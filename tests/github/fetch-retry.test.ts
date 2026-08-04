@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { fetchWithTimeout } from '@/app/api/github/route'
+import { fetchWithTimeout, githubAuthError } from '@/app/api/github/route'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -19,4 +19,12 @@ test('retries when a GitHub response body terminates', async () => {
 
   expect(await response.json()).toEqual({ ok: true })
   expect(fetchMock).toHaveBeenCalledTimes(2)
+})
+
+test('distinguishes GitHub permission failures from exhausted quota', () => {
+  expect(githubAuthError(new Response(null, { status: 403 }))).toContain('denied access')
+  expect(githubAuthError(new Response(null, {
+    status: 403,
+    headers: { 'x-ratelimit-remaining': '0' },
+  }))).toContain('API limit reached')
 })
