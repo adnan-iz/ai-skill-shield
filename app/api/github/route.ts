@@ -130,11 +130,30 @@ function githubHeaders(): HeadersInit {
     Accept: 'application/vnd.github+json',
   }
 
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
+  const token = process.env.GITHUB_TOKEN?.trim()
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
   }
 
   return headers
+}
+
+export function githubAuthError(response: Response): string | null {
+  const tokenConfigured = Boolean(process.env.GITHUB_TOKEN?.trim())
+
+  if (response.status === 401) {
+    return 'GitHub rejected GITHUB_TOKEN. Replace it in Vercel and redeploy.'
+  }
+  if (response.status === 429 || (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0')) {
+    return tokenConfigured
+      ? 'GitHub API limit reached for the configured GITHUB_TOKEN. Wait for the quota reset or use another token.'
+      : 'GitHub API limit reached. Configure GITHUB_TOKEN in Vercel and redeploy.'
+  }
+  if (response.status === 403) {
+    return 'GitHub denied access. Check that GITHUB_TOKEN can read public repositories, then redeploy.'
+  }
+
+  return null
 }
 
 export async function POST(request: NextRequest) {
@@ -181,9 +200,8 @@ export async function POST(request: NextRequest) {
     )
 
     if (!treeRes.ok) {
-      if (treeRes.status === 403 || treeRes.status === 429) {
-        return serverError('GitHub API limit reached. Configure GITHUB_TOKEN in Vercel.')
-      }
+      const authError = githubAuthError(treeRes)
+      if (authError) return serverError(authError)
       return notFound('Skill path not found in repository')
     }
 
