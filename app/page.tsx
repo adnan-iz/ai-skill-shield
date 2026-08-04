@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
 import UrlInput from '@/components/upload/url-input'
@@ -9,6 +9,7 @@ import { saveValidation } from '@/lib/state'
 import { useToast } from '@/components/ui/toast'
 import type { RepositoryMeta, SkillInput } from '@/lib/validator/types'
 import type { RepositoryAudit } from '@/lib/github/repository-audit'
+import { parseRepositoryUrl } from '@/lib/github/url-parsing'
 
 type Tab = 'upload' | 'url' | 'paste'
 
@@ -80,6 +81,7 @@ export default function HomePage() {
   const [motionReady, setMotionReady] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
   const [resolutionHint, setResolutionHint] = useState('')
+  const rescanStarted = useRef(false)
   const scanPath =
     tab === 'url'
       ? 'github.com/owner/repo'
@@ -232,6 +234,21 @@ export default function HomePage() {
       setLoading(false)
     }
   }, [readApiError, router, toast, validate])
+
+  useEffect(() => {
+    if (rescanStarted.current) return
+    const rescanUrl = new URLSearchParams(window.location.search).get('url')
+    const target = rescanUrl ? parseRepositoryUrl(rescanUrl) : null
+    if (!target) return
+
+    const timer = window.setTimeout(() => {
+      if (rescanStarted.current) return
+      rescanStarted.current = true
+      void handleUrlParse(target)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [handleUrlParse])
 
   const handlePasteValidate = useCallback(async () => {
     if (!pasteContent.trim()) return

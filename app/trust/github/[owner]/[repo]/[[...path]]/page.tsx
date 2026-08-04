@@ -23,6 +23,14 @@ const severityOrder: Record<Finding['severity'], number> = {
   info: 4,
 }
 
+const severityClasses: Record<Finding['severity'], string> = {
+  critical: 'bg-red-500/10 text-red-500 ring-1 ring-inset ring-red-500/25',
+  high: 'bg-orange-500/10 text-orange-500 ring-1 ring-inset ring-orange-500/25',
+  medium: 'bg-yellow-500/10 text-yellow-600 ring-1 ring-inset ring-yellow-500/25',
+  low: 'bg-shield-500/10 text-shield-600 ring-1 ring-inset ring-shield-500/25',
+  info: 'bg-sky-500/10 text-sky-500 ring-1 ring-inset ring-sky-500/25',
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { owner, repo, path } = await params
   const target = parseGitHubTrustTarget(owner, repo, path)
@@ -62,6 +70,7 @@ export default async function TrustPage({ params }: Props) {
   const badgePath = githubBadgePath(target)
   const repoLabel = `${target.owner}/${target.repo}`
   const sourceUrl = `https://github.com/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/tree/${source.sha}${target.path ? `/${target.path.split('/').map(encodeURIComponent).join('/')}` : ''}`
+  const rescanUrl = `https://github.com/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}${target.path ? `/tree/${encodeURIComponent(source.branch || meta.defaultBranch || 'main')}/${target.path.split('/').map(encodeURIComponent).join('/')}` : ''}`
   const topFindings = [...result.findings]
     .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
     .slice(0, 5)
@@ -101,8 +110,23 @@ export default async function TrustPage({ params }: Props) {
                 <span className="material-symbols-outlined text-base">open_in_new</span>
               </a>
             </div>
-            <div className="shrink-0">
+            <div className="flex shrink-0 flex-col items-center gap-3">
               <ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} compact />
+              <Link href={`/validate/${result.id}`} className="rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700">
+                Full report
+              </Link>
+              <Link
+                href={`/?ref=trust-report&refScan=${encodeURIComponent(result.id)}&url=${encodeURIComponent(rescanUrl)}`}
+                className="rounded-lg border border-shield-600 px-4 py-2 text-sm font-semibold text-shield-700 hover:bg-shield-50"
+              >
+                Rescan
+              </Link>
+              <Link
+                href={`/validate/${result.id}#ai-review`}
+                className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-secondary/80"
+              >
+                AI Review
+              </Link>
             </div>
           </div>
         </div>
@@ -124,17 +148,41 @@ export default async function TrustPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-5 border-t border-outline p-6 sm:grid-cols-3 sm:p-8">
-          <div><p className="text-2xl font-bold text-on-surface">{result.findings.length}</p><p className="text-xs text-on-surface-secondary">validation findings</p></div>
-          <div><p className="text-2xl font-bold text-on-surface">{audit?.summary.installSurfaceCount ?? 0}</p><p className="text-xs text-on-surface-secondary">install surfaces reviewed</p></div>
-          <div><p className="text-2xl font-bold text-on-surface">{meta.stars.toLocaleString()}</p><p className="text-xs text-on-surface-secondary">GitHub stars</p></div>
+        <div className="border-t border-outline bg-surface-secondary/20 p-6 sm:p-8">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-secondary">Repository scan summary</p>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">
+                <span className="material-symbols-outlined normal-case tracking-normal rounded-md bg-red-500/10 p-1 text-base text-red-500">policy</span>
+                Findings
+              </dt>
+              <dd className="mt-4 text-3xl font-bold tracking-tight text-on-surface">{result.findings.length.toLocaleString()}</dd>
+              <p className="mt-1 text-xs text-on-surface-secondary">Validation findings detected</p>
+            </div>
+            <div className="rounded-xl border border-outline bg-surface-container/60 p-4">
+              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">
+                <span className="material-symbols-outlined normal-case tracking-normal rounded-md bg-yellow-500/10 p-1 text-base text-yellow-600">terminal</span>
+                Install surface
+              </dt>
+              <dd className="mt-4 text-3xl font-bold tracking-tight text-on-surface">{audit?.summary.installSurfaceCount ?? 0}</dd>
+              <p className="mt-1 text-xs text-on-surface-secondary">Execution paths reviewed</p>
+            </div>
+            <div className="rounded-xl border border-outline bg-surface-container/60 p-4">
+              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">
+                <span aria-hidden="true" className="rounded-md bg-shield-500/10 px-1.5 py-1 text-base leading-none text-shield-600">★</span>
+                Repository reach
+              </dt>
+              <dd className="mt-4 text-3xl font-bold tracking-tight text-on-surface">{meta.stars.toLocaleString()}</dd>
+              <p className="mt-1 text-xs text-on-surface-secondary">GitHub stars</p>
+            </div>
+          </dl>
         </div>
       </section>
 
       <section className="glass-card mt-6 rounded-xl p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-on-surface">Highest-priority findings</h2>
+            <h2 className="text-lg font-bold text-red-500">Highest-priority findings</h2>
             <p className="mt-1 text-xs text-on-surface-secondary">The latest default-branch scan, ordered by severity.</p>
           </div>
           <Link href={`/validate/${result.id}`} className="text-sm font-semibold text-shield-700 hover:text-shield-800">Full report</Link>
@@ -145,7 +193,9 @@ export default async function TrustPage({ params }: Props) {
           <ul className="mt-5 divide-y divide-outline">
             {topFindings.map((finding) => (
               <li key={finding.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-3">
-                <span className="w-20 shrink-0 text-xs font-bold uppercase text-on-surface-secondary">{finding.severity}</span>
+                <span className={`w-fit shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase leading-none sm:w-20 sm:text-center ${severityClasses[finding.severity]}`}>
+                  {finding.severity}
+                </span>
                 <span className="font-medium text-on-surface">{finding.title}</span>
                 <span className="sm:ml-auto font-mono text-xs text-on-surface-secondary">{finding.filePath || 'SKILL.md'}{finding.lineNumber ? `:${finding.lineNumber}` : ''}</span>
               </li>

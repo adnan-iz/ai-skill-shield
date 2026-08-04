@@ -138,7 +138,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-on-surface-secondary">{item.result.source?.repositoryMeta?.description || decision.summary}</p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.category}</span><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.result.findings.length} findings</span></div>
                 <p className="mt-4 truncate font-mono text-xs text-on-surface-secondary">{item.owner}/{item.repo}/{item.path || 'SKILL.md'}</p>
-                <Link href={githubTrustPath(item)} className="mt-5 font-semibold text-shield-700 hover:text-shield-800">Inspect trust evidence</Link>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <Link href={githubTrustPath(item)} className="font-semibold text-shield-700 hover:text-shield-800">Inspect trust evidence</Link>
+                  <Link href={`/validate/${encodeURIComponent(item.result.id)}#ai-review`} className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:bg-secondary/80">AI Review</Link>
+                </div>
               </article>
             )
           })}

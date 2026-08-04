@@ -14,8 +14,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { findings, skillName, provider: requestedProvider } = await request.json() as {
+    const { findings, totalFindings, skillName, provider: requestedProvider } = await request.json() as {
       findings?: unknown
+      totalFindings?: unknown
       skillName?: string
       provider?: unknown
     }
@@ -67,7 +68,10 @@ export async function POST(request: Request) {
       model: providerSettings.model,
       redactSecrets: true,
     }
-    const result = await reviewFindings(findings, skillName || 'Untitled Skill', config)
+    const reportedTotal = typeof totalFindings === 'number' && Number.isSafeInteger(totalFindings) && totalFindings >= findings.length
+      ? totalFindings
+      : findings.length
+    const result = await reviewFindings(findings.slice(0, 50), skillName || 'Untitled Skill', config, reportedTotal)
 
     return addRateLimitHeaders(Response.json(result), rl)
   } catch (err) {

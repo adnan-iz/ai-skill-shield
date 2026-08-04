@@ -38,7 +38,7 @@ const PAGE_SIZE = 100
 
 export default function FindingsTable({ findings }: FindingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('severity')
-  const [sortAsc, setSortAsc] = useState(false)
+  const [sortAsc, setSortAsc] = useState(true)
   const [filterSeverity, setFilterSeverity] = useState<Severity | 'all'>('all')
   const [expandedRow, setExpandedRow] = useState<number | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)

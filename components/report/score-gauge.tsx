@@ -45,7 +45,12 @@ export default function ScoreGauge({ score, riskLevel, compact = false }: ScoreG
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex items-center justify-center">
-        <svg width={size} height={size} className="-rotate-90">
+        <svg
+          width={size}
+          height={size}
+          className="-rotate-90"
+          style={compact ? { filter: `drop-shadow(0 0 10px ${strokeColorVar})` } : undefined}
+        >
           <circle
             cx={center}
             cy={center}
@@ -68,7 +73,10 @@ export default function ScoreGauge({ score, riskLevel, compact = false }: ScoreG
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className={`${compact ? 'text-3xl' : 'text-5xl'} font-bold ${color} transition-colors duration-500`}>
+          <span
+            className={`${compact ? 'text-3xl' : 'text-5xl'} font-bold ${color} transition-colors duration-500`}
+            style={compact ? { textShadow: `0 0 16px ${strokeColorVar}` } : undefined}
+          >
             {animatedScore}{compact && <span className="text-base">%</span>}
           </span>
           {!compact && <span className="text-xs font-medium text-on-surface-secondary">/ 100</span>}

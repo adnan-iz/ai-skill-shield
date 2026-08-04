@@ -48,13 +48,15 @@ export function redactSecrets(content: string): string {
   return result
 }
 
-function buildPromptForFindings(findings: Finding[], skillName: string): string {
+function buildPromptForFindings(findings: Finding[], skillName: string, totalFindings: number): string {
   return `You are AI Skill Shield, a security expert for AI agent skills. Analyze the following findings for "${skillName}" and provide:
 
 1. A brief executive summary (2-3 sentences)
 2. Risk explanation for each finding
 3. Specific remediation steps
 4. Safer code alternatives where applicable
+
+The scan found ${totalFindings} findings in total. The ${findings.length} findings below are the highest-priority sample selected for this review.
 
 Findings:
 ${findings.map(f => `- [${f.severity.toUpperCase()}] ${f.title} (${f.category}): ${f.message}${f.snippet ? `\n  Code: "${f.snippet.slice(0, 200)}"` : ''}${f.recommendation ? `\n  Recommended: ${f.recommendation}` : ''}`).join('\n')}
@@ -164,13 +166,14 @@ function parseAiResponse(response: string): AiReviewResult {
 export async function reviewFindings(
   findings: Finding[],
   skillName: string,
-  config: AiReviewConfig
+  config: AiReviewConfig,
+  totalFindings = findings.length
 ): Promise<AiReviewResult> {
   const redactedFindings = config.redactSecrets
     ? findings.map(f => ({ ...f, snippet: f.snippet ? redactSecrets(f.snippet) : undefined }))
     : findings
 
-  const prompt = buildPromptForFindings(redactedFindings, skillName)
+  const prompt = buildPromptForFindings(redactedFindings, skillName, totalFindings)
 
   try {
     const response = await callAiApi(config, prompt)

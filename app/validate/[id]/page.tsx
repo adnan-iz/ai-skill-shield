@@ -23,6 +23,8 @@ const batchRiskClasses: Record<string, string> = {
   critical: 'bg-threat-critical/10 text-threat-critical',
 }
 
+const aiSeverityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 } as const
+
 export default function ReportPage({
   params,
 }: {
@@ -117,10 +119,13 @@ export default function ReportPage({
   async function runAiReview() {
     setAiLoading(true)
     try {
+      const findings = [...result!.findings]
+        .sort((a, b) => aiSeverityOrder[a.severity] - aiSeverityOrder[b.severity])
+        .slice(0, 50)
       const res = await fetch('/api/ai-review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ findings: result!.findings, skillName: result!.skillName }),
+        body: JSON.stringify({ findings, totalFindings: result!.findings.length, skillName: result!.skillName }),
       })
       if (!res.ok) {
         const err = await res.json()
@@ -266,55 +271,6 @@ export default function ReportPage({
         />
       </div>
 
-      {result.batch && (
-        <div className="glass-card mb-8 rounded-xl p-4">
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
-              All skills analyzed
-            </h3>
-            <p className="mt-1 text-sm text-on-surface-secondary">
-              {result.batch.totalSkills} skills were validated independently. The repository verdict uses their combined findings.
-            </p>
-          </div>
-          <div className="max-h-[32rem] overflow-auto rounded-lg border border-outline">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-surface-container text-xs uppercase text-on-surface-secondary">
-                <tr>
-                  <th className="px-3 py-2">Skill</th>
-                  <th className="px-3 py-2">Score</th>
-                  <th className="px-3 py-2">Risk</th>
-                  <th className="px-3 py-2">Findings</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline">
-                {result.batch.results.map((skill) => (
-                  <tr key={skill.path}>
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-on-surface">{skill.skillName}</div>
-                      <div className="font-mono text-xs text-on-surface-secondary">{skill.path}</div>
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-on-surface">{skill.overallScore}</td>
-                    <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${batchRiskClasses[skill.riskLevel]}`}>
-                        {skill.riskLevel}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-on-surface-secondary">
-                      {skill.findingsCount}
-                      {(skill.criticalCount > 0 || skill.highCount > 0) && (
-                        <span className="ml-2 text-xs text-red-600">
-                          {skill.criticalCount} critical · {skill.highCount} high
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       <div className="glass-card mb-8 rounded-xl p-4">
         <ExportBar result={result} />
       </div>
@@ -376,6 +332,55 @@ export default function ReportPage({
         </div>
       </div>
 
+      {result.batch && (
+        <div className="glass-card mb-8 rounded-xl p-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
+              All skills analyzed
+            </h3>
+            <p className="mt-1 text-sm text-on-surface-secondary">
+              {result.batch.totalSkills} skills were validated independently. The repository verdict uses their combined findings.
+            </p>
+          </div>
+          <div className="max-h-[32rem] overflow-auto rounded-lg border border-outline">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-surface-container text-xs uppercase text-on-surface-secondary">
+                <tr>
+                  <th className="px-3 py-2">Skill</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">Risk</th>
+                  <th className="px-3 py-2">Findings</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline">
+                {result.batch.results.map((skill) => (
+                  <tr key={skill.path}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-on-surface">{skill.skillName}</div>
+                      <div className="font-mono text-xs text-on-surface-secondary">{skill.path}</div>
+                    </td>
+                    <td className="px-3 py-2 font-semibold text-on-surface">{skill.overallScore}</td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${batchRiskClasses[skill.riskLevel]}`}>
+                        {skill.riskLevel}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-on-surface-secondary">
+                      {skill.findingsCount}
+                      {(skill.criticalCount > 0 || skill.highCount > 0) && (
+                        <span className="ml-2 text-xs text-red-600">
+                          {skill.criticalCount} critical · {skill.highCount} high
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {result.source?.repositoryAudit && (
         <div className="mb-8">
           <RepositoryAuditCard audit={result.source.repositoryAudit} />
@@ -408,7 +413,7 @@ export default function ReportPage({
         </div>
       </div>
 
-      {!result.batch && <div className="mb-8">
+      <div id="ai-review" className="mb-8 scroll-mt-6">
         <div className="glass-card rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
@@ -425,6 +430,12 @@ export default function ReportPage({
               </button>
             )}
           </div>
+
+          {result.batch && !aiReview && !aiLoading && (
+            <p className="text-xs text-on-surface-secondary">
+              AI reviews the 50 highest-priority findings from all {result.findings.length.toLocaleString()} repository findings.
+            </p>
+          )}
 
           {aiLoading && (
             <div className="flex items-center justify-center py-8">
@@ -475,7 +486,7 @@ export default function ReportPage({
             </div>
           )}
         </div>
-      </div>}
+      </div>
 
       {!result.batch && <div className="mb-8">
         <div className="glass-card rounded-xl p-4">

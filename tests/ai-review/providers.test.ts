@@ -45,4 +45,22 @@ describe('OpenCode AI review providers', () => {
     })
     expect(review.executiveSummary).toBe('Reviewed')
   })
+
+  it('tells the provider when a review is a bounded repository sample', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: '{"executiveSummary":"Reviewed"}' } }],
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await reviewFindings([finding], 'large-repository', {
+      provider: 'opencode-go',
+      apiKey: 'test-key',
+      redactSecrets: true,
+    }, 7856)
+
+    const request = fetchMock.mock.calls[0][1]
+    const prompt = JSON.parse(request.body).messages[0].content
+    expect(prompt).toContain('The scan found 7856 findings in total')
+    expect(prompt).toContain('The 1 findings below are the highest-priority sample')
+  })
 })

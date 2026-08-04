@@ -12,6 +12,12 @@ describe('homepage motion contract', () => {
     expect(pageSource).toContain("['url', 'GitHub Repo']")
   })
 
+  test('automatically starts scans linked from trust reports', () => {
+    expect(pageSource).toContain("new URLSearchParams(window.location.search).get('url')")
+    expect(pageSource).toContain('void handleUrlParse(target)')
+    expect(pageSource).toContain('rescanStarted.current = true')
+  })
+
   test('exposes cinematic-lift motion hooks in homepage markup', () => {
     expect(pageSource).toContain('home-hero-shell')
     expect(pageSource).toContain('home-hero-badge')

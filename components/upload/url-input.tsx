@@ -10,7 +10,9 @@ interface UrlInputProps {
 }
 
 export default function UrlInput({ onParse, resolutionHint, loading = false }: UrlInputProps) {
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(() =>
+    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('url') || ''
+  )
   const [error, setError] = useState('')
   const [parsed, setParsed] = useState(false)
   const [branch, setBranch] = useState('')
