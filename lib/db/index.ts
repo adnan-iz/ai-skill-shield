@@ -1,21 +1,17 @@
-import { createClient } from '@libsql/client'
-import { drizzle } from 'drizzle-orm/libsql'
+import { Pool } from 'pg'
+import { drizzle } from 'drizzle-orm/node-postgres'
 import * as schema from './schema'
 
 export function databaseConfig() {
-  const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || (
-    process.env.VERCEL
-      ? 'file:/tmp/skillshield.db'
-      : 'file:./data/skillshield.db'
-  )
-  const authToken = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN
-
-  // ponytail: /tmp keeps basic scans working on Vercel; configure remote libSQL for durable cross-instance reports.
-  return authToken ? { url, authToken } : { url }
+  const connectionString = process.env.DATABASE_URL?.trim()
+  if (!connectionString?.match(/^postgres(?:ql)?:\/\//i)) {
+    throw new Error('DATABASE_URL must be a PostgreSQL connection URL')
+  }
+  return { connectionString }
 }
 
 function createDatabase() {
-  const client = createClient(databaseConfig())
+  const client = new Pool(databaseConfig())
   return { client, db: drizzle(client, { schema }) }
 }
 
@@ -32,54 +28,54 @@ export async function ensureDatabase(): Promise<void> {
   if (!databaseReadyPromise) {
     databaseReadyPromise = (async () => {
       const { client } = getDatabase()
-      await client.execute(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS validation_results (
           id TEXT PRIMARY KEY NOT NULL,
           result TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          expires_at INTEGER
+          created_at BIGINT NOT NULL,
+          expires_at BIGINT
         )
       `)
 
-      await client.execute(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS rate_limits (
           key TEXT PRIMARY KEY NOT NULL,
           count INTEGER NOT NULL,
-          reset_at INTEGER NOT NULL
+          reset_at BIGINT NOT NULL
         )
       `)
 
-      await client.execute(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id TEXT PRIMARY KEY NOT NULL,
           event TEXT NOT NULL,
           scan_id TEXT,
           metadata TEXT,
-          created_at INTEGER NOT NULL
+          created_at BIGINT NOT NULL
         )
       `)
 
-      await client.execute(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS approvals (
           id TEXT PRIMARY KEY NOT NULL,
           scan_id TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
           reviewed_by TEXT,
           review_notes TEXT,
-          created_at INTEGER NOT NULL,
-          reviewed_at INTEGER
+          created_at BIGINT NOT NULL,
+          reviewed_at BIGINT
         )
       `)
 
-      await client.execute(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS webhooks (
           id TEXT PRIMARY KEY NOT NULL,
           url TEXT NOT NULL,
           events TEXT NOT NULL,
           secret TEXT,
-          enabled INTEGER NOT NULL DEFAULT 1,
-          created_at INTEGER NOT NULL,
-          last_triggered_at INTEGER,
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at BIGINT NOT NULL,
+          last_triggered_at BIGINT,
           last_status_code INTEGER
         )
       `)

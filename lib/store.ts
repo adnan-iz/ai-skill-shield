@@ -12,6 +12,7 @@ import {
 } from '@/lib/scan-cache'
 
 const GZIP_PREFIX = 'gzip:'
+const PUBLIC_RESULT_ROW_LIMIT = 10_000
 
 function serializeResult(result: ValidationResult): string {
   return GZIP_PREFIX + gzipSync(JSON.stringify(result)).toString('base64')
@@ -67,7 +68,7 @@ export async function getLatestGitHubResult(
   await ensureDatabase()
   const { db } = getDatabase()
 
-  // ponytail: JSON blob scan is fine for the local-first MVP; index source columns when report volume makes this measurable.
+  // Keep latest-result lookups complete; Explore uses the bounded path below.
   const rows = await db
     .select({ result: validationResults.result })
     .from(validationResults)
@@ -100,7 +101,7 @@ export async function getLatestGitHubResult(
 }
 
 export async function getRecentPublicResults(limit = 100): Promise<ValidationResult[]> {
-  if (limit === 20_000) {
+  if (limit >= 1_000) {
     const cached = await getCachedExploreResults()
     if (cached) return cached
   }
@@ -112,6 +113,8 @@ export async function getRecentPublicResults(limit = 100): Promise<ValidationRes
     .from(validationResults)
     .where(or(isNull(validationResults.expiresAt), gt(validationResults.expiresAt, Date.now())))
     .orderBy(desc(validationResults.createdAt))
+    // ponytail: cap the first-pass scan so Explore stays responsive; index public source columns if this ceiling is reached.
+    .limit(Math.max(limit, PUBLIC_RESULT_ROW_LIMIT))
 
   const results: ValidationResult[] = []
   const seen = new Set<string>()
@@ -130,7 +133,7 @@ export async function getRecentPublicResults(limit = 100): Promise<ValidationRes
     }
   }
 
-  if (limit === 20_000) await setCachedExploreResults(results)
+  if (limit >= 1_000) await setCachedExploreResults(results)
   return results
 }
 

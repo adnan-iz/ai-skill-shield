@@ -41,8 +41,8 @@ describe('OpenCode AI review providers', () => {
     expect(JSON.parse(request.body)).toMatchObject({
       model: 'kimi-k2.7-code',
       max_tokens: 4000,
-      reasoning_effort: 'none',
     })
+    expect(JSON.parse(request.body)).not.toHaveProperty('reasoning_effort')
     expect(review.executiveSummary).toBe('Reviewed')
   })
 
@@ -62,5 +62,19 @@ describe('OpenCode AI review providers', () => {
     const prompt = JSON.parse(request.body).messages[0].content
     expect(prompt).toContain('The scan found 7856 findings in total')
     expect(prompt).toContain('The 1 findings below are the highest-priority sample')
+  })
+
+  it('renders alternate summary and remediation response shapes', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
+        summary: 'Reviewed',
+        remediationSteps: ['Step one', 'Step two'],
+      }) } }],
+    }), { status: 200 })))
+
+    const review = await reviewWith('opencode-go')
+
+    expect(review.executiveSummary).toBe('Reviewed')
+    expect(review.remediationSteps).toBe('Step one\nStep two')
   })
 })

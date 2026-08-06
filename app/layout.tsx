@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { SideNavBar, TopNavBar, BottomNavBar } from "@/components/layout/nav";
@@ -133,14 +132,14 @@ export default function RootLayout({
               aria-label="Support Engine"
               className="rounded-lg bg-stitch-sidebar px-2 py-1 transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shield-500"
             >
-              <Image src="/support-engine-logo.png" alt="Support Engine" width={112} height={62} className="h-9 w-auto" />
+              <img src="/support-engine-logo.png" alt="Support Engine" className="h-auto w-32" />
             </a>
             <span>
               Made by{" "}
               <a href="https://suppeng.com" target="_blank" rel="noopener noreferrer" className="hover:text-on-surface">
                 Support Engine
               </a>{" "}
-              with ❤️ from Bangladesh.
+              with {"\u2764\uFE0F"} from Bangladesh.
             </span>
             <Link href="/rules" className="hover:text-on-surface">Security rules</Link>
             <Link href="/docs/api" className="hover:text-on-surface">API docs</Link>
