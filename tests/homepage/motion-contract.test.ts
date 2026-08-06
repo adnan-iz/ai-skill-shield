@@ -14,7 +14,7 @@ describe('homepage motion contract', () => {
 
   test('automatically starts scans linked from trust reports', () => {
     expect(pageSource).toContain("new URLSearchParams(window.location.search).get('url')")
-    expect(pageSource).toContain('void handleUrlParse(target)')
+    expect(pageSource).toContain('void handleUrlParse(target, true)')
     expect(pageSource).toContain('rescanStarted.current = true')
   })
 

@@ -5,6 +5,11 @@ import { normalizeGitHubSkillPath, trustTargetForResult } from '@/lib/trust'
 import type { ValidationResult } from '@/lib/validator/types'
 import { normalizeValidationResult } from '@/lib/validator/normalize-result'
 import { gzipSync, gunzipSync } from 'node:zlib'
+import {
+  getCachedExploreResults,
+  invalidateExploreCache,
+  setCachedExploreResults,
+} from '@/lib/scan-cache'
 
 const GZIP_PREFIX = 'gzip:'
 
@@ -33,6 +38,7 @@ export async function saveResult(result: ValidationResult): Promise<void> {
         ? null
         : Date.now() + getRetentionDays() * 24 * 60 * 60 * 1000,
   })
+  await invalidateExploreCache()
 }
 
 export async function getResult(id: string): Promise<ValidationResult | undefined> {
@@ -94,6 +100,11 @@ export async function getLatestGitHubResult(
 }
 
 export async function getRecentPublicResults(limit = 100): Promise<ValidationResult[]> {
+  if (limit === 20_000) {
+    const cached = await getCachedExploreResults()
+    if (cached) return cached
+  }
+
   await ensureDatabase()
   const { db } = getDatabase()
   const rows = await db
@@ -119,6 +130,7 @@ export async function getRecentPublicResults(limit = 100): Promise<ValidationRes
     }
   }
 
+  if (limit === 20_000) await setCachedExploreResults(results)
   return results
 }
 
@@ -141,6 +153,7 @@ export async function cleanExpiredResults(): Promise<number> {
   await db.delete(validationResults).where(
     inArray(validationResults.id, expired.map((e) => e.id))
   )
+  await invalidateExploreCache()
 
   return expired.length
 }

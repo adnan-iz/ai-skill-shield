@@ -20,6 +20,7 @@ import {
 export interface OrchestratorOptions {
   id?: string
   source?: SkillInput['source']
+  rescan?: boolean
 }
 
 function buildFileTree(files: SkillFile[]): FileTreeItem[] {

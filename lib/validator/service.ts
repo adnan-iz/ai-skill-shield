@@ -1,5 +1,6 @@
 import { createPendingApproval } from '@/lib/approvals'
-import { saveResult } from '@/lib/store'
+import { getResult, saveResult } from '@/lib/store'
+import { getCachedResultId, scanCacheKey, setCachedResultId } from '@/lib/scan-cache'
 import { logAuditEvent, triggerWebhooks } from '@/lib/webhooks'
 import { runFullValidation, type OrchestratorOptions } from '@/lib/validator/orchestrator'
 import type { SkillInput, ValidationResult } from '@/lib/validator/types'
@@ -8,8 +9,18 @@ export async function validateAndSave(
   input: SkillInput,
   options?: OrchestratorOptions
 ): Promise<ValidationResult> {
+  const cacheKey = scanCacheKey(input)
+  if (!options?.rescan) {
+    const cachedId = await getCachedResultId(cacheKey)
+    if (cachedId) {
+      const cached = await getResult(cachedId)
+      if (cached) return cached
+    }
+  }
+
   const result = await runFullValidation(input, options)
   await saveResult(result)
+  await setCachedResultId(cacheKey, result.id)
 
   if (result.overallScore < 70) {
     try {

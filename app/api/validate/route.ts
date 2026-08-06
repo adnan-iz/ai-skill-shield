@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
       return badRequest(filesError)
     }
 
-    const result = await validateAndSave(body)
+    const result = await validateAndSave(body, {
+      rescan: request.nextUrl.searchParams.get('rescan') === 'true',
+    })
 
     return addRateLimitHeaders(Response.json(result, { status: 200 }), rl)
   } catch (error) {

@@ -124,10 +124,10 @@ export default function HomePage() {
     return fallback
   }, [])
 
-  const validate = useCallback(async (input: SkillInput) => {
+  const validate = useCallback(async (input: SkillInput, rescan = false) => {
     setLoading(true)
     try {
-      const res = await fetch('/api/validate', {
+      const res = await fetch(`/api/validate${rescan ? '?rescan=true' : ''}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
@@ -158,7 +158,7 @@ export default function HomePage() {
     await validate(skillInput)
   }, [validate])
 
-  const handleUrlParse = useCallback(async (data: GitHubTarget) => {
+  const handleUrlParse = useCallback(async (data: GitHubTarget, rescan = false) => {
     setLoading(true)
     setResolutionHint('')
     try {
@@ -171,6 +171,7 @@ export default function HomePage() {
           path: data.path,
           branch: data.branch,
           sha: data.sha,
+          rescan,
         }),
       })
       if (!res.ok) {
@@ -227,7 +228,7 @@ export default function HomePage() {
           repositoryAudit: result.repositoryAudit,
           repositoryMeta: result.repositoryMeta,
         },
-      })
+      }, rescan)
     } catch (err) {
       toast('Failed to fetch from GitHub: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
     } finally {
@@ -244,7 +245,7 @@ export default function HomePage() {
     const timer = window.setTimeout(() => {
       if (rescanStarted.current) return
       rescanStarted.current = true
-      void handleUrlParse(target)
+      void handleUrlParse(target, true)
     }, 0)
 
     return () => window.clearTimeout(timer)

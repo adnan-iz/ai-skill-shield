@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
     }
 
-    const { owner, repo, path, branch, sha, includeExtensions, excludeExtensions, ignorePaths } = await request.json()
+    const { owner, repo, path, branch, sha, includeExtensions, excludeExtensions, ignorePaths, rescan } = await request.json()
 
     const validationError = validateOwnerRepo(owner, repo)
     if (validationError) {
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
         files: payload.files,
         source,
         analyzeAllSkills: true,
-      }, { source })
+      }, { source, rescan: rescan === true })
 
       return addRateLimitHeaders(Response.json({
         validationResultId: validationResult.id,
