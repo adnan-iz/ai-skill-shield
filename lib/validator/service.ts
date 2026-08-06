@@ -5,6 +5,10 @@ import { logAuditEvent, triggerWebhooks } from '@/lib/webhooks'
 import { runFullValidation, type OrchestratorOptions } from '@/lib/validator/orchestrator'
 import type { SkillInput, ValidationResult } from '@/lib/validator/types'
 
+export function requiresApproval(result: Pick<ValidationResult, 'overallScore' | 'riskLevel'>): boolean {
+  return result.overallScore < 70 || result.riskLevel === 'critical' || result.riskLevel === 'high'
+}
+
 export async function validateAndSave(
   input: SkillInput,
   options?: OrchestratorOptions
@@ -22,7 +26,7 @@ export async function validateAndSave(
   await saveResult(result)
   await setCachedResultId(cacheKey, result.id)
 
-  if (result.overallScore < 70) {
+  if (requiresApproval(result)) {
     try {
       await createPendingApproval(result.id)
     } catch {
