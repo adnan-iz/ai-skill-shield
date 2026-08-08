@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import SafetyFeedback from '@/components/trust/safety-feedback'
 
 interface TrustActionsProps {
   badgePath: string
@@ -92,6 +93,7 @@ export default function TrustActions({ badgePath, repoLabel, scanId, trustPath }
           </Link>
         </div>
       </div>
+      <div className="mt-5"><SafetyFeedback scanId={scanId} /></div>
     </div>
   )
 }

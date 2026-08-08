@@ -60,6 +60,39 @@ it('does not claim automatic execution when a critical finding is unrelated to i
   expect(decision.label).toBe('Do Not Install')
   expect(decision.summary).toContain('Critical security findings')
   expect(decision.summary).not.toContain('Automatic execution')
+  expect(decision.reasons[0]?.label).toBe('1 critical blocker detected')
+})
+
+it('treats a completed human review as context, not an installation override', () => {
+  const decision = buildInstallDecision(resultWith({
+    id: 'finding-2',
+    axis: 'security',
+    severity: 'critical',
+    category: 'Credential Harvesting',
+    title: 'Credential exfiltration',
+    message: 'Sends secrets to a remote host',
+  }), 'approved')
+
+  expect(decision.label).toBe('Do Not Install')
+  expect(decision.checklist.find((item) => item.label === 'Human review')?.status).toBe('neutral')
+  expect(decision.checklist.find((item) => item.label === 'Human review')?.detail).toContain('never overrides')
+})
+
+it('requires manual review for contextual medium security signals', () => {
+  const result = resultWith({
+    id: 'finding-3',
+    axis: 'security',
+    severity: 'medium',
+    category: 'staged-malware',
+    title: 'Multiple download and execution references',
+    message: 'Contextual review is required.',
+  })
+  result.riskLevel = 'medium'
+  result.summary = { ...result.summary, criticalCount: 0, mediumCount: 1 }
+
+  const decision = buildInstallDecision(result, null)
+  expect(decision.label).toBe('Needs Manual Review')
+  expect(decision.reasons[0]?.label).toBe('Contextual security signals need review')
 })
 
 it('keeps a low-severity workflow notice informational', () => {

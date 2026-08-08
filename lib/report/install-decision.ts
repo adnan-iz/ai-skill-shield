@@ -14,7 +14,13 @@ export interface InstallDecision {
   label: 'Safe to Review' | 'Needs Manual Review' | 'Do Not Install'
   tone: 'safe' | 'warn' | 'danger'
   summary: string
+  reasons: InstallDecisionReason[]
   checklist: InstallChecklistItem[]
+}
+
+export interface InstallDecisionReason {
+  label: string
+  detail: string
 }
 
 function isInstallFinding(finding: ValidationResult['findings'][number]): boolean {
@@ -51,12 +57,56 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     hasCriticalRepoFinding ||
     severeRepoFindingCount >= 2
   const hasAutomaticExecutionRisk = hasSevereInstallFinding || hasSevereRepositoryRisk
+  const hasSecurityReviewSignal = result.findings.some((finding) =>
+    finding.axis === 'security' &&
+    finding.severity === 'medium' &&
+    ['staged-malware', 'clickfix-attack', 'data-exfiltration', 'second-order-injection'].includes(finding.category)
+  )
+
+  const reasons: InstallDecisionReason[] = []
+  if (result.summary.criticalCount > 0) {
+    reasons.push({
+      label: `${result.summary.criticalCount} critical blocker${result.summary.criticalCount === 1 ? '' : 's'} detected`,
+      detail: 'Critical findings always block installation until the underlying evidence is resolved and a new scan is run.',
+    })
+  }
+  if (hasCriticalRepoFinding) {
+    reasons.push({
+      label: 'Critical repository risk detected',
+      detail: 'Repository-level execution or install-surface evidence contains a critical finding.',
+    })
+  }
+  if (hasSevereInstallFinding) {
+    reasons.push({
+      label: 'High-risk install behavior detected',
+      detail: 'An install-related finding requires remediation before an agent installs this skill.',
+    })
+  }
+  if (reasons.length === 0 && reviewableRepoFindingCount > 0) {
+    reasons.push({
+      label: 'Repository risk needs review',
+      detail: `${reviewableRepoFindingCount} repository finding${reviewableRepoFindingCount === 1 ? '' : 's'} need a human review before installation.`,
+    })
+  }
+  if (reasons.length === 0 && result.summary.highCount > 0) {
+    reasons.push({
+      label: `${result.summary.highCount} high-severity finding${result.summary.highCount === 1 ? '' : 's'} detected`,
+      detail: 'High-severity findings require a human review before installation.',
+    })
+  }
+  if (reasons.length === 0 && hasSecurityReviewSignal) {
+    reasons.push({
+      label: 'Contextual security signals need review',
+      detail: 'The scanner found suspicious behavior patterns without a confirmed installation-time execution path.',
+    })
+  }
 
   const needsManualReview =
     hasCriticalStopSignal ||
     result.riskLevel === 'high' ||
     result.summary.highCount > 0 ||
     reviewableRepoFindingCount > 0 ||
+    hasSecurityReviewSignal ||
     approval === 'pending' ||
     approval === 'rejected'
 
@@ -113,19 +163,19 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
       status: result.source?.repositoryMeta?.archived ? 'fail' : 'neutral',
     },
     {
-      label: 'Human approval',
+      label: 'Human review',
       detail:
         approval === 'approved'
-          ? 'A reviewer has approved this scan.'
-          : approval === 'rejected'
-          ? 'A reviewer has rejected this scan.'
-          : approval === 'pending'
-          ? 'This scan is waiting for reviewer approval.'
-          : 'No approval decision has been recorded yet.',
+          ? 'A reviewer completed this scan review. This never overrides an automatic install block.'
+        : approval === 'rejected'
+          ? 'A reviewer escalated this scan. Installation remains blocked until a new scan is clear.'
+        : approval === 'pending'
+          ? 'This scan is waiting for a reviewer to inspect the evidence.'
+          : 'No human review has been recorded yet.',
       status:
         approval === 'approved'
-          ? 'pass'
-          : approval === 'rejected'
+          ? 'neutral'
+        : approval === 'rejected'
           ? 'fail'
           : 'warn',
     },
@@ -139,5 +189,5 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     ? 'The scan is usable, but install-time behavior still needs a human look before any agent install step.'
     : 'No blocking install signals were found. Review the report, then proceed with normal caution.'
 
-  return { label, tone, summary, checklist }
+  return { label, tone, summary, reasons, checklist }
 }

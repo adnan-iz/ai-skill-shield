@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Dropzone from '@/components/upload/dropzone'
+import GitHubSearch from '@/components/upload/github-search'
 import UrlInput from '@/components/upload/url-input'
 import { saveValidation } from '@/lib/state'
 import { useToast } from '@/components/ui/toast'
@@ -11,7 +12,7 @@ import type { RepositoryMeta, SkillInput } from '@/lib/validator/types'
 import type { RepositoryAudit } from '@/lib/github/repository-audit'
 import { parseRepositoryUrl } from '@/lib/github/url-parsing'
 
-type Tab = 'upload' | 'url' | 'paste'
+type Tab = 'upload' | 'url' | 'search' | 'paste'
 
 interface GitHubTarget {
   owner: string
@@ -278,6 +279,9 @@ export default function HomePage() {
           <Link href="/explore" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-shield-700 hover:text-shield-800">
             Explore public GitHub scans
           </Link>
+          <Link href="/trust/github/anthropics/skills" className="mt-5 ml-5 inline-flex items-center gap-2 text-sm font-semibold text-on-surface-secondary hover:text-on-surface">
+            Try a sample report
+          </Link>
         </div>
 
         <div className="home-scan-stage hidden lg:block" aria-hidden="true">
@@ -316,7 +320,7 @@ export default function HomePage() {
       <section id="upload" className="home-panel scroll-mt-20 mb-12">
         <div className="glass-card">
           <div className="home-tabs flex border-b border-outline" role="tablist" aria-label="Skill input method">
-            {([['url', 'GitHub Repo'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
+            {([['url', 'GitHub Repo'], ['search', 'Search GitHub'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -325,6 +329,8 @@ export default function HomePage() {
                 className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                   tab === key
                     ? 'border-b-2 border-shield-500 text-shield-700 bg-shield-50'
+                    : key === 'search'
+                    ? 'text-shield-700 hover:bg-shield-50/60'
                     : 'text-on-surface-secondary hover:text-on-surface hover:bg-surface-secondary'
                 }`}
               >
@@ -339,6 +345,8 @@ export default function HomePage() {
             {tab === 'url' && (
               <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
             )}
+
+            {tab === 'search' && <GitHubSearch loading={loading} onSelect={handleUrlParse} />}
 
             {tab === 'paste' && (
               <div className="space-y-4">

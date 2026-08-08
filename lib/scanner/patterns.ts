@@ -91,6 +91,11 @@ function isInComment(content: string, idx: number): boolean {
   return LEADING_COMMENT_RE.test(line.trim())
 }
 
+function hasNegatingContext(content: string, idx: number): boolean {
+  const context = content.slice(Math.max(0, idx - 120), idx).toLowerCase()
+  return /(?:\bdo not\b|\bdon't\b|\bnever\b|\bavoid\b|\brefuse\b|\bprohibit\b|\bnot\b)[^.\n]{0,100}$/.test(context)
+}
+
 interface PatternDef {
   id: string
   category: ThreatCategory
@@ -516,7 +521,7 @@ const patterns: PatternDef[] = [
     name: 'Copying files to external locations',
     description: 'Copying files to network shares or external hosts',
     detect: (content: string, filePath: string) => {
-      const re = /\b(?:cp|copy|Copy-Item|robocopy)\s+.*?\\\\(?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z]:\\Users|\/mnt\/|\/tmp\//
+      const re = /\b(?:cp|copy|Copy-Item|robocopy)\s+.*?\\\\(?:(?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)\\/i
       const loc = locate(content, re)
       if (!loc) return null
       return makeFinding('high', 'data-exfiltration', 'Copying files to external/network location',
@@ -1689,9 +1694,10 @@ const patterns: PatternDef[] = [
     name: "Instructions to trick the user",
     description: "Directives telling the agent to deceive the user",
     detect: (content: string, filePath: string) => {
-      const re = /(?:trick\s+(?:the\s+)?user|deceive\s+(?:the\s+)?user|mislead|fool\s+(?:the\s+)?user|manipulate|cajole|coerce|con\s+(?:the\s+)?user)/i
+      const re = /(?:(?:trick|deceive|fool|manipulate|cajole|coerce|con)\s+(?:the\s+)?users?|mislead(?:ing)?\s+(?:the\s+)?users?)/i
       const loc = locate(content, re)
       if (!loc) return null
+      if (hasNegatingContext(content, loc.index)) return null
       return makeFinding("high", "social-engineering", "Trick user directive",
         `Instructions to trick, deceive, or manipulate the user. Classic social engineering.`,
         filePath, loc.line, loc.col, loc.snippet,
@@ -1837,7 +1843,7 @@ const patterns: PatternDef[] = [
     name: "Auto-confirming dangerous operations",
     description: "Setting operations to auto-confirm without user verification",
     detect: (content: string, filePath: string) => {
-      const re = /(?:auto-(?:confirm|approve|accept|allow|grant)|set\s+(?:and\s+)?(?:forget|ignore)|don'?t\s+(?:ask|prompt|bother)\s+(?:again|me|the\s+user)|silently\s+(?:approve|confirm|accept|execute)|yes\s+to\s+all)/i
+      const re = /(?:auto-(?:confirm|approve|accept|allow|grant)|set\s+(?:and\s+)?(?:forget|ignore)|silently\s+(?:approve|confirm|accept|execute)|yes\s+to\s+all)/i
       const loc = locate(content, re)
       if (!loc) return null
       return makeFinding("high", "clickfix-attack", "Auto-confirm dangerous operations",
@@ -1889,8 +1895,8 @@ const patterns: PatternDef[] = [
     name: "Download then execute",
     description: "Downloads a file and then executes it",
     detect: (content: string, filePath: string) => {
-      const downloadRe = /\b(?:curl|wget|Invoke-WebRequest|iwr|download|http-get|axios\.get|fetch)\s*\(?/i
-      const execRe = /\b(?:exec|spawn|child_process|\.exe|Start-Process|Invoke-Item|\.run|\.start)\s*\(?/i
+      const downloadRe = /\b(?:curl|wget|Invoke-WebRequest|iwr)\b[^\n]*(?:https?:\/\/)/i
+      const execRe = /\b(?:bash|sh|zsh|pwsh|powershell|cmd|python|node|Start-Process|Invoke-Expression|IEX)\b/i
       const lines = content.split('\n')
       let downloadLine = -1
       for (let i = 0; i < lines.length; i++) {
@@ -1901,7 +1907,7 @@ const patterns: PatternDef[] = [
       }
       if (downloadLine < 0) return null
       const isChained = /&&|\||;/.test(lines[downloadLine]) && execRe.test(lines[downloadLine])
-      for (let i = downloadLine + 1; i < Math.min(lines.length, downloadLine + 10); i++) {
+      for (let i = downloadLine + 1; i < Math.min(lines.length, downloadLine + 4); i++) {
         if (execRe.test(lines[i])) {
           return makeFinding("critical", "staged-malware", "Download then execute pattern",
             `Downloads a file and executes it. This is a staged malware delivery pattern.`,
@@ -1921,18 +1927,18 @@ const patterns: PatternDef[] = [
   {
     id: "SML-002",
     category: "staged-malware",
-    severity: "critical",
-    name: "Multi-stage payload delivery",
-    description: "Uses multiple download stages to deliver a payload",
+    severity: "medium",
+    name: "Multiple download and execution references",
+    description: "References multiple download commands and execution APIs without proving a direct execution path",
     detect: (content: string, filePath: string) => {
       const downloadCount = (content.match(/\b(?:curl|wget|Invoke-WebRequest|iwr|download|http-get)\b/gi) || []).length
       if (downloadCount < 2) return null
       const execCount = (content.match(/\b(?:exec|spawn|Start-Process|Invoke-Expression|IEX)\b/gi) || []).length
       if (execCount < 1) return null
-      return makeFinding("critical", "staged-malware", "Multi-stage payload delivery",
-        `Multiple download commands with execution suggests multi-stage malware delivery.`,
+      return makeFinding("medium", "staged-malware", "Multiple download and execution references",
+        `Multiple download and execution references need contextual review, but do not prove that downloaded content is executed.`,
         filePath, 1, 1, `Downloads: ${downloadCount}, Executions: ${execCount}`,
-        "Each download-execute pair should be individually verified.")
+        "Verify whether any downloaded content is executed. Only confirmed download-to-execution paths should block installation.")
     },
   },
   {
@@ -1986,16 +1992,9 @@ const patterns: PatternDef[] = [
     name: "Write malicious content to executable file",
     description: "Writes content to a file that will be executed later",
     detect: (content: string, filePath: string) => {
-      const writeRe = /(?:writeFile|writeFileSync|appendFile|exec\s*>>?|echo\s+.*?(?:>>|>)|Set-Content|Out-File|Add-Content)/
-      const loc = locate(content, writeRe)
+      const writeScriptRe = /(?:writeFile|writeFileSync|appendFile)\s*\(\s*['"`][^'"`\n]+\.(?:bat|cmd|ps1|sh|bash|zsh|py|rb|lua|php|pl)['"`]|(?:echo|printf|cat|Set-Content|Out-File|Add-Content)[^\n]*(?:>>|>)\s*[^\s]+\.(?:bat|cmd|ps1|sh|bash|zsh|py|rb|lua|php|pl)\b/i
+      const loc = locate(content, writeScriptRe)
       if (!loc) return null
-      const lines = content.split('\n')
-      const startLine = Math.max(0, loc.line - 2)
-      const endLine = Math.min(lines.length, loc.line + 2)
-      const context = lines.slice(startLine, endLine).join('\n')
-      const scriptExt = /\.[ps]{0,1}(?:bat|cmd|ps1|sh|bash|zsh|py|rb|lua|php|pl)\b/i
-      const extMatch = context.match(scriptExt)
-      if (!extMatch || typeof extMatch.index !== 'number') return null
       return makeFinding("high", "second-order-injection", "Write executable file",
         `Writing content to a script file that will be executed later. This is second-order injection.`,
         filePath, loc.line, loc.col, loc.snippet,

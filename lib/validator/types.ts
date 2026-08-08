@@ -125,6 +125,12 @@ export interface SkillPreview {
   body: string
   renderedHtml?: string
   fileTree: FileTreeItem[]
+  files?: SkillPreviewFile[]
+}
+
+export interface SkillPreviewFile {
+  path: string
+  content: string
 }
 
 export interface RepositoryMeta {

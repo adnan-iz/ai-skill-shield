@@ -46,7 +46,7 @@ describe('sample skill validation', () => {
               break
 
             case 'suspicious': {
-              expect(result.overallScore).toBeLessThan(70)
+              expect(['high', 'critical']).toContain(result.riskLevel)
               const networkFindings = result.findings.filter(f =>
                 f.axis === 'security' &&
                 ['external-calls', 'data-exfiltration', 'staged-malware', 'command-injection'].includes(f.category)

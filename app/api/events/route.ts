@@ -11,6 +11,8 @@ const EVENTS = new Set([
   'trust.badge_copy',
   'trust.cta',
   'trust.converted',
+  'trust.feedback.safe',
+  'trust.feedback.unsafe',
   'report.view',
   'report.share',
   'report.badge_copy',

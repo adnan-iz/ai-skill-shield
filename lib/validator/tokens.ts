@@ -82,7 +82,7 @@ export function validateTokens(
     findings.push({
       id: makeId(),
       axis: 'tokens',
-      severity: 'high',
+      severity: 'low',
       category: 'tokens',
       title: 'Token limit exceeded',
       message: `Total tokens ${analysis.totalTokens} exceeds limit of ${TOKEN_LIMIT}`,

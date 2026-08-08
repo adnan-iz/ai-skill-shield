@@ -94,40 +94,47 @@ export default async function TrustPage({ params }: Props) {
 
       <section className="glass-card overflow-hidden rounded-2xl">
         <div className="border-b border-outline bg-surface-container/70 p-6 sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-shield-600">Trust report</p>
-              <h1 className="mt-2 break-words text-3xl font-bold text-on-surface">{repoLabel}</h1>
+              <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-on-surface sm:text-4xl">{repoLabel}</h1>
               {target.path && <p className="mt-1 break-all font-mono text-sm text-on-surface-secondary">/{target.path}</p>}
-              <p className="mt-3 max-w-2xl text-sm text-on-surface-secondary">{meta.description || result.skillName}</p>
+              <p className="mt-3 max-w-2xl text-base leading-6 text-on-surface-secondary">{meta.description || result.skillName}</p>
               <a
                 href={sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-shield-700 hover:text-shield-800"
+                className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-shield-700 hover:text-shield-800"
               >
                 View scanned commit on GitHub
                 <span className="material-symbols-outlined text-base">open_in_new</span>
               </a>
             </div>
-            <div className="flex shrink-0 flex-col items-center gap-3">
+            <div className="flex items-center gap-4 rounded-xl border border-outline bg-surface-secondary/40 p-4 lg:w-52 lg:flex-col lg:text-center">
               <ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} compact />
-              <Link href={`/validate/${result.id}`} className="rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700">
-                Full report
-              </Link>
-              <Link
-                href={`/?ref=trust-report&refScan=${encodeURIComponent(result.id)}&url=${encodeURIComponent(rescanUrl)}`}
-                className="rounded-lg border border-shield-600 px-4 py-2 text-sm font-semibold text-shield-700 hover:bg-shield-50"
-              >
-                Rescan
-              </Link>
-              <Link
-                href={`/validate/${result.id}#ai-review`}
-                className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-secondary/80"
-              >
-                AI Review
-              </Link>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Latest scan</p>
+                <p className="mt-1 text-sm font-semibold text-on-surface">{result.riskLevel} severity</p>
+                <p className="mt-1 text-xs text-on-surface-secondary">Static analysis score</p>
+              </div>
             </div>
+          </div>
+          <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-outline pt-5">
+            <Link href={`/validate/${result.id}`} className="rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700">
+              View full report
+            </Link>
+            <Link
+              href={`/validate/${result.id}#ai-review`}
+              className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-secondary/80"
+            >
+              AI review
+            </Link>
+            <Link
+              href={`/?ref=trust-report&refScan=${encodeURIComponent(result.id)}&url=${encodeURIComponent(rescanUrl)}`}
+              className="rounded-lg border border-outline px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-secondary"
+            >
+              Rescan repository
+            </Link>
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import DashboardCards from '@/components/report/dashboard-cards'
 import FileTree from '@/components/report/file-tree'
 import RepositoryAuditCard from '@/components/report/repository-audit'
 import InstallVerdict from '@/components/report/install-verdict'
+import SafetyFeedback from '@/components/trust/safety-feedback'
 import { useToast } from '@/components/ui/toast'
 import type { ValidationResult } from '@/lib/validator/types'
 import type { AiReviewResult, FindingExplanation } from '@/lib/ai-review'
@@ -110,7 +111,7 @@ export default function ReportPage({
 
       const data = await response.json()
       setApproval(data)
-      toast(action === 'approve' ? 'Scan approved' : 'Scan rejected', 'success')
+      toast(action === 'approve' ? 'Review marked complete' : 'Scan escalated for remediation', 'success')
     } catch {
       toast('Could not update approval', 'error')
     }
@@ -182,6 +183,27 @@ export default function ReportPage({
   const remediationSteps = Array.isArray(aiReview?.remediationSteps)
     ? aiReview.remediationSteps.join('\n')
     : aiReview?.remediationSteps
+  const priorityFindings = [...result.findings]
+    .filter((finding) => finding.severity === 'critical' || finding.severity === 'high')
+    .sort((a, b) => aiSeverityOrder[a.severity] - aiSeverityOrder[b.severity])
+  const priorityActions = Array.from(
+    priorityFindings.reduce((groups, finding) => {
+      const key = `${finding.title}\u0000${finding.recommendation || finding.message}`
+      const existing = groups.get(key)
+      if (existing) {
+        existing.count += 1
+        if (finding.filePath) existing.files.add(finding.filePath)
+      } else {
+        groups.set(key, {
+          key,
+          finding,
+          count: 1,
+          files: new Set(finding.filePath ? [finding.filePath] : []),
+        })
+      }
+      return groups
+    }, new Map<string, { key: string; finding: (typeof priorityFindings)[number]; count: number; files: Set<string> }>()).values()
+  ).slice(0, 5)
 
   const sourceDetails = result.source?.type === 'github'
     ? [
@@ -236,13 +258,13 @@ export default function ReportPage({
         <div className="mb-6 glass-card rounded-xl px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">verified</span>
-            <span className="text-sm font-medium">Approval Status:</span>
+            <span className="text-sm font-medium">Human review:</span>
             <span className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase ${
               approval.status === 'approved' ? 'bg-shield-100 text-shield-800' :
               approval.status === 'rejected' ? 'bg-red-100 text-red-800' :
               'bg-yellow-100 text-yellow-800'
             }`}>
-              {approval.status}
+              {approval.status === 'approved' ? 'reviewed' : approval.status}
             </span>
           </div>
           {approval.status === 'pending' && (
@@ -251,13 +273,13 @@ export default function ReportPage({
                 onClick={() => void updateApproval('approve')}
                 className="rounded-lg bg-shield-600 px-4 py-1.5 text-xs font-semibold text-white"
               >
-                Approve
+                Mark reviewed
               </button>
               <button
                 onClick={() => void updateApproval('reject')}
                 className="rounded-lg bg-red-600 px-4 py-1.5 text-xs font-semibold text-white"
               >
-                Reject
+                Escalate
               </button>
             </div>
           )}
@@ -275,6 +297,33 @@ export default function ReportPage({
         />
       </div>
 
+      <div className="glass-card mb-8 rounded-xl p-5">
+        <SafetyFeedback scanId={result.id} />
+      </div>
+
+      {priorityActions.length > 0 && (
+        <section className="glass-card mb-8 rounded-xl p-5" aria-labelledby="next-actions-heading">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-threat-critical/15 text-xs font-bold text-threat-critical">!</span>
+            <h2 id="next-actions-heading" className="text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">Top actions before installation</h2>
+          </div>
+          <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {priorityActions.map(({ key, finding, count, files }) => (
+              <li key={key} className="rounded-lg border border-outline bg-surface-secondary/50 p-3">
+                <div className="flex items-start gap-2">
+                  <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${finding.severity === 'critical' ? 'bg-threat-critical/10 text-threat-critical' : 'bg-threat-high/10 text-threat-high'}`}>{finding.severity}</span>
+                  <div>
+                    <p className="font-medium text-on-surface">{finding.title}{count > 1 && <span className="ml-2 text-xs font-normal text-on-surface-secondary">×{count}</span>}</p>
+                    <p className="mt-1 text-xs text-on-surface-secondary">{finding.recommendation || finding.message}</p>
+                    {files.size > 1 && <p className="mt-2 text-[11px] text-on-surface-secondary/70">Affects {files.size} files</p>}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       <div className="glass-card mb-8 rounded-xl p-4">
         <ExportBar result={result} />
       </div>
@@ -288,7 +337,6 @@ export default function ReportPage({
           <div className="glass-card rounded-xl p-6">
             <ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} />
           </div>
-          <FileTree result={result} />
         </div>
 
         <div className="lg:col-span-2">
@@ -334,6 +382,10 @@ export default function ReportPage({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <FileTree result={result} />
       </div>
 
       {result.batch && (
@@ -508,18 +560,6 @@ export default function ReportPage({
           <CompatibilityGrid agents={result.compatibility.agents} />
         </div>
       </div>}
-
-      <div className="mb-8">
-        <div className="glass-card rounded-xl p-4">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-on-surface-secondary">
-            <span className="material-symbols-outlined text-lg">code</span>
-            SKILL.md Preview
-          </h3>
-          <pre className="max-h-80 overflow-auto rounded-lg bg-surface-secondary p-4 text-xs leading-relaxed text-on-surface">
-            {result.skillPreview.body || 'No content'}
-          </pre>
-        </div>
-      </div>
 
       <div className="mt-6 text-center">
         <button

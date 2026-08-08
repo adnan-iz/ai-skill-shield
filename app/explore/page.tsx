@@ -130,7 +130,14 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             const decision = buildInstallDecision(item.result, null)
             const tone = item.trust === 'trusted' ? 'bg-shield-100 text-shield-800' : item.trust === 'caution' ? 'bg-yellow-100 text-yellow-900' : 'bg-red-100 text-red-900'
             return (
-              <article key={`${item.owner}/${item.repo}/${item.path}`} className="glass-card flex min-w-0 flex-col rounded-2xl p-5 transition-transform hover:-translate-y-0.5">
+              <article key={`${item.owner}/${item.repo}/${item.path}`} className="glass-card group relative flex min-w-0 flex-col rounded-2xl p-5 transition-transform hover:-translate-y-0.5 hover:border-shield-500/60 focus-within:border-shield-500/60">
+                <Link
+                  href={githubTrustPath(item)}
+                  aria-label={`Open trust report for ${item.result.skillName}`}
+                  className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-shield-500"
+                >
+                  <span className="sr-only">Open trust report for {item.result.skillName}</span>
+                </Link>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wider text-shield-700">{item.vendor}</p><h2 className="mt-1 truncate text-lg font-bold text-on-surface">{item.result.skillName}</h2></div>
                   <div className="text-right"><div className="text-3xl font-bold text-on-surface">{item.result.overallScore}</div><div className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}>{item.trust}</div></div>
@@ -139,8 +146,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.category}</span><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.result.findings.length} findings</span></div>
                 <p className="mt-4 truncate font-mono text-xs text-on-surface-secondary">{item.owner}/{item.repo}/{item.path || 'SKILL.md'}</p>
                 <div className="mt-5 flex items-center justify-between gap-3">
-                  <Link href={githubTrustPath(item)} className="font-semibold text-shield-700 hover:text-shield-800">Inspect trust evidence</Link>
-                  <Link href={`/validate/${encodeURIComponent(item.result.id)}#ai-review`} className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:bg-secondary/80">AI Review</Link>
+                  <span className="font-semibold text-shield-700 group-hover:text-shield-800">Open trust report</span>
+                  <Link href={`/validate/${encodeURIComponent(item.result.id)}#ai-review`} className="relative z-10 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:bg-secondary/80">AI Review</Link>
                 </div>
               </article>
             )
