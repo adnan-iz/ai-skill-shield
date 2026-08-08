@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type Feedback = 'safe' | 'unsafe'
 
@@ -18,10 +18,23 @@ function ThumbIcon({ direction }: { direction: 'up' | 'down' }) {
 
 export default function SafetyFeedback({ scanId }: { scanId: string }) {
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [votes, setVotes] = useState({ safe: 0, unsafe: 0 })
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/events?scanId=${encodeURIComponent(scanId)}`)
+      .then((response) => response.ok ? response.json() as Promise<{ safe?: number; unsafe?: number }> : null)
+      .then((data) => {
+        if (!cancelled && data) setVotes({ safe: data.safe || 0, unsafe: data.unsafe || 0 })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [scanId])
 
   function submitFeedback(value: Feedback) {
     if (feedback) return
     setFeedback(value)
+    setVotes((current) => ({ ...current, [value]: current[value] + 1 }))
     void fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -45,7 +58,7 @@ export default function SafetyFeedback({ scanId }: { scanId: string }) {
           className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-default ${feedback === 'safe' ? 'border-shield-500 bg-shield-50 text-shield-800' : 'border-outline bg-surface-container text-on-surface hover:bg-shield-50 hover:text-shield-800 disabled:opacity-60'}`}
         >
           <ThumbIcon direction="up" />
-          Safe
+          Safe <span className="text-xs opacity-75">{votes.safe}</span>
         </button>
         <button
           type="button"
@@ -55,7 +68,7 @@ export default function SafetyFeedback({ scanId }: { scanId: string }) {
           className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-default ${feedback === 'unsafe' ? 'border-red-500 bg-red-500/10 text-red-600' : 'border-outline bg-surface-container text-on-surface hover:bg-red-500/10 hover:text-red-600 disabled:opacity-60'}`}
         >
           <ThumbIcon direction="down" />
-          Unsafe
+          Unsafe <span className="text-xs opacity-75">{votes.unsafe}</span>
         </button>
       </div>
     </div>
