@@ -274,6 +274,7 @@ async function runAllSkillValidation(
       frontmatter: { batch: true, skillCount: validated.length },
       body: `Analyzed ${validated.length} SKILL.md files independently. See the skill results and findings above.`,
       fileTree: buildFileTree(skillFiles),
+      files: skillFiles.map(({ path, content }) => ({ path, content })),
     },
     source: options?.source || input.source,
     batch: {
@@ -372,6 +373,7 @@ export async function runFullValidation(
     frontmatter,
     body,
     fileTree,
+    files: skillFile ? [{ path: skillFile.path, content: skillFile.content }] : [],
   }
 
   const result: ValidationResult = {

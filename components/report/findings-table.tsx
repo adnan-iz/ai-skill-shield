@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Finding, Severity } from '@/lib/validator/types'
 
 interface FindingsTableProps {
@@ -8,6 +8,7 @@ interface FindingsTableProps {
 }
 
 type SortKey = 'severity' | 'category' | 'title'
+type SeverityFilter = Severity | 'all' | 'priority'
 
 const severityOrder: Record<Severity, number> = {
   critical: 0,
@@ -26,7 +27,7 @@ const severityColors: Record<Severity, string> = {
 }
 
 const filterOptions: { label: string; value: Severity | 'all' }[] = [
-  { label: 'All', value: 'all' },
+  { label: 'All severities', value: 'all' },
   { label: 'Critical', value: 'critical' },
   { label: 'High', value: 'high' },
   { label: 'Medium', value: 'medium' },
@@ -34,19 +35,30 @@ const filterOptions: { label: string; value: Severity | 'all' }[] = [
   { label: 'Info', value: 'info' },
 ]
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 50
 
 export default function FindingsTable({ findings }: FindingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('severity')
   const [sortAsc, setSortAsc] = useState(true)
-  const [filterSeverity, setFilterSeverity] = useState<Severity | 'all'>('all')
-  const [expandedRow, setExpandedRow] = useState<number | null>(null)
+  const [filterSeverity, setFilterSeverity] = useState<SeverityFilter>('priority')
+  const [filterCategory, setFilterCategory] = useState('all')
+  const [query, setQuery] = useState('')
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const filtered = useMemo(() => {
     let list = findings
-    if (filterSeverity !== 'all') {
+    if (filterSeverity === 'priority') {
+      list = list.filter((f) => f.severity === 'critical' || f.severity === 'high' || f.severity === 'medium')
+    } else if (filterSeverity !== 'all') {
       list = list.filter((f) => f.severity === filterSeverity)
+    }
+    if (filterCategory !== 'all') {
+      list = list.filter((f) => f.category === filterCategory)
+    }
+    const normalizedQuery = query.trim().toLocaleLowerCase()
+    if (normalizedQuery) {
+      list = list.filter((f) => [f.title, f.category, f.filePath, f.message, f.recommendation].filter(Boolean).join(' ').toLocaleLowerCase().includes(normalizedQuery))
     }
     return [...list].sort((a, b) => {
       let cmp = 0
@@ -59,7 +71,32 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
       }
       return sortAsc ? cmp : -cmp
     })
-  }, [findings, sortKey, sortAsc, filterSeverity])
+  }, [findings, sortKey, sortAsc, filterSeverity, filterCategory, query])
+
+  const categories = useMemo(() => [...new Set(findings.map((finding) => finding.category))].sort(), [findings])
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [filterSeverity, filterCategory, query])
+
+  useEffect(() => {
+    function revealAnchoredFinding() {
+      const hash = window.location.hash
+      if (!hash.startsWith('#finding-')) return
+      const findingId = decodeURIComponent(hash.slice('#finding-'.length))
+      const finding = findings.find((candidate) => candidate.id === findingId)
+      if (!finding) return
+
+      setFilterSeverity('priority')
+      setFilterCategory('all')
+      setQuery('')
+      setExpandedRow(finding.id)
+    }
+
+    revealAnchoredFinding()
+    window.addEventListener('hashchange', revealAnchoredFinding)
+    return () => window.removeEventListener('hashchange', revealAnchoredFinding)
+  }, [findings])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -77,20 +114,49 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2 border-b border-outline px-4 pb-3 pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-outline px-4 pb-3 pt-3">
+        <button
+          type="button"
+          onClick={() => setFilterSeverity('priority')}
+          aria-pressed={filterSeverity === 'priority'}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
+            filterSeverity === 'priority' ? 'bg-shield-600 text-white shadow-sm' : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
+          }`}
+        >
+          Priority findings
+        </button>
         {filterOptions.map((opt) => (
           <button
+            type="button"
             key={opt.value}
             onClick={() => setFilterSeverity(opt.value)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            aria-pressed={filterSeverity === opt.value}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
               filterSeverity === opt.value
-                ? 'bg-on-surface text-white'
+                ? 'bg-shield-600 text-white shadow-sm'
                 : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
             }`}
           >
             {opt.label}
           </button>
         ))}
+        <select
+          aria-label="Filter findings by category"
+          value={filterCategory}
+          onChange={(event) => setFilterCategory(event.target.value)}
+          className="rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface"
+        >
+          <option value="all">All categories</option>
+          {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+        </select>
+        <input
+          type="search"
+          aria-label="Search findings"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search titles, files, or evidence"
+          className="min-w-40 flex-1 rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface placeholder-on-surface-secondary"
+        />
       </div>
 
       <div className="overflow-x-auto">
@@ -126,11 +192,13 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, visibleCount).map((finding, idx) => {
-              const isExpanded = expandedRow === idx
+            {filtered.slice(0, visibleCount).map((finding) => {
+              const isExpanded = expandedRow === finding.id
+              const findingAnchorId = `finding-${encodeURIComponent(finding.id)}`
               return (
                 <tr
                   key={finding.id}
+                  id={findingAnchorId}
                   className={`border-b border-outline transition-colors ${
                     isExpanded ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
                   }`}
@@ -147,18 +215,30 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                   <td className="px-4 py-3 text-on-surface-secondary">{finding.category}</td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => setExpandedRow(isExpanded ? null : idx)}
+                      onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
                       aria-expanded={isExpanded}
                       className="text-left font-medium text-on-surface hover:text-shield-600 transition-colors"
                     >
                       {finding.title}
                     </button>
                     {isExpanded && (
-                      <div className="mt-2 rounded-md bg-surface-secondary p-3">
-                        <div className="mb-1 text-xs font-medium text-on-surface-secondary">Snippet</div>
-                        <pre className="overflow-auto whitespace-pre-wrap text-xs text-on-surface">
-                          {finding.snippet}
-                        </pre>
+                      <div className="mt-2 space-y-3 rounded-md bg-surface-secondary p-3 text-xs">
+                        <div>
+                          <div className="mb-1 font-medium text-on-surface-secondary">Why it matters</div>
+                          <p className="text-on-surface">{finding.message}</p>
+                        </div>
+                        <div>
+                          <div className="mb-1 font-medium text-on-surface-secondary">Evidence</div>
+                          <pre className="overflow-auto whitespace-pre-wrap text-on-surface">
+                            {finding.snippet || 'No source snippet was captured for this file-level finding.'}
+                          </pre>
+                        </div>
+                        {finding.recommendation && (
+                          <div>
+                            <div className="mb-1 font-medium text-on-surface-secondary">Recommended action</div>
+                            <p className="text-on-surface">{finding.recommendation}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </td>

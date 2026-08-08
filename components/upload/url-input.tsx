@@ -145,7 +145,7 @@ export default function UrlInput({ onParse, resolutionHint, loading = false }: U
         </p>
       )}
       <p className="mt-2 text-xs text-on-surface-secondary">
-        Full GitHub imports now include a repository audit for install-time scripts, workflows, registries, and submodules before validation.
+        Paste a public GitHub or skills.sh URL. Full imports include install scripts, workflows, registries, and submodules before validation. No account is required.
       </p>
       {error && (
         <p role="alert" className="mt-1.5 text-xs text-error">{error}</p>
