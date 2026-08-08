@@ -18,14 +18,11 @@ AI Skill Shield calculates a weighted score across 11 validation axes. Finding s
 | Dependencies | 3% |
 | Best Practices | 2% |
 
-The current weights total 97%, so the maximum weighted score before risk caps is `97`.
+The configured weights total 97%. The validator divides by that total so the weighted score is normalized to the full `0-100` range without changing the relative importance of the axes.
 
 ## Overall score
 
-The validator multiplies each axis score by its weight, sums the results, and rounds to the nearest integer. It then applies these severity caps:
-
-- Any critical finding caps the overall score at `60`.
-- Any high finding caps the overall score at `74`.
+The validator multiplies each axis score by its weight, divides by the configured weight total, and rounds to the nearest integer. Finding severity does not overwrite this score; it is reported separately as risk and used by trust and installation decisions.
 
 ## Risk level
 
@@ -33,7 +30,7 @@ The validation risk level is the highest severity among the skill findings: `cri
 
 ## Approval threshold
 
-By default, a validation score below `70` triggers an attempt to create a pending approval record.
+By default, a validation score below `70` or a `high`/`critical` risk level triggers an attempt to create a pending approval record.
 
 ## Installation verdict
 

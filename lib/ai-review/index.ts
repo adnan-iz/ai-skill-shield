@@ -85,7 +85,6 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
     body = {
       model: config.model || (isOpenCode ? 'kimi-k2.7-code' : 'gpt-4o-mini'),
       max_tokens: isOpenCode ? 4000 : 2000,
-      ...(isOpenCode ? { reasoning_effort: 'none' } : {}),
       messages: [{ role: 'user', content: prompt }],
     }
   }
@@ -118,11 +117,16 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
 }
 
 function parseAiResponse(response: string): AiReviewResult {
+  const text = (value: unknown): string => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').join('\n')
+    : typeof value === 'string' ? value : ''
+
   try {
     const parsed = JSON.parse(response.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
+    const summary = text(parsed.executiveSummary || parsed.summary)
     return {
-      summary: parsed.executiveSummary || parsed.summary || '',
-      riskExplanation: parsed.overallRiskExplanation || parsed.riskExplanation || '',
+      summary,
+      riskExplanation: text(parsed.overallRiskExplanation || parsed.riskExplanation),
       findingExplanations: (parsed.findings || []).map((f: Record<string, string>) => ({
         findingId: f.findingId || '',
         title: f.title || '',
@@ -131,8 +135,8 @@ function parseAiResponse(response: string): AiReviewResult {
         recommendation: f.recommendation || '',
         codeSuggestion: f.codeSuggestion || undefined,
       })),
-      remediationSteps: parsed.remediationSteps || '',
-      executiveSummary: parsed.executiveSummary || undefined,
+      remediationSteps: text(parsed.remediationSteps),
+      executiveSummary: summary || undefined,
     }
   } catch {
     const extractSection = (section: string): string => {
@@ -154,11 +158,13 @@ function parseAiResponse(response: string): AiReviewResult {
       })
     }
 
+    const summary = extractSection('executive summary') || response.slice(0, 200)
     return {
-      summary: extractSection('executive summary') || response.slice(0, 200),
+      summary,
       riskExplanation: extractSection('overall risk explanation'),
       findingExplanations: findingBlocks,
       remediationSteps: extractSection('remediation steps'),
+      executiveSummary: summary || undefined,
     }
   }
 }

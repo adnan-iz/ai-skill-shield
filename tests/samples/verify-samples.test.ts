@@ -56,7 +56,7 @@ describe('sample skill validation', () => {
             }
 
             case 'malicious': {
-              expect(result.overallScore).toBeLessThan(75)
+              expect(result.riskLevel).toBe('critical')
               const criticalFindings = result.findings.filter(f =>
                 f.axis === 'security' && f.severity === 'critical'
               )

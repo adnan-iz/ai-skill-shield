@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import ThemeToggle from "@/components/ui/theme-toggle"
 
@@ -14,6 +13,21 @@ const navItems = [
   { href: "/docs/api", label: "API", icon: "api" },
 ]
 
+function BrandMark({ size }: { size: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 64 64" role="img">
+      <rect width="64" height="64" rx="15" fill="#0B1220" />
+      <path d="M32 7 12 16.2v16.1C12 44.8 20.2 54.8 32 59c11.8-4.2 20-14.2 20-26.7V16.2L32 7Z" fill="#22C55E" />
+      <path d="M32 13.5 18 20v12.3c0 9.1 5.4 16.7 14 20.3 8.6-3.6 14-11.2 14-20.3V20l-14-6.5Z" fill="#0B1220" />
+      <path d="M32 31v-7.5M28.6 34.2l-6.5 4.3M35.4 34.2l6.5 4.3" fill="none" stroke="#A7F3D0" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="m32 26.5 5.5 5.5-5.5 5.5-5.5-5.5 5.5-5.5Z" fill="#A7F3D0" />
+      <circle cx="32" cy="20.2" r="3.8" fill="#A7F3D0" />
+      <circle cx="18.8" cy="40.5" r="3.8" fill="#A7F3D0" />
+      <circle cx="45.2" cy="40.5" r="3.8" fill="#A7F3D0" />
+    </svg>
+  )
+}
+
 export function SideNavBar() {
   const pathname = usePathname()
 
@@ -24,7 +38,7 @@ export function SideNavBar() {
         aria-label="AI Skill Shield home"
         className="mb-4 flex h-11 items-center gap-3 rounded-xl px-2 text-white"
       >
-        <Image src="/skill-shield-logo.svg" alt="" width={36} height={36} />
+        <BrandMark size={36} />
         <span>
           <span className="block text-sm font-bold">AI Skill Shield</span>
           <span className="block text-[10px] text-slate-400">by Support Engine</span>
@@ -68,7 +82,7 @@ export function TopNavBar() {
         aria-label="AI Skill Shield home"
         className="flex items-center gap-2 text-sm font-semibold text-on-surface md:hidden"
       >
-        <Image src="/skill-shield-logo.svg" alt="" width={28} height={28} />
+        <BrandMark size={28} />
         <span>AI Skill Shield</span>
       </Link>
       <div className="ml-auto flex items-center gap-2">

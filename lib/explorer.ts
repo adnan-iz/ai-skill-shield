@@ -31,8 +31,10 @@ function textValue(value: unknown): string {
   return ''
 }
 
-export function trustBand(score: number): TrustBand {
-  return score >= 80 ? 'trusted' : score >= 40 ? 'caution' : 'restricted'
+export function trustBand(score: number, riskLevel: ValidationResult['riskLevel']): TrustBand {
+  const scoreBand = score >= 80 ? 'trusted' : score >= 40 ? 'caution' : 'restricted'
+  if (riskLevel === 'critical') return 'restricted'
+  return riskLevel === 'high' && scoreBand === 'trusted' ? 'caution' : scoreBand
 }
 
 export function explorerItem(result: ValidationResult): ExplorerItem | null {
@@ -53,7 +55,7 @@ export function explorerItem(result: ValidationResult): ExplorerItem | null {
     ...target,
     vendor: target.owner,
     category,
-    trust: trustBand(result.overallScore),
+    trust: trustBand(result.overallScore, result.riskLevel),
     searchable,
   }
 }

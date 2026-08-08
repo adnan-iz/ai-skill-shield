@@ -3,7 +3,7 @@ import { logger } from './logger'
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  DATABASE_URL: z.string().url().or(z.string().startsWith('file:')).optional().default('file:./data/skillshield.db'),
+  DATABASE_URL: z.string().url().startsWith('postgres').optional(),
   PORT: z.coerce.number().optional().default(3000),
   HOSTNAME: z.string().optional().default('0.0.0.0'),
   NEXT_PUBLIC_APP_URL: z.string().url().optional().default('https://ai-skill-shield.suppeng.com'),

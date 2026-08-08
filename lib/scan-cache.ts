@@ -24,7 +24,7 @@ async function getClient() {
 
 export function scanCacheKey(input: SkillInput): string {
   const files = [...input.files].sort((a, b) => a.path.localeCompare(b.path))
-  const fingerprint = JSON.stringify({ ...input, files, cacheVersion: 1 })
+  const fingerprint = JSON.stringify({ ...input, files, cacheVersion: 2 })
   return `skillshield:scan:${createHash('sha256').update(fingerprint).digest('hex')}`
 }
 

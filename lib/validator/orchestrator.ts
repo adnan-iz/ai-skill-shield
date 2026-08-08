@@ -23,6 +23,39 @@ export interface OrchestratorOptions {
   rescan?: boolean
 }
 
+const AXIS_WEIGHTS: Record<string, number> = {
+  security: 0.25,
+  frontmatter: 0.18,
+  quality: 0.12,
+  structure: 0.10,
+  naming: 0.05,
+  tokens: 0.05,
+  compatibility: 0.05,
+  content: 0.05,
+  dependencies: 0.03,
+  installation: 0.07,
+  bestPractices: 0.02,
+}
+
+const TOTAL_AXIS_WEIGHT = Object.values(AXIS_WEIGHTS).reduce((sum, weight) => sum + weight, 0)
+
+export function calculateOverallScore(axes: AxisResult[]): number {
+  const weightedScore = axes.reduce(
+    (sum, axis) => sum + axis.score * (AXIS_WEIGHTS[axis.key] || 0),
+    0
+  )
+  return Math.round(weightedScore / TOTAL_AXIS_WEIGHT)
+}
+
+function finalizeValidationResult(result: ValidationResult): ValidationResult {
+  const normalized = normalizeValidationResult(result)
+  return {
+    ...normalized,
+    overallScore: calculateOverallScore(normalized.axes),
+    riskLevel: determineRiskLevel(normalized.findings),
+  }
+}
+
 function buildFileTree(files: SkillFile[]): FileTreeItem[] {
   const tree: FileTreeItem[] = []
   const dirMap = new Map<string, FileTreeItem>()
@@ -213,15 +246,13 @@ async function runAllSkillValidation(
   })
 
   const riskLevel = determineRiskLevel(findings)
-  let overallScore = Math.round(validated.reduce((sum, { result }) => sum + result.overallScore, 0) / validated.length)
-  if (riskLevel === 'critical') overallScore = Math.min(overallScore, 60)
-  if (riskLevel === 'high') overallScore = Math.min(overallScore, 74)
+  const overallScore = calculateOverallScore(axes)
 
   const baseName = input.name || input.source?.repositoryMeta?.fullName || 'Repository'
   const totalTokens = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.totalTokens, 0)
   const totalLimit = validated.reduce((sum, { result }) => sum + result.tokenAnalysis.limit, 0)
 
-  return normalizeValidationResult({
+  return finalizeValidationResult({
     id: options?.id || uuidv4(),
     timestamp: new Date().toISOString(),
     skillName: `${baseName} (${validated.length} skills)`,
@@ -332,30 +363,8 @@ export async function runFullValidation(
 
   const allFindings = axes.flatMap(a => a.findings)
 
-  const weights: Record<string, number> = {
-    security: 0.25,
-    frontmatter: 0.18,
-    quality: 0.12,
-    structure: 0.10,
-    naming: 0.05,
-    tokens: 0.05,
-    compatibility: 0.05,
-    content: 0.05,
-    dependencies: 0.03,
-    installation: 0.07,
-    bestPractices: 0.02,
-  }
-
-  let overallScore = 0
-  for (const axis of axes) {
-    const weight = weights[axis.key] || 0
-    overallScore += axis.score * weight
-  }
-  overallScore = Math.round(overallScore)
-
+  const overallScore = calculateOverallScore(axes)
   const riskLevel = determineRiskLevel(allFindings)
-  if (riskLevel === 'critical') overallScore = Math.min(overallScore, 60)
-  if (riskLevel === 'high') overallScore = Math.min(overallScore, 74)
   const summary = buildSummary(allFindings, axes)
   const fileTree = buildFileTree(input.files)
 
@@ -380,5 +389,5 @@ export async function runFullValidation(
     source: options?.source || input.source,
   }
 
-  return normalizeValidationResult(result)
+  return finalizeValidationResult(result)
 }

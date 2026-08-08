@@ -178,6 +178,10 @@ export default function ReportPage({
     high: 'bg-threat-high/10 text-threat-high',
     critical: 'bg-threat-critical/10 text-threat-critical',
   }
+  const aiSummary = aiReview?.executiveSummary || aiReview?.summary
+  const remediationSteps = Array.isArray(aiReview?.remediationSteps)
+    ? aiReview.remediationSteps.join('\n')
+    : aiReview?.remediationSteps
 
   const sourceDetails = result.source?.type === 'github'
     ? [
@@ -446,11 +450,15 @@ export default function ReportPage({
 
           {aiReview && (
             <div className="space-y-4">
-              {aiReview.executiveSummary && (
+              {aiSummary && (
                 <div className="rounded-lg bg-secondary-container p-4">
                   <div className="text-xs font-semibold uppercase tracking-wider text-secondary mb-1">Executive Summary</div>
-                  <p className="text-sm text-on-surface">{aiReview.executiveSummary}</p>
+                  <p className="text-sm text-on-surface">{aiSummary}</p>
                 </div>
+              )}
+
+              {aiReview.riskExplanation && (
+                <p className="text-sm text-on-surface-secondary">{aiReview.riskExplanation}</p>
               )}
 
               {aiReview.findingExplanations && aiReview.findingExplanations.length > 0 && (
@@ -477,10 +485,10 @@ export default function ReportPage({
                 </div>
               )}
 
-              {aiReview.remediationSteps && (
+              {remediationSteps && (
                 <div className="rounded-lg border border-outline p-4">
                   <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary mb-2">Remediation Steps</div>
-                  <div className="text-sm text-on-surface whitespace-pre-wrap">{aiReview.remediationSteps}</div>
+                  <div className="text-sm text-on-surface whitespace-pre-wrap">{remediationSteps}</div>
                 </div>
               )}
             </div>

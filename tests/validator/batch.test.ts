@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runFullValidation } from '@/lib/validator/orchestrator'
+import { calculateOverallScore, runFullValidation } from '@/lib/validator/orchestrator'
 
 describe('batch skill validation', () => {
   it('analyzes every discovered skill independently and aggregates their findings', async () => {
@@ -26,6 +26,7 @@ describe('batch skill validation', () => {
     ])
     expect(result.findings.some((finding) => finding.filePath === 'skills/risky/SKILL.md')).toBe(true)
     expect(result.axes.every((axis) => axis.findings.length === 0)).toBe(true)
+    expect(result.overallScore).toBe(calculateOverallScore(result.axes))
     expect(result.skillName).toBe('acme/skills (2 skills)')
   })
 })

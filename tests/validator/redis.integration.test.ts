@@ -1,7 +1,3 @@
-import { randomUUID } from 'node:crypto'
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { createClient } from 'redis'
 import { describe, expect, it, vi } from 'vitest'
 import { scanCacheKey } from '@/lib/scan-cache'
@@ -10,11 +6,11 @@ import { getRecentPublicResults } from '@/lib/store'
 import { getDatabase } from '@/lib/db'
 
 const redisUrl = process.env.REDIS_INTEGRATION_URL
+const testDatabaseUrl = process.env.TEST_DATABASE_URL
 
-describe.skipIf(!redisUrl)('Redis integration', () => {
+describe.skipIf(!redisUrl || !testDatabaseUrl)('Redis integration', () => {
   it('caches Explore and reuses scans unless rescan is requested', async () => {
-    const databaseFile = join(tmpdir(), `skillshield-redis-${randomUUID()}.db`)
-    process.env.DATABASE_URL = `file:${databaseFile}`
+    process.env.DATABASE_URL = testDatabaseUrl
     process.env.REDIS_URL = redisUrl
     const redis = createClient({ url: redisUrl })
 
@@ -43,8 +39,7 @@ describe.skipIf(!redisUrl)('Redis integration', () => {
       expect(await redis.ttl('skillshield:explore:public-results')).toBeGreaterThan(0)
     } finally {
       await redis.disconnect().catch(() => {})
-      await getDatabase().client.close()
-      await rm(databaseFile, { force: true }).catch(() => {})
+      await getDatabase().client.end()
       delete process.env.DATABASE_URL
       delete process.env.REDIS_URL
       vi.resetModules()

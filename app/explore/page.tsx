@@ -51,7 +51,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const requestedPage = Math.max(1, Number.parseInt(first(raw.page) || '1', 10) || 1)
 
   // ponytail: in-memory filtering is enough until the public corpus makes indexed columns measurably necessary.
-  const allItems = explorerItems(await getRecentPublicResults(20_000))
+  const allItems = explorerItems(await getRecentPublicResults(1_000))
   const categories = countBy(allItems, 'category')
   const vendors = countBy(allItems, 'vendor')
   const needle = q.toLowerCase()

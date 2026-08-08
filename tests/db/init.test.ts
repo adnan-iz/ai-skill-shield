@@ -1,49 +1,32 @@
-import { randomUUID } from 'node:crypto'
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { afterEach, expect, test, vi } from 'vitest'
 
-const databaseFiles: string[] = []
+const testDatabaseUrl = process.env.TEST_DATABASE_URL
 
 afterEach(async () => {
   vi.resetModules()
   delete process.env.DATABASE_URL
-  delete process.env.DATABASE_AUTH_TOKEN
-  delete process.env.TURSO_DATABASE_URL
-  delete process.env.TURSO_AUTH_TOKEN
-  delete process.env.VERCEL
-
-  await Promise.all(
-    databaseFiles.splice(0).map(async (databaseFile) => {
-      await rm(databaseFile, { force: true }).catch(() => {})
-    })
-  )
 })
 
-test('uses writable temporary storage when Vercel has no remote database', async () => {
-  process.env.VERCEL = '1'
+test('requires a PostgreSQL database URL', async () => {
   const { databaseConfig } = await import('@/lib/db')
 
-  expect(databaseConfig()).toEqual({ url: 'file:/tmp/skillshield.db' })
+  expect(() => databaseConfig()).toThrow('DATABASE_URL must be a PostgreSQL connection URL')
 })
 
-test('ensureDatabase bootstraps all required tables for a fresh sqlite file', async () => {
-  const databaseFile = join(tmpdir(), `skillshield-${randomUUID()}.db`)
-  databaseFiles.push(databaseFile)
-  process.env.DATABASE_URL = `file:${databaseFile}`
+test.skipIf(!testDatabaseUrl)('ensureDatabase bootstraps all required PostgreSQL tables', async () => {
+  process.env.DATABASE_URL = testDatabaseUrl
 
   const { ensureDatabase, getDatabase } = await import('@/lib/db')
 
   await ensureDatabase()
   const { client } = getDatabase()
 
-  const tablesResult = await client.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
+  const tablesResult = await client.query(
+    "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
   )
 
   const tableNames = tablesResult.rows
-    .map((row) => row.name)
+    .map((row) => row.tablename)
     .filter((name): name is string => typeof name === 'string')
 
   expect(tableNames).toEqual(
@@ -55,4 +38,5 @@ test('ensureDatabase bootstraps all required tables for a fresh sqlite file', as
       'webhooks',
     ])
   )
+  await client.end()
 })
