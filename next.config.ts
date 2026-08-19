@@ -25,7 +25,9 @@ function buildContentSecurityPolicy() {
 }
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Vercel's Next 16.3 adapter conflicts with standalone output during tracing.
+  // Keep standalone artifacts for Docker builds, but let Vercel use its native output.
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   async redirects() {
     return [
       {
