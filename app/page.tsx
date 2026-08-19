@@ -271,10 +271,10 @@ export default function HomePage() {
             Pre-install skill security
           </div>
           <h1 className="home-hero-title text-4xl font-bold text-on-surface sm:text-5xl">
-            Validate agent skills before they touch your environment
+            AI Skill Checker &amp; Agent Skill Validator
           </h1>
           <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
-            Upload a skill package, audit a GitHub repository, or paste raw `SKILL.md` content to review security, compatibility, and install risk in one report.
+            Scan AI agent skills, SKILL.md files, and GitHub repositories for security, compatibility, and install risk before they touch your environment.
           </p>
           <Link href="/explore" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-shield-700 hover:text-shield-800">
             Explore public GitHub scans

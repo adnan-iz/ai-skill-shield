@@ -7,9 +7,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL, SOCIAL_IMAGE } from "@/lib/site";
 
-const title = "AI Skill Shield - Validate Agent Skills Before You Run Them";
+const title = "AI Skill Checker & Agent Skill Validator | AI Skill Shield";
 const description =
-  "Free security scanner for AI agent skills. Upload SKILL.md files, audit GitHub repos, and get instant trust scores, risk reports, and install recommendations.";
+  "Free AI skill checker and agent skill validator. Scan SKILL.md files and GitHub repositories for prompt injection, exposed secrets, dangerous commands, and install risks before you run them.";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,6 +33,13 @@ export const metadata: Metadata = {
   creator: "Support Engine",
   publisher: "Support Engine",
   category: "Security",
+  keywords: [
+    "AI skill checker",
+    "agent skill validator",
+    "SKILL.md validator",
+    "AI agent skill security",
+    "GitHub skill scanner",
+  ],
   verification: {
     google: "aaC_UzhNYtDw9wL2SOHe4JekCBK6kGAzlPHqhAxGoqQ",
   },
