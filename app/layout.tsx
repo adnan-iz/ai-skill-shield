@@ -150,6 +150,14 @@ export default function RootLayout({
             </span>
             <Link href="/rules" className="hover:text-on-surface">Security rules</Link>
             <Link href="/docs/api" className="hover:text-on-surface">API docs</Link>
+            <a
+              href="https://github.com/adnan-iz/ai-skill-shield"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-on-surface"
+            >
+              View project on GitHub
+            </a>
             <a href="/llms.txt" className="hover:text-on-surface">llms.txt</a>
           </footer>
         </main>
