@@ -14,17 +14,17 @@ const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
 const FETCH_TIMEOUT = 15_000
 const DEFAULT_IGNORE_PATHS = ['.git', 'node_modules', '.next', 'dist', 'build', 'vendor', 'coverage', '.cache', 'venv', '__pycache__']
 const GITHUB_USER_AGENT = 'skillshield/1.0'
-const ALLOWED_GITHUB_HOSTS = new Set([GITHUB_API_HOST, RAW_GITHUB_HOST])
 
 function normalizeSkillPath(value: string): string {
   return value.replaceAll('\\', '/').replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase()
 }
 
-function assertAllowedGitHubUrl(value: string): void {
+function allowedGitHubUrl(value: string): URL {
   const url = new URL(value)
-  if (url.protocol !== 'https:' || !ALLOWED_GITHUB_HOSTS.has(url.hostname)) {
+  if (url.protocol !== 'https:' || (url.hostname !== GITHUB_API_HOST && url.hostname !== RAW_GITHUB_HOST)) {
     throw new Error('Unsupported GitHub request URL')
   }
+  return url
 }
 
 function slugVariants(skillName: string): string[] {
@@ -98,13 +98,13 @@ function ipFromRequest(request: NextRequest): string {
 }
 
 export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
-  assertAllowedGitHubUrl(url)
+  const allowedUrl = allowedGitHubUrl(url)
   // ponytail: one retry covers transient GitHub disconnects; add backoff only if rate-limit data warrants it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const response = await fetch(url, {
+      const response = await fetch(allowedUrl, {
         ...options,
         signal: controller.signal,
         headers: {
