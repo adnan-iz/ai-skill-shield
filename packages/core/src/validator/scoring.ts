@@ -16,7 +16,7 @@ export function calculateScore(findings: Finding[]): number {
   if (hasSecret) score = Math.min(score, 40)
 
   const hasDestructive = findings.some(f =>
-    f.axis === 'security' && /rm .* \/|DROP DATABASE|del \/f \/s/i.test(f.message)
+    f.axis === 'security' && /rm [^/]*\/|DROP DATABASE|del \/f \/s/i.test(f.message)
   )
   if (hasDestructive) score = Math.min(score, 35)
 

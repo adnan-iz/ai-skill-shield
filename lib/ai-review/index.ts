@@ -140,7 +140,7 @@ function parseAiResponse(response: string): AiReviewResult {
     }
   } catch {
     const extractSection = (section: string): string => {
-      const re = new RegExp(`(?:##|\\*\\*)?\\s*${section}[\\s\\S]*?(?=\\n(?:##|\\*\\*|$)|\$)`, 'i')
+      const re = new RegExp(`(?:##|\\*\\*)?\\s*${section}[\\s\\S]*?(?=\\n(?:##|\\*\\*|$)|$)`, 'i')
       const match = response.match(re)
       return match ? match[0].replace(/^##\s*\w+\s*/m, '').trim() : ''
     }

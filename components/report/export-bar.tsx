@@ -76,7 +76,11 @@ export default function ExportBar({ result }: ExportBarProps) {
       md += `| Severity | Category | Title | File:Line | Recommendation |\n`
       md += `|----------|----------|-------|-----------|----------------|\n`
       data.findings.forEach((f: Finding) => {
-        md += `| ${f.severity} | ${f.category} | ${f.title} | ${f.filePath || 'SKILL.md'}:${f.lineNumber || '-'} | ${(f.recommendation || '').replace(/\|/g, '\\|')} |\n`
+        const recommendation = (f.recommendation || '')
+          .replace(/\\/g, '\\\\')
+          .replace(/\|/g, '\\|')
+          .replace(/\r?\n/g, '<br>')
+        md += `| ${f.severity} | ${f.category} | ${f.title} | ${f.filePath || 'SKILL.md'}:${f.lineNumber || '-'} | ${recommendation} |\n`
       })
     }
     const blob = new Blob([md], { type: 'text/markdown' })
