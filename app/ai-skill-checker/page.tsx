@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Free AI Skill Checker',
+  title: 'Free AI Skill Checker & Validator',
   description:
     'Scan AI agent skills, SKILL.md files, and GitHub repositories for prompt injection, secrets, dangerous commands, permissions, and install risks.',
   alternates: {
@@ -70,7 +70,7 @@ export default function AiSkillCheckerPage() {
 
       <section className="glass-card p-8 sm:p-12">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-shield-700">Pre-install skill security</p>
-        <h1 className="mt-3 text-4xl font-bold text-on-surface sm:text-5xl">Free AI Skill Checker</h1>
+        <h1 className="mt-3 text-4xl font-bold text-on-surface sm:text-5xl">Free AI Skill Checker and Validator</h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-on-surface-secondary">
           Check an AI agent skill before you install it. AI Skill Shield scans SKILL.md files, skill packages, and public GitHub repositories for the risks that matter when an agent can run code or access your environment.
         </p>
@@ -103,6 +103,7 @@ export default function AiSkillCheckerPage() {
             <li><strong className="text-on-surface">3. Decide before installation.</strong> Use the report to understand risk and choose whether to proceed.</li>
           </ol>
           <div className="mt-6 flex flex-wrap gap-4 text-sm font-semibold text-shield-700">
+            <Link href="/skill-md-validator" className="hover:text-shield-800">Learn about SKILL.md validation →</Link>
             <Link href="/rules" className="hover:text-shield-800">Explore security rules →</Link>
             <Link href="/docs/api" className="hover:text-shield-800">Read the API docs →</Link>
           </div>

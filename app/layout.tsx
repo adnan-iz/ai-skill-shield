@@ -7,9 +7,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL, SOCIAL_IMAGE } from "@/lib/site";
 
-const title = "AI Skill Checker & Agent Skill Validator | AI Skill Shield";
+const title = "AI Skill Security Scanner & SKILL.md Validator | AI Skill Shield";
 const description =
-  "Free AI skill checker and agent skill validator. Scan SKILL.md files and GitHub repositories for prompt injection, exposed secrets, dangerous commands, and install risks before you run them.";
+  "Free AI skill security scanner, validator, and checker. Scan SKILL.md files and GitHub repositories for prompt injection, exposed secrets, dangerous commands, and install risks before you run them.";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -37,6 +37,8 @@ export const metadata: Metadata = {
     "AI skill checker",
     "agent skill validator",
     "SKILL.md validator",
+    "AI skill security scanner",
+    "SKILL.md security scanner",
     "AI agent skill security",
     "GitHub skill scanner",
   ],

@@ -430,7 +430,7 @@ export default function HomePage() {
         <div className="glass-card p-8">
           <h2 id="what-is-skillshield" className="text-2xl font-bold text-on-surface">What is AI Skill Shield?</h2>
           <p className="mt-3 leading-7 text-on-surface-secondary">
-            AI Skill Shield is an AI agent skill security scanner. It helps developers and teams inspect a skill before installation by combining static validation, repository evidence, compatibility checks, and a clear install-risk report.
+            AI Skill Shield is an AI agent skill security scanner, validator, and checker. It helps developers and teams inspect a skill before installation by combining static validation, repository evidence, compatibility checks, and a clear install-risk report.
           </p>
           <p className="mt-3 leading-7 text-on-surface-secondary">
             It is designed for Agent Skills, SKILL.md packages, MCP-adjacent workflows, and public GitHub repositories used by AI agents.
@@ -444,8 +444,33 @@ export default function HomePage() {
             <li><strong className="text-on-surface">3. Decide:</strong> review the score, evidence, install recommendation, and exportable report.</li>
           </ol>
           <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/ai-skill-checker" className="text-sm font-semibold text-shield-700 hover:text-shield-800">Use the free AI skill checker →</Link>
+            <Link href="/skill-md-validator" className="text-sm font-semibold text-shield-700 hover:text-shield-800">Validate a SKILL.md file →</Link>
             <Link href="/rules" className="text-sm font-semibold text-shield-700 hover:text-shield-800">Explore security rules →</Link>
             <Link href="/docs/api" className="text-sm font-semibold text-shield-700 hover:text-shield-800">Read the API docs →</Link>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="skill-security-guides" className="mt-12">
+        <div className="glass-card p-8">
+          <h2 id="skill-security-guides" className="text-2xl font-bold text-on-surface">AI agent skill security guides</h2>
+          <p className="mt-3 max-w-3xl leading-7 text-on-surface-secondary">
+            Learn how to validate SKILL.md files and review skills before adding them to your AI-agent workflow.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <Link href="/skill-md-validator" className="rounded-xl border border-outline p-5 transition-colors hover:border-shield-500 hover:bg-shield-50">
+              <h3 className="font-semibold text-on-surface">SKILL.md validator</h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-secondary">What to validate before an agent follows a skill file.</p>
+            </Link>
+            <Link href="/claude-code-skill-security" className="rounded-xl border border-outline p-5 transition-colors hover:border-shield-500 hover:bg-shield-50">
+              <h3 className="font-semibold text-on-surface">Claude Code skill security</h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-secondary">A practical review workflow for third-party Claude Code skills.</p>
+            </Link>
+            <Link href="/openclaw-skill-security" className="rounded-xl border border-outline p-5 transition-colors hover:border-shield-500 hover:bg-shield-50">
+              <h3 className="font-semibold text-on-surface">OpenClaw skill security</h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-secondary">How to assess OpenClaw skills before installation.</p>
+            </Link>
           </div>
         </div>
       </section>
