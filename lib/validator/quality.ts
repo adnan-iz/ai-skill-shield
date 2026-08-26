@@ -400,8 +400,9 @@ function assessAccessibility(content: string, _body: string): QualityDimension {
   let score = 0
   const fullContent = content || ''
 
-  const imagesWithAlt = fullContent.match(/!\[([^\]]+)\]\([^)]+\)/g) || []
-  const imagesWithoutAlt = fullContent.match(/!\[\]\([^)]+\)/g) || []
+  const markdownImages = Array.from(fullContent.matchAll(/!\[([^\]\r\n]*)\]\([^\)\r\n]*\)/g))
+  const imagesWithAlt = markdownImages.filter((match) => match[1].length > 0)
+  const imagesWithoutAlt = markdownImages.filter((match) => match[1].length === 0)
 
   if (imagesWithAlt.length > 0) {
     score += 30

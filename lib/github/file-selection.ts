@@ -2,7 +2,8 @@ import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 import { isRepositoryAuditCandidatePath } from '@/lib/github/repository-audit'
 
 export function normalizeSkillDirectoryPath(path: string): string {
-  const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  const slashNormalized = path.replaceAll('\\', '/')
+  const normalized = slashNormalized.replace(/^\/+/, '').replace(/\/+$/, '')
   if (!/(^|\/)SKILL\.md$/i.test(normalized)) return normalized
   return normalized.split('/').slice(0, -1).join('/')
 }

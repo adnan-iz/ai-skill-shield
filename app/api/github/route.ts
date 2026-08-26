@@ -14,9 +14,17 @@ const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
 const FETCH_TIMEOUT = 15_000
 const DEFAULT_IGNORE_PATHS = ['.git', 'node_modules', '.next', 'dist', 'build', 'vendor', 'coverage', '.cache', 'venv', '__pycache__']
 const GITHUB_USER_AGENT = 'skillshield/1.0'
+const ALLOWED_GITHUB_HOSTS = new Set([GITHUB_API_HOST, RAW_GITHUB_HOST])
 
 function normalizeSkillPath(value: string): string {
-  return value.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase()
+  return value.replaceAll('\\', '/').replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase()
+}
+
+function assertAllowedGitHubUrl(value: string): void {
+  const url = new URL(value)
+  if (url.protocol !== 'https:' || !ALLOWED_GITHUB_HOSTS.has(url.hostname)) {
+    throw new Error('Unsupported GitHub request URL')
+  }
 }
 
 function slugVariants(skillName: string): string[] {
@@ -90,6 +98,7 @@ function ipFromRequest(request: NextRequest): string {
 }
 
 export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
+  assertAllowedGitHubUrl(url)
   // ponytail: one retry covers transient GitHub disconnects; add backoff only if rate-limit data warrants it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController()
@@ -410,7 +419,7 @@ async function fetchFiles(
     extensions = new Set([...extensions].filter(e => !excluded.has(e)))
   }
 
-  const normalizedTreePath = treePath.replace(/^\/+|\/+$/g, '')
+  const normalizedTreePath = treePath.replace(/^\/+/, '').replace(/\/+$/, '')
   const scoped = analyzeAllSkills
     ? selectSkillEntryBlobs(treeData.tree || [], MAX_BATCH_SKILLS)
     : scopeSkillBlobs(treeData.tree || [], normalizedTreePath)

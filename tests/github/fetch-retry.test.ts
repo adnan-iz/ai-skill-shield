@@ -28,3 +28,11 @@ test('distinguishes GitHub permission failures from exhausted quota', () => {
     headers: { 'x-ratelimit-remaining': '0' },
   }))).toContain('API limit reached')
 })
+
+test('rejects requests to hosts outside the GitHub allowlist', async () => {
+  const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+  await expect(fetchWithTimeout('https://example.com/internal')).rejects.toThrow('Unsupported GitHub request URL')
+
+  expect(fetchMock).not.toHaveBeenCalled()
+})

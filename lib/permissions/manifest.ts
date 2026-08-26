@@ -30,13 +30,29 @@ export interface PermissionViolation {
   message: string
 }
 
-const PERMISSION_BLOCK_RE = /^---permissions\s*\n([\s\S]*?)\n?^---\s*$/m
+function findDelimitedBlock(content: string, openingMarker: string): string | null {
+  const lines = content.split(/\r?\n/)
+  const openingIndex = lines.findIndex((line) => line.trim() === openingMarker)
+  if (openingIndex === -1) return null
+
+  const closingIndex = lines.findIndex((line, index) => index > openingIndex && line.trim() === '---')
+  return closingIndex === -1 ? null : lines.slice(openingIndex + 1, closingIndex).join('\n')
+}
+
+function findStandaloneManifest(content: string): string | null {
+  const lines = content.split(/\r?\n/)
+  const openingIndex = lines.findIndex((line, index) => line.startsWith('name:') && lines[index + 1]?.trim() === 'permissions:')
+  if (openingIndex === -1) return null
+
+  const closingIndex = lines.findIndex((line, index) => index > openingIndex && line.trim() === '')
+  return lines.slice(openingIndex, closingIndex === -1 ? undefined : closingIndex).join('\n')
+}
 
 export function extractPermissionManifest(content: string): PermissionManifest | null {
-  const blockMatch = content.match(PERMISSION_BLOCK_RE)
-  if (blockMatch) {
+  const permissionBlock = findDelimitedBlock(content, '---permissions')
+  if (permissionBlock !== null) {
     try {
-      const parsed = parseYaml(blockMatch[1].trim(), { schema: 'failsafe' })
+      const parsed = parseYaml(permissionBlock.trim(), { schema: 'failsafe' })
       if (parsed && typeof parsed === 'object' && 'permissions' in parsed) {
         return parsed as PermissionManifest
       }
@@ -45,10 +61,10 @@ export function extractPermissionManifest(content: string): PermissionManifest |
     }
   }
 
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n?^---\n?/m)
-  if (frontmatterMatch) {
+  const frontmatter = findDelimitedBlock(content, '---')
+  if (frontmatter !== null) {
     try {
-      const parsed = parseYaml(frontmatterMatch[1].trim(), { schema: 'failsafe' })
+      const parsed = parseYaml(frontmatter.trim(), { schema: 'failsafe' })
       if (parsed && typeof parsed === 'object' && 'permissions' in parsed) {
         const { permissions, name, version } = parsed as Record<string, unknown>
         return { name: name as string, version: version as string, permissions: permissions as PermissionManifest['permissions'] }
@@ -58,13 +74,10 @@ export function extractPermissionManifest(content: string): PermissionManifest |
     }
   }
 
-  const standaloneMatch = content.match(/^name:\s*.+\npermissions:/m)
-  if (standaloneMatch && standaloneMatch.index !== undefined) {
-    const blockStart = Math.max(0, standaloneMatch.index)
-    const blockEnd = content.indexOf('\n\n', blockStart)
-    const block = content.slice(blockStart, blockEnd > blockStart ? blockEnd : undefined)
+  const standaloneManifest = findStandaloneManifest(content)
+  if (standaloneManifest !== null) {
     try {
-      const parsed = parseYaml(block, { schema: 'failsafe' })
+      const parsed = parseYaml(standaloneManifest, { schema: 'failsafe' })
       if (parsed && typeof parsed === 'object' && 'permissions' in parsed) {
         return parsed as PermissionManifest
       }
@@ -79,7 +92,17 @@ export function extractPermissionManifest(content: string): PermissionManifest |
 const URL_RE = /https?:\/\/([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)/g
 const ENV_VAR_RE = /process\.env\.(\w+)|`?\$\{?(\w+)\}?`?|env\.(\w+)/g
 const PATH_RE = /['"`](\/(?:[a-zA-Z0-9_./-]+\/)?[a-zA-Z0-9_.-]+)['"`]/g
-const SHELL_CMD_RE = /(?:^|\n)\s*(rm\s+-rf|curl|wget|bash|chmod\s+\d+|chown|mkfs|dd\s+if=|:\(\)\s*\{)/g
+const SHELL_COMMAND_PREFIXES = ['rm -rf', 'curl', 'wget', 'bash', 'chmod ', 'chown', 'mkfs', 'dd if=', ':() {']
+
+function findShellCommands(content: string): string[] {
+  const commands: string[] = []
+  for (const line of content.split(/\r?\n/)) {
+    const command = line.trimStart()
+    const prefix = SHELL_COMMAND_PREFIXES.find((candidate) => command.startsWith(candidate))
+    if (prefix) commands.push(prefix)
+  }
+  return commands
+}
 
 function extractDomains(content: string): Set<string> {
   const domains = new Set<string>()
@@ -143,10 +166,7 @@ export function detectPermissionViolations(
   }
 
   if (perms.shell?.deny && perms.shell.deny.length > 0) {
-    SHELL_CMD_RE.lastIndex = 0
-    let match: RegExpExecArray | null
-    while ((match = SHELL_CMD_RE.exec(content)) !== null) {
-      const cmd = match[1].trim()
+    for (const cmd of findShellCommands(content)) {
       if (perms.shell.deny.some(d => cmd.includes(d) || d.includes(cmd))) {
         violations.push({
           type: 'shell',
