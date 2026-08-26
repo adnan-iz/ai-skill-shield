@@ -19,14 +19,6 @@ function normalizeSkillPath(value: string): string {
   return value.replaceAll('\\', '/').replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase()
 }
 
-function allowedGitHubUrl(value: string): URL {
-  const url = new URL(value)
-  if (url.protocol !== 'https:' || (url.hostname !== GITHUB_API_HOST && url.hostname !== RAW_GITHUB_HOST)) {
-    throw new Error('Unsupported GitHub request URL')
-  }
-  return url
-}
-
 function slugVariants(skillName: string): string[] {
   const normalized = normalizeSkillPath(skillName)
   const variants = new Set<string>()
@@ -98,7 +90,13 @@ function ipFromRequest(request: NextRequest): string {
 }
 
 export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
-  const allowedUrl = allowedGitHubUrl(url)
+  const allowedUrl = new URL(url)
+  if (
+    allowedUrl.protocol !== 'https:' ||
+    (allowedUrl.hostname !== 'api.github.com' && allowedUrl.hostname !== 'raw.githubusercontent.com')
+  ) {
+    throw new Error('Unsupported GitHub request URL')
+  }
   // ponytail: one retry covers transient GitHub disconnects; add backoff only if rate-limit data warrants it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController()
