@@ -400,21 +400,19 @@ function assessAccessibility(content: string, _body: string): QualityDimension {
   let score = 0
   const fullContent = content || ''
 
-  const markdownImages = Array.from(fullContent.matchAll(/!\[([^\]\r\n]*)\]\([^\)\r\n]*\)/g))
-  const imagesWithAlt = markdownImages.filter((match) => match[1].length > 0)
-  const imagesWithoutAlt = markdownImages.filter((match) => match[1].length === 0)
+  const { imagesWithAlt, imagesWithoutAlt } = countMarkdownImages(fullContent)
 
-  if (imagesWithAlt.length > 0) {
+  if (imagesWithAlt > 0) {
     score += 30
   }
-  if (imagesWithoutAlt.length > 0) {
+  if (imagesWithoutAlt > 0) {
     findings.push({
       id: makeId(),
       axis: 'quality',
       severity: 'low',
       category: 'quality',
       title: 'Images without alt text',
-      message: `${imagesWithoutAlt.length} image${imagesWithoutAlt.length !== 1 ? 's' : ''} missing descriptive alt text`,
+      message: `${imagesWithoutAlt} image${imagesWithoutAlt !== 1 ? 's' : ''} missing descriptive alt text`,
       filePath: 'SKILL.md',
       lineNumber: 0,
       column: 0,
@@ -488,6 +486,33 @@ function assessAccessibility(content: string, _body: string): QualityDimension {
   }
 
   return { name: 'Accessibility', key: 'accessibility', weight: 0.10, score, findings }
+}
+
+function countMarkdownImages(content: string): { imagesWithAlt: number; imagesWithoutAlt: number } {
+  let imagesWithAlt = 0
+  let imagesWithoutAlt = 0
+  let position = 0
+
+  while (position < content.length) {
+    const opening = content.indexOf('![', position)
+    if (opening === -1) break
+    const altEnd = content.indexOf(']', opening + 2)
+    if (altEnd === -1 || content[altEnd + 1] !== '(') {
+      position = opening + 2
+      continue
+    }
+    const urlEnd = content.indexOf(')', altEnd + 2)
+    if (urlEnd === -1) {
+      position = altEnd + 2
+      continue
+    }
+
+    if (altEnd === opening + 2) imagesWithoutAlt++
+    else imagesWithAlt++
+    position = urlEnd + 1
+  }
+
+  return { imagesWithAlt, imagesWithoutAlt }
 }
 
 export function assessQuality(content: string, body: string): AxisResult {

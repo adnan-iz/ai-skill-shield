@@ -16,7 +16,7 @@ export function calculateScore(findings: Finding[]): number {
   if (hasSecret) score = Math.min(score, 40)
 
   const hasDestructive = findings.some(f =>
-    f.axis === 'security' && /rm [^/]*\/|DROP DATABASE|del \/f \/s/i.test(f.message)
+    f.axis === 'security' && containsDestructiveCommand(f.message)
   )
   if (hasDestructive) score = Math.min(score, 35)
 
@@ -26,6 +26,14 @@ export function calculateScore(findings: Finding[]): number {
   if (hasObfuscatedShell) score = Math.min(score, 30)
 
   return Math.max(0, Math.min(100, Math.round(score)))
+}
+
+function containsDestructiveCommand(message: string): boolean {
+  const normalized = message.toLowerCase()
+  if (normalized.includes('drop database') || normalized.includes('del /f /s')) return true
+
+  const removeIndex = normalized.indexOf('rm ')
+  return removeIndex !== -1 && normalized.indexOf('/', removeIndex + 3) !== -1
 }
 
 export function determineRiskLevel(
