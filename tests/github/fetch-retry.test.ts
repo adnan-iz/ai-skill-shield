@@ -15,7 +15,7 @@ test('retries when a GitHub response body terminates', async () => {
     .mockResolvedValueOnce(new Response(terminatedBody))
     .mockResolvedValueOnce(Response.json({ ok: true }))
 
-  const response = await fetchWithTimeout('https://api.github.com/repos/example/skill')
+  const response = await fetchWithTimeout('/repos/example/skill')
 
   expect(await response.json()).toEqual({ ok: true })
   expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -32,7 +32,7 @@ test('distinguishes GitHub permission failures from exhausted quota', () => {
 test('rejects requests to hosts outside the GitHub allowlist', async () => {
   const fetchMock = vi.spyOn(globalThis, 'fetch')
 
-  await expect(fetchWithTimeout('https://example.com/internal')).rejects.toThrow('Unsupported GitHub request URL')
+  await expect(fetchWithTimeout('//example.com/internal')).rejects.toThrow('Unsupported GitHub request URL')
 
   expect(fetchMock).not.toHaveBeenCalled()
 })
