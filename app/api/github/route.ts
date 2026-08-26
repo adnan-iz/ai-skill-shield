@@ -9,8 +9,6 @@ import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, sel
 import type { RepositoryMeta } from '@/lib/validator/types'
 import { validateAndSave } from '@/lib/validator/service'
 
-const GITHUB_API_HOST = 'api.github.com'
-const RAW_GITHUB_HOST = 'raw.githubusercontent.com'
 const FETCH_TIMEOUT = 15_000
 const DEFAULT_IGNORE_PATHS = ['.git', 'node_modules', '.next', 'dist', 'build', 'vendor', 'coverage', '.cache', 'venv', '__pycache__']
 const GITHUB_USER_AGENT = 'skillshield/1.0'
@@ -89,14 +87,13 @@ function ipFromRequest(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 }
 
-export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
-  const allowedUrl = new URL(url)
-  if (
-    allowedUrl.protocol !== 'https:' ||
-    (allowedUrl.hostname !== 'api.github.com' && allowedUrl.hostname !== 'raw.githubusercontent.com')
-  ) {
+export async function fetchWithTimeout(path: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT, host: 'api' | 'raw' = 'api'): Promise<Response> {
+  if (!path.startsWith('/') || path.startsWith('//')) {
     throw new Error('Unsupported GitHub request URL')
   }
+  const allowedUrl = host === 'api'
+    ? `https://api.github.com${path}`
+    : `https://raw.githubusercontent.com${path}`
   // ponytail: one retry covers transient GitHub disconnects; add backoff only if rate-limit data warrants it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController()
@@ -203,7 +200,7 @@ export async function POST(request: NextRequest) {
     const resolvedSha = sha || await resolveCommitSha(owner, repo, resolvedBranch)
     const treeRef = resolvedSha || resolvedBranch
     const treeRes = await fetchWithTimeout(
-      `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${treeRef}?recursive=1`
+       `/repos/${owner}/${repo}/git/trees/${treeRef}?recursive=1`
     )
 
     if (!treeRes.ok) {
@@ -310,7 +307,7 @@ async function resolvePath(owner: string, repo: string, path: string): Promise<{
   const rest = segments.slice(1).join('/')
 
   if (rest) {
-    const testUrl = `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${first}`
+    const testUrl = `/repos/${owner}/${repo}/git/refs/heads/${first}`
     const testRes = await fetchWithTimeout(testUrl)
     if (testRes.ok) {
       return { branch: first, treePath: rest }
@@ -326,7 +323,7 @@ async function resolvePath(owner: string, repo: string, path: string): Promise<{
     return { branch: defaultBranch, treePath: discovered }
   }
 
-  const testUrl = `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${first}`
+  const testUrl = `/repos/${owner}/${repo}/git/refs/heads/${first}`
   const testRes = await fetchWithTimeout(testUrl, { headers: { 'User-Agent': 'skillshield/1.0' } })
   if (testRes.ok) {
     return { branch: first, treePath: '' }
@@ -337,7 +334,7 @@ async function resolvePath(owner: string, repo: string, path: string): Promise<{
 
 async function findSkillDirectory(owner: string, repo: string, branch: string, skillName: string): Promise<string | null> {
   const rootRes = await fetchWithTimeout(
-    `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`
+    `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`
   )
   if (!rootRes.ok) return null
 
@@ -346,7 +343,7 @@ async function findSkillDirectory(owner: string, repo: string, branch: string, s
 }
 
 async function getDefaultBranch(owner: string, repo: string): Promise<string> {
-  const repoRes = await fetchWithTimeout(`https://${GITHUB_API_HOST}/repos/${owner}/${repo}`)
+  const repoRes = await fetchWithTimeout(`/repos/${owner}/${repo}`)
   if (repoRes.ok) {
     const repoData = await repoRes.json()
     return repoData.default_branch || 'main'
@@ -354,7 +351,7 @@ async function getDefaultBranch(owner: string, repo: string): Promise<string> {
 
   for (const candidate of ['main', 'master']) {
     const headRes = await fetchWithTimeout(
-      `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/git/refs/heads/${candidate}`
+      `/repos/${owner}/${repo}/git/refs/heads/${candidate}`
     )
     if (headRes.ok) return candidate
   }
@@ -364,7 +361,7 @@ async function getDefaultBranch(owner: string, repo: string): Promise<string> {
 
 async function resolveCommitSha(owner: string, repo: string, ref: string): Promise<string | undefined> {
   const response = await fetchWithTimeout(
-    `https://${GITHUB_API_HOST}/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`
+    `/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`
   )
   if (!response.ok) return undefined
 
@@ -446,7 +443,7 @@ async function fetchFiles(
       if (!extensions.has(ext) && !blob.path.endsWith('SKILL.md')) return null
 
       const rawRes = await fetchWithTimeout(
-        `https://${RAW_GITHUB_HOST}/${owner}/${repo}/${ref}/${blob.path}`
+        `/${owner}/${repo}/${ref}/${blob.path}`, {}, FETCH_TIMEOUT, 'raw'
       )
       if (!rawRes.ok) return null
       const text = await rawRes.text()
@@ -504,7 +501,7 @@ async function fetchFiles(
 }
 
 async function fetchRepositoryMeta(owner: string, repo: string): Promise<RepositoryMeta | undefined> {
-  const repoRes = await fetchWithTimeout(`https://${GITHUB_API_HOST}/repos/${owner}/${repo}`)
+  const repoRes = await fetchWithTimeout(`/repos/${owner}/${repo}`)
   if (!repoRes.ok) return undefined
 
   const repoData = await repoRes.json()
@@ -539,7 +536,7 @@ async function fetchRepositoryAuditFiles(
   const fetched = await Promise.allSettled(
     candidatePaths.map(async (path) => {
       const rawRes = await fetchWithTimeout(
-        `https://${RAW_GITHUB_HOST}/${owner}/${repo}/${ref}/${path}`
+        `/${owner}/${repo}/${ref}/${path}`, {}, FETCH_TIMEOUT, 'raw'
       )
 
       if (!rawRes.ok) return null
