@@ -11,6 +11,16 @@ function clientIp(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 }
 
+function safeNotificationError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  const status = message.match(/\((401|403|404|410|422)\)/)?.[1]
+  if (status === '401') return 'GitHub rejected the bot token. Replace GITHUB_BOT_TOKEN and redeploy.'
+  if (status === '403') return 'GitHub denied issue creation. Check the bot token scope and repository issue permissions.'
+  if (status === '404' || status === '410') return 'The target repository or its Issues board is unavailable.'
+  if (status === '422') return 'GitHub rejected the issue content or repository interaction policy.'
+  return 'Could not notify the repository owner. Check the deployment logs for the GitHub API error.'
+}
+
 /** Sends a public report only after a user explicitly asks to notify the repository. */
 export async function POST(request: NextRequest) {
   const rl = await checkRateLimit(`github-owner-notify:${clientIp(request)}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 })
@@ -42,7 +52,12 @@ export async function POST(request: NextRequest) {
     )
     return addRateLimitHeaders(Response.json({ outcome }), rl)
   } catch (error) {
-    console.error('GitHub owner notification failed', error)
-    return addRateLimitHeaders(serverError('Could not notify the repository owner'), rl)
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'GitHub owner notification failed',
+      requestId: request.headers.get('x-vercel-id'),
+      error: error instanceof Error ? error.message : String(error),
+    }))
+    return addRateLimitHeaders(serverError(safeNotificationError(error)), rl)
   }
 }

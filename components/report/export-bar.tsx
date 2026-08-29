@@ -15,6 +15,7 @@ export default function ExportBar({ result }: ExportBarProps) {
   const trustPath = trustTarget ? githubTrustPath(trustTarget) : null
   const badgePath = trustTarget ? githubBadgePath(trustTarget) : null
   const [notificationState, setNotificationState] = useState<'idle' | 'sending' | 'sent' | 'already' | 'error'>('idle')
+  const [notificationError, setNotificationError] = useState<string | null>(null)
 
   function track(event: 'report.share' | 'report.badge_copy') {
     void fetch('/api/events', {
@@ -111,17 +112,19 @@ export default function ExportBar({ result }: ExportBarProps) {
   async function notifyOwner() {
     if (!window.confirm('Post this scan report as an issue in the source repository?')) return
     setNotificationState('sending')
+    setNotificationError(null)
     try {
       const response = await fetch('/api/github/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scanId: result.id }),
       })
-      if (!response.ok) throw new Error()
-      const data = await response.json() as { outcome: string }
+      const data = await response.json() as { outcome?: string; error?: string }
+      if (!response.ok) throw new Error(data.error || 'Could not post the issue.')
       setNotificationState(data.outcome === 'already-notified' ? 'already' : 'sent')
-    } catch {
+    } catch (error) {
       setNotificationState('error')
+      setNotificationError(error instanceof Error ? error.message : 'Could not post the issue.')
     }
   }
 
@@ -169,7 +172,7 @@ export default function ExportBar({ result }: ExportBarProps) {
               <button type="button" onClick={() => void notifyOwner()} disabled={notificationState === 'sending'} className={btnClass}>
                 {notificationState === 'sending' ? 'Sending…' : notificationState === 'sent' ? 'Owner notified' : notificationState === 'already' ? 'Already notified' : 'Notify owner via issue'}
               </button>
-              {notificationState === 'error' && <span className="text-xs font-medium text-red-700">Could not post the issue.</span>}
+              {notificationState === 'error' && <span className="text-xs font-medium text-red-700">{notificationError}</span>}
             </div>
           )}
         </div>
