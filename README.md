@@ -24,6 +24,12 @@ To activate it, create a GitHub App, set its homepage to this deployment, grant 
 
 For public repositories, a user may explicitly choose **Notify owner via issue** on a scan report. Set `GITHUB_BOT_TOKEN` to a dedicated, identifiable bot account token to enable this one-time fallback. It is rate limited and only runs after confirmation; it never posts automatically to repositories that have not installed the app.
 
+If that manual notification limit is exceeded, the request is stored and sent by the secured `/api/cron/github-notifications` worker after the one-minute window. Set `CRON_SECRET` in the production environment, then schedule this request every minute on your server:
+
+```cron
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-domain.example/api/cron/github-notifications
+```
+
 ## What it checks
 
 - prompt injection and suspicious agent instructions

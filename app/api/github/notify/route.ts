@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server'
 import { getResult } from '@/lib/store'
 import { notifyGitHubRepositoryOwner } from '@/lib/github/notifications'
+import { enqueueGitHubNotification } from '@/lib/github/notification-queue'
 import { validateId } from '@/lib/security/input-validation'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
-import { badRequest, notFound, serverError, tooManyRequests } from '@/lib/api-error'
+import { badRequest, notFound, serverError } from '@/lib/api-error'
 import { logAuditEvent } from '@/lib/webhooks'
 
 function clientIp(request: NextRequest): string {
@@ -25,15 +26,18 @@ function safeNotificationError(error: unknown): string {
 export async function POST(request: NextRequest) {
   // Allow quick retries after correcting credentials while bounding manual,
   // cross-repository issue creation well below GitHub's content-generation limit.
-  const rl = await checkRateLimit(`github-owner-notify:${clientIp(request)}`, { maxRequests: 10, windowMs: 60_000 })
-  if (!rl.allowed) return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
-
   try {
     const raw = await request.text()
-    if (raw.length > 256) return addRateLimitHeaders(badRequest('Payload too large'), rl)
+    if (raw.length > 256) return badRequest('Payload too large')
     const body = JSON.parse(raw) as { scanId?: unknown }
     if (typeof body.scanId !== 'string' || validateId(body.scanId)) {
-      return addRateLimitHeaders(badRequest('Invalid scan id'), rl)
+      return badRequest('Invalid scan id')
+    }
+
+    const rl = await checkRateLimit(`github-owner-notify:${clientIp(request)}`, { maxRequests: 10, windowMs: 60_000 })
+    if (!rl.allowed) {
+      await enqueueGitHubNotification(body.scanId, rl.resetAt)
+      return addRateLimitHeaders(Response.json({ outcome: 'queued', runAt: rl.resetAt }, { status: 202 }), rl)
     }
 
     const result = await getResult(body.scanId)
@@ -60,6 +64,6 @@ export async function POST(request: NextRequest) {
       requestId: request.headers.get('x-vercel-id'),
       error: error instanceof Error ? error.message : String(error),
     }))
-    return addRateLimitHeaders(serverError(safeNotificationError(error)), rl)
+    return serverError(safeNotificationError(error))
   }
 }
