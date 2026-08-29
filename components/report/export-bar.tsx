@@ -140,7 +140,7 @@ export default function ExportBar({ result }: ExportBarProps) {
               <p className="mt-0.5 text-xs text-shield-800">Install the AI Skill Shield GitHub App to receive an automatically updated issue after each new default-branch scan.</p>
             </div>
             <a href={GITHUB_APP_INSTALL_URL} target="_blank" rel="noopener noreferrer" className={primaryBtnClass}>
-              <span className="material-symbols-outlined text-lg">notifications</span>
+              <span aria-hidden="true" className="text-base leading-none">🔔</span>
               Enable notifications
             </a>
           </div>
