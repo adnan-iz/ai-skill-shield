@@ -16,6 +16,8 @@ const envSchema = z.object({
   OPENCODE_ZEN_API_KEY: z.string().optional(),
   OPENCODE_ZEN_MODEL: z.string().optional(),
   GITHUB_TOKEN: z.string().optional(),
+  GITHUB_APP_ID: z.string().optional(),
+  GITHUB_APP_PRIVATE_KEY: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

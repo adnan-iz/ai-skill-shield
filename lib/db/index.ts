@@ -79,6 +79,19 @@ export async function ensureDatabase(): Promise<void> {
           last_status_code INTEGER
         )
       `)
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS github_scan_notifications (
+          target TEXT PRIMARY KEY NOT NULL,
+          owner TEXT NOT NULL,
+          repo TEXT NOT NULL,
+          path TEXT NOT NULL DEFAULT '',
+          issue_number INTEGER NOT NULL,
+          last_sha TEXT NOT NULL,
+          last_scan_id TEXT NOT NULL,
+          last_notified_at BIGINT NOT NULL
+        )
+      `)
     })().catch((error) => {
       databaseReadyPromise = null
       throw error

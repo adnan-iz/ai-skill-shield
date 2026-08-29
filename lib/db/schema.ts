@@ -41,3 +41,15 @@ export const webhooks = pgTable('webhooks', {
   lastTriggeredAt: bigint('last_triggered_at', { mode: 'number' }),
   lastStatusCode: integer('last_status_code'),
 })
+
+/** One owner-facing GitHub issue per opted-in repository skill. */
+export const githubScanNotifications = pgTable('github_scan_notifications', {
+  target: text('target').primaryKey(),
+  owner: text('owner').notNull(),
+  repo: text('repo').notNull(),
+  path: text('path').notNull().default(''),
+  issueNumber: integer('issue_number').notNull(),
+  lastSha: text('last_sha').notNull(),
+  lastScanId: text('last_scan_id').notNull(),
+  lastNotifiedAt: bigint('last_notified_at', { mode: 'number' }).notNull(),
+})
