@@ -9,7 +9,12 @@ const GITHUB_API = 'https://api.github.com'
 const USER_AGENT = 'ai-skill-shield-github-app'
 const ISSUE_TITLE_PREFIX = 'AI Skill Shield scan report'
 
-type NotificationOutcome = 'disabled' | 'ineligible' | 'already-notified' | 'not-installed' | 'notified'
+export type NotificationOutcome = 'disabled' | 'ineligible' | 'already-notified' | 'not-installed' | 'notified'
+
+export interface NotificationOptions {
+  /** A deliberate user action may notify a public repository through the bot account. */
+  allowBotFallback?: boolean
+}
 
 interface GitHubAppConfig {
   appId: string
@@ -43,6 +48,14 @@ function appConfig(): GitHubAppConfig | null {
   const publicUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
   if (!appId || !privateKey || !publicUrl) return null
   return { appId, privateKey, publicUrl: publicUrl.replace(/\/$/, '') }
+}
+
+function notificationPublicUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://ai-skill-shield.suppeng.com').replace(/\/$/, '')
+}
+
+function botToken(): string | null {
+  return process.env.GITHUB_BOT_TOKEN?.trim() || null
 }
 
 export function createGitHubAppJwt(appId: string, privateKey: string, now = Math.floor(Date.now() / 1000)): string {
@@ -175,15 +188,17 @@ function notificationTarget(result: ValidationResult): string | null {
 }
 
 /**
- * Posts a single, update-in-place issue for repositories that explicitly installed
- * the GitHub App. It never runs for private or non-default-branch scans.
+ * Automatic notifications require a repository-installed GitHub App. A public
+ * repository may also be notified through the bot token after a deliberate user action.
  */
-export async function notifyGitHubRepositoryOwner(result: ValidationResult): Promise<NotificationOutcome> {
+export async function notifyGitHubRepositoryOwner(
+  result: ValidationResult,
+  options: NotificationOptions = {}
+): Promise<NotificationOutcome> {
   const config = appConfig()
   const target = notificationTarget(result)
   const source = result.source
-  const body = config ? githubNotificationBody(result, config.publicUrl) : null
-  if (!config) return 'disabled'
+  const body = githubNotificationBody(result, notificationPublicUrl())
   if (!target || !source?.owner || !source.repo || !source.sha || !body) return 'ineligible'
 
   await ensureDatabase()
@@ -192,8 +207,11 @@ export async function notifyGitHubRepositoryOwner(result: ValidationResult): Pro
     .where(eq(githubScanNotifications.target, target)).limit(1)
   if (current[0]?.lastSha === source.sha) return 'already-notified'
 
-  const token = await installationToken(source.owner, source.repo, config)
-  if (!token) return 'not-installed'
+  const installationTokenValue = config
+    ? await installationToken(source.owner, source.repo, config)
+    : null
+  const token = installationTokenValue || (options.allowBotFallback ? botToken() : null)
+  if (!token) return config ? 'not-installed' : 'disabled'
 
   const existing = current[0]
   const issueResponse = existing
