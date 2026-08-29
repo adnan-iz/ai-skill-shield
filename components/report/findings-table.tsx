@@ -76,10 +76,6 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
   const categories = useMemo(() => [...new Set(findings.map((finding) => finding.category))].sort(), [findings])
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE)
-  }, [filterSeverity, filterCategory, query])
-
-  useEffect(() => {
     function revealAnchoredFinding() {
       const hash = window.location.hash
       if (!hash.startsWith('#finding-')) return
@@ -107,6 +103,21 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
     }
   }
 
+  function changeSeverity(severity: SeverityFilter) {
+    setFilterSeverity(severity)
+    setVisibleCount(PAGE_SIZE)
+  }
+
+  function changeCategory(category: string) {
+    setFilterCategory(category)
+    setVisibleCount(PAGE_SIZE)
+  }
+
+  function changeQuery(nextQuery: string) {
+    setQuery(nextQuery)
+    setVisibleCount(PAGE_SIZE)
+  }
+
   function sortArrow(key: SortKey) {
     if (sortKey !== key) return ''
     return sortAsc ? ' ▲' : ' ▼'
@@ -117,7 +128,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
       <div className="flex flex-wrap items-center gap-2 border-b border-outline px-4 pb-3 pt-3">
         <button
           type="button"
-          onClick={() => setFilterSeverity('priority')}
+          onClick={() => changeSeverity('priority')}
           aria-pressed={filterSeverity === 'priority'}
           className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
             filterSeverity === 'priority' ? 'bg-shield-600 text-white shadow-sm' : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
@@ -129,7 +140,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
           <button
             type="button"
             key={opt.value}
-            onClick={() => setFilterSeverity(opt.value)}
+            onClick={() => changeSeverity(opt.value)}
             aria-pressed={filterSeverity === opt.value}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
               filterSeverity === opt.value
@@ -143,7 +154,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
         <select
           aria-label="Filter findings by category"
           value={filterCategory}
-          onChange={(event) => setFilterCategory(event.target.value)}
+          onChange={(event) => changeCategory(event.target.value)}
           className="rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface"
         >
           <option value="all">All categories</option>
@@ -153,7 +164,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
           type="search"
           aria-label="Search findings"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => changeQuery(event.target.value)}
           placeholder="Search titles, files, or evidence"
           className="min-w-40 flex-1 rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface placeholder-on-surface-secondary"
         />

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { ValidationResult, FileTreeItem } from '@/lib/validator/types'
 
 interface FileTreeProps {
@@ -9,20 +9,16 @@ interface FileTreeProps {
 
 export default function FileTree({ result }: FileTreeProps) {
   const filesWithFindings = new Set(result.findings.map(f => f.filePath).filter(Boolean))
-  const previewFiles = result.skillPreview.files ?? []
+  const previewFiles = useMemo(() => result.skillPreview.files ?? [], [result.skillPreview.files])
   const previewByPath = useMemo(
     () => new Map(previewFiles.map((file) => [file.path, file.content])),
     [previewFiles]
   )
   const [selectedPath, setSelectedPath] = useState<string | null>(previewFiles[0]?.path ?? null)
-
-  useEffect(() => {
-    if (!selectedPath || !previewByPath.has(selectedPath)) {
-      setSelectedPath(previewFiles[0]?.path ?? null)
-    }
-  }, [previewByPath, previewFiles, selectedPath])
-
-  const selectedContent = selectedPath ? previewByPath.get(selectedPath) : undefined
+  const activeSelectedPath = selectedPath && previewByPath.has(selectedPath)
+    ? selectedPath
+    : previewFiles[0]?.path ?? null
+  const selectedContent = activeSelectedPath ? previewByPath.get(activeSelectedPath) : undefined
 
   function renderTree(items: FileTreeItem[], depth: number = 0): React.ReactNode[] {
     return items.flatMap((item) => {
@@ -34,9 +30,9 @@ export default function FileTree({ result }: FileTreeProps) {
           key={item.path}
           type="button"
           onClick={() => setSelectedPath(item.path)}
-          aria-pressed={selectedPath === item.path}
+          aria-pressed={activeSelectedPath === item.path}
           className={`flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
-            selectedPath === item.path
+            activeSelectedPath === item.path
               ? 'bg-shield-500/15 text-shield-300'
               : 'hover:bg-surface-secondary/70'
           }`}
@@ -91,7 +87,7 @@ export default function FileTree({ result }: FileTreeProps) {
         <section className="flex min-w-0 flex-col bg-background/20" aria-live="polite">
           <div className="flex items-center gap-2 border-b border-outline px-4 py-2.5">
             <span className="material-symbols-outlined text-base text-on-surface-secondary/70">description</span>
-            <span className="truncate font-mono text-xs text-on-surface-secondary">{selectedPath ?? 'File preview'}</span>
+            <span className="truncate font-mono text-xs text-on-surface-secondary">{activeSelectedPath ?? 'File preview'}</span>
           </div>
           {selectedContent !== undefined ? (
             <pre className="max-h-[28rem] min-h-52 overflow-auto p-4 font-mono text-xs leading-5 text-on-surface whitespace-pre-wrap break-words">
@@ -99,7 +95,7 @@ export default function FileTree({ result }: FileTreeProps) {
             </pre>
           ) : (
             <div className="flex min-h-52 items-center p-6 text-sm text-on-surface-secondary/70">
-              {selectedPath
+              {activeSelectedPath
                 ? 'This file was not retained in this scan. Run a new scan to inspect its source here.'
                 : 'Select a file to inspect its scanned source.'}
             </div>
