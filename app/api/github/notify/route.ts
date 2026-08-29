@@ -23,7 +23,9 @@ function safeNotificationError(error: unknown): string {
 
 /** Sends a public report only after a user explicitly asks to notify the repository. */
 export async function POST(request: NextRequest) {
-  const rl = await checkRateLimit(`github-owner-notify:${clientIp(request)}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 })
+  // A user may need to correct credentials or a repository setting and retry.
+  // Keep the manual cross-repository action bounded without locking them out after one diagnosis cycle.
+  const rl = await checkRateLimit(`github-owner-notify:${clientIp(request)}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 })
   if (!rl.allowed) return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
 
   try {
