@@ -18,6 +18,9 @@ describe('GitHub owner notifications', () => {
     const body = githubNotificationBody(result(), 'https://shield.example')
     expect(body).toContain('https://shield.example/trust/github/Acme/skills/reviewer')
     expect(body).toContain('https://shield.example/api/badge/github/Acme/skills/reviewer?v=2')
+    expect(body).toContain('https://shield.example/skill-shield-logo.svg')
+    expect(body).toContain('<summary><strong>Add this status badge to the README</strong></summary>')
+    expect(body).toContain('### Medium — Review')
     expect(body).toContain('012345678901')
   })
 

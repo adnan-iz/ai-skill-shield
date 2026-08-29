@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { ensureDatabase, getDatabase } from '@/lib/db'
 import { githubScanNotifications } from '@/lib/db/schema'
 import { githubBadgePath, githubTrustPath, trustTargetForResult } from '@/lib/trust'
-import type { ValidationResult } from '@/lib/validator/types'
+import type { Finding, ValidationResult } from '@/lib/validator/types'
 
 const GITHUB_API = 'https://api.github.com'
 const USER_AGENT = 'ai-skill-shield-github-app'
@@ -23,6 +23,14 @@ interface Installation {
 
 interface Issue {
   number: number
+}
+
+const severityOrder: Record<Finding['severity'], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  info: 4,
 }
 
 function base64Url(value: string | Buffer): string {
@@ -83,26 +91,82 @@ export function githubNotificationBody(result: ValidationResult, publicUrl: stri
   if (!target || !result.source?.sha) return null
   const reportUrl = new URL(githubTrustPath(target), `${publicUrl}/`).toString()
   const badgeUrl = new URL(githubBadgePath(target), `${publicUrl}/`).toString()
+  const logoUrl = new URL('/skill-shield-logo.svg', `${publicUrl}/`).toString()
   const badgeMarkdown = `[![AI Skill Shield](${badgeUrl})](${reportUrl})`
-  const status = result.riskLevel === 'safe' || result.riskLevel === 'low' ? 'Ready to review' : 'Review recommended'
+  const status = result.riskLevel === 'safe' || result.riskLevel === 'low' ? '✅ Ready to review' : '⚠️ Review recommended'
+  const findings = formatFindings(result.findings)
+  const scannedOn = new Date(result.timestamp).toISOString().slice(0, 10)
 
   return `<!-- ai-skill-shield:${target.owner.toLowerCase()}/${target.repo.toLowerCase()}/${target.path.toLowerCase()} -->
+<p align="center">
+  <a href="${publicUrl}">
+    <img src="${logoUrl}" alt="AI Skill Shield" width="180" />
+  </a>
+</p>
+
 ## AI Skill Shield scan updated
 
-- Commit: \`${result.source.sha.slice(0, 12)}\`
-- Score: **${result.overallScore}/100**
-- Status: **${status}**
-- Findings: ${result.findings.length} (${result.summary.criticalCount} critical, ${result.summary.highCount} high)
+[![AI Skill Shield](${badgeUrl})](${reportUrl})
 
-[Open the full trust report](${reportUrl})
+| Field | Result |
+| --- | --- |
+| Commit | \`${result.source.sha.slice(0, 12)}\` |
+| Score | **${result.overallScore}/100** |
+| Status | ${status} |
+| Findings | ${result.summary.criticalCount} critical · ${result.summary.highCount} high · ${result.summary.mediumCount} medium · ${result.summary.lowCount} low |
+| Scanned | ${scannedOn} |
 
-### Optional README badge
+[View the full AI Skill Shield report](${reportUrl})
+
+<details>
+<summary><strong>Findings summary</strong></summary>
+
+${findings}
+</details>
+
+<details>
+<summary><strong>Add this status badge to the README</strong></summary>
+
+[![AI Skill Shield](${badgeUrl})](${reportUrl})
+
+Copy this Markdown into the README:
 
 \`\`\`md
 ${badgeMarkdown}
 \`\`\`
 
-This issue is maintained automatically for new default-branch scans. Configure the AI Skill Shield GitHub App only on repositories where you want these notifications.`
+</details>
+
+---
+
+_This issue is maintained automatically after new default-branch scans. Automated scan results are evidence for review, not a guarantee of safety._`
+}
+
+function escapeMarkdown(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function formatFindings(findings: Finding[]): string {
+  if (findings.length === 0) return 'No findings were raised in this scan.\n'
+
+  const displayed = [...findings]
+    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
+    .slice(0, 12)
+    .map((finding) => {
+      const location = finding.filePath
+        ? `\`${escapeMarkdown(finding.filePath)}${finding.lineNumber ? `:${finding.lineNumber}` : ''}\``
+        : null
+      const recommendation = finding.recommendation
+        ? `\n\n**Recommendation:** ${escapeMarkdown(finding.recommendation)}`
+        : ''
+      return `### ${finding.severity[0].toUpperCase()}${finding.severity.slice(1)} — ${escapeMarkdown(finding.title)}\n\n${location ? `**Location:** ${location}\n\n` : ''}${escapeMarkdown(finding.message)}${recommendation}`
+    })
+
+  if (findings.length > displayed.length) {
+    displayed.push(`_Showing the ${displayed.length} highest-priority findings. View the full report for ${findings.length - displayed.length} more._`)
+  }
+
+  return displayed.join('\n\n') + '\n'
 }
 
 function notificationTarget(result: ValidationResult): string | null {
