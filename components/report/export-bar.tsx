@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import type { ValidationResult, Finding } from '@/lib/validator/types'
 import { githubBadgePath, githubTrustPath, trustTargetForResult } from '@/lib/trust'
 
@@ -13,6 +14,7 @@ export default function ExportBar({ result }: ExportBarProps) {
   const trustTarget = trustTargetForResult(result)
   const trustPath = trustTarget ? githubTrustPath(trustTarget) : null
   const badgePath = trustTarget ? githubBadgePath(trustTarget) : null
+  const [notificationState, setNotificationState] = useState<'idle' | 'sending' | 'sent' | 'already' | 'error'>('idle')
 
   function track(event: 'report.share' | 'report.badge_copy') {
     void fetch('/api/events', {
@@ -106,6 +108,23 @@ export default function ExportBar({ result }: ExportBarProps) {
     } catch {}
   }
 
+  async function notifyOwner() {
+    if (!window.confirm('Post this scan report as an issue in the source repository?')) return
+    setNotificationState('sending')
+    try {
+      const response = await fetch('/api/github/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanId: result.id }),
+      })
+      if (!response.ok) throw new Error()
+      const data = await response.json() as { outcome: string }
+      setNotificationState(data.outcome === 'already-notified' ? 'already' : 'sent')
+    } catch {
+      setNotificationState('error')
+    }
+  }
+
   const btnClass = "inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:border-outline-variant hover:bg-outline"
   const primaryBtnClass = "inline-flex items-center gap-1.5 rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700 transition-colors"
 
@@ -144,6 +163,15 @@ export default function ExportBar({ result }: ExportBarProps) {
               Enable notifications
             </a>
           </div>
+          {trustTarget && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-shield-200 pt-3">
+              <p className="text-xs text-shield-800">Not the owner? You can send this public report to the repository’s Issues board once.</p>
+              <button type="button" onClick={() => void notifyOwner()} disabled={notificationState === 'sending'} className={btnClass}>
+                {notificationState === 'sending' ? 'Sending…' : notificationState === 'sent' ? 'Owner notified' : notificationState === 'already' ? 'Already notified' : 'Notify owner via issue'}
+              </button>
+              {notificationState === 'error' && <span className="text-xs font-medium text-red-700">Could not post the issue.</span>}
+            </div>
+          )}
         </div>
       )}
       <div>

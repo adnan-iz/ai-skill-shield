@@ -18,6 +18,7 @@ const envSchema = z.object({
   GITHUB_TOKEN: z.string().optional(),
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
+  GITHUB_BOT_TOKEN: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
