@@ -7,6 +7,8 @@ interface ExportBarProps {
   result: ValidationResult
 }
 
+const GITHUB_APP_INSTALL_URL = 'https://github.com/apps/ai-skill-shield'
+
 export default function ExportBar({ result }: ExportBarProps) {
   const trustTarget = trustTargetForResult(result)
   const trustPath = trustTarget ? githubTrustPath(trustTarget) : null
@@ -130,6 +132,20 @@ export default function ExportBar({ result }: ExportBarProps) {
           )}
         </div>
       </div>
+      {result.source?.type === 'github' && (
+        <div className="rounded-lg border border-shield-200 bg-shield-50 px-4 py-3 text-sm text-shield-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Own this repository?</p>
+              <p className="mt-0.5 text-xs text-shield-800">Install the AI Skill Shield GitHub App to receive an automatically updated issue after each new default-branch scan.</p>
+            </div>
+            <a href={GITHUB_APP_INSTALL_URL} target="_blank" rel="noopener noreferrer" className={primaryBtnClass}>
+              <span className="material-symbols-outlined text-lg">notifications</span>
+              Enable notifications
+            </a>
+          </div>
+        </div>
+      )}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Download report</p>
         <div className="flex flex-wrap items-center gap-3">

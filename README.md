@@ -18,7 +18,7 @@ The standard static scan works without an AI provider. Optional AI review suppor
 
 ## Automatic GitHub owner notifications
 
-Repository owners can install the AI Skill Shield GitHub App to receive an automatically updated scan issue after each new default-branch scan. The app uses the repository installation token, so it only notifies repositories that explicitly opted in. Configure `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`; the app needs **Metadata: read** and **Issues: read/write** permissions. A single issue is updated per skill path and commit SHAs are deduplicated. The issue includes the report link and README badge Markdown, but never changes repository files automatically.
+Repository owners can [install the AI Skill Shield GitHub App](https://github.com/apps/ai-skill-shield) to receive an automatically updated scan issue after each new default-branch scan. The app uses the repository installation token, so it only notifies repositories that explicitly opted in. Configure `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`; the app needs **Metadata: read** and **Issues: read/write** permissions. A single issue is updated per skill path and commit SHAs are deduplicated. The issue includes the report link and README badge Markdown, but never changes repository files automatically.
 
 To activate it, create a GitHub App, set its homepage to this deployment, grant those repository permissions, generate a private key, and set both values in the deployment environment. Owners then install the app on selected repositories. No webhook or broad personal-access token is required. Without an installation, scans complete normally and no GitHub notification is sent.
 
