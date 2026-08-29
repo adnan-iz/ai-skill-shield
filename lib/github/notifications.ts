@@ -207,9 +207,21 @@ export async function notifyGitHubRepositoryOwner(
     .where(eq(githubScanNotifications.target, target)).limit(1)
   if (current[0]?.lastSha === source.sha) return 'already-notified'
 
-  const installationTokenValue = config
-    ? await installationToken(source.owner, source.repo, config)
-    : null
+  let installationTokenValue: string | null = null
+  if (config) {
+    try {
+      installationTokenValue = await installationToken(source.owner, source.repo, config)
+    } catch (error) {
+      if (!options.allowBotFallback) throw error
+      console.warn(JSON.stringify({
+        level: 'warn',
+        message: 'GitHub App authentication failed; using the user-approved bot fallback',
+        owner: source.owner,
+        repo: source.repo,
+        error: error instanceof Error ? error.message : String(error),
+      }))
+    }
+  }
   const token = installationTokenValue || (options.allowBotFallback ? botToken() : null)
   if (!token) return config ? 'not-installed' : 'disabled'
 
