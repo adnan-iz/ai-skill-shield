@@ -14,7 +14,7 @@ export default function ExportBar({ result }: ExportBarProps) {
   const trustTarget = trustTargetForResult(result)
   const trustPath = trustTarget ? githubTrustPath(trustTarget) : null
   const badgePath = trustTarget ? githubBadgePath(trustTarget) : null
-  const [notificationState, setNotificationState] = useState<'idle' | 'sending' | 'sent' | 'already' | 'error'>('idle')
+  const [notificationState, setNotificationState] = useState<'idle' | 'sending' | 'sent' | 'already' | 'queued' | 'error'>('idle')
   const [notificationError, setNotificationError] = useState<string | null>(null)
 
   function track(event: 'report.share' | 'report.badge_copy') {
@@ -121,7 +121,9 @@ export default function ExportBar({ result }: ExportBarProps) {
       })
       const data = await response.json() as { outcome?: string; error?: string }
       if (!response.ok) throw new Error(data.error || 'Could not post the issue.')
-      setNotificationState(data.outcome === 'already-notified' ? 'already' : 'sent')
+      setNotificationState(
+        data.outcome === 'already-notified' ? 'already' : data.outcome === 'queued' ? 'queued' : 'sent'
+      )
     } catch (error) {
       setNotificationState('error')
       setNotificationError(error instanceof Error ? error.message : 'Could not post the issue.')
@@ -170,7 +172,7 @@ export default function ExportBar({ result }: ExportBarProps) {
             <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-shield-200 pt-3">
               <p className="text-xs text-shield-800">Not the owner? You can send this public report to the repository’s Issues board once.</p>
               <button type="button" onClick={() => void notifyOwner()} disabled={notificationState === 'sending'} className={btnClass}>
-                {notificationState === 'sending' ? 'Sending…' : notificationState === 'sent' ? 'Owner notified' : notificationState === 'already' ? 'Already notified' : 'Notify owner via issue'}
+                {notificationState === 'sending' ? 'Sending…' : notificationState === 'sent' ? 'Owner notified' : notificationState === 'already' ? 'Already notified' : notificationState === 'queued' ? 'Queued — sends shortly' : 'Notify owner via issue'}
               </button>
               {notificationState === 'error' && <span className="text-xs font-medium text-red-700">{notificationError}</span>}
             </div>

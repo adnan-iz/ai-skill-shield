@@ -53,3 +53,15 @@ export const githubScanNotifications = pgTable('github_scan_notifications', {
   lastScanId: text('last_scan_id').notNull(),
   lastNotifiedAt: bigint('last_notified_at', { mode: 'number' }).notNull(),
 })
+
+/** Delayed, user-requested GitHub notifications that exceeded the request window. */
+export const githubNotificationJobs = pgTable('github_notification_jobs', {
+  scanId: text('scan_id').primaryKey(),
+  status: text('status', { enum: ['queued', 'processing', 'completed', 'failed'] }).notNull().default('queued'),
+  runAt: bigint('run_at', { mode: 'number' }).notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  startedAt: bigint('started_at', { mode: 'number' }),
+  completedAt: bigint('completed_at', { mode: 'number' }),
+})
