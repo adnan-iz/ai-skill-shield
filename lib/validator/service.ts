@@ -2,6 +2,7 @@ import { createPendingApproval } from '@/lib/approvals'
 import { getResult, saveResult } from '@/lib/store'
 import { getCachedResultId, scanCacheKey, setCachedResultId } from '@/lib/scan-cache'
 import { logAuditEvent, triggerWebhooks } from '@/lib/webhooks'
+import { notifyGitHubRepositoryOwner } from '@/lib/github/notifications'
 import { runFullValidation, type OrchestratorOptions } from '@/lib/validator/orchestrator'
 import type { SkillInput, ValidationResult } from '@/lib/validator/types'
 
@@ -51,6 +52,15 @@ export async function validateAndSave(
     })
   } catch {
     // Webhook/audit failures must not break the scan response.
+  }
+
+  try {
+    const outcome = await notifyGitHubRepositoryOwner(result)
+    if (outcome === 'notified') {
+      await logAuditEvent('github.owner_notified', result.id, { sourceUrl: result.source?.url })
+    }
+  } catch {
+    // A GitHub App outage must never make a completed scan fail.
   }
 
   return result
