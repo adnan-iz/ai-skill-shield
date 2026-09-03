@@ -1,6 +1,6 @@
 import type { Finding } from '@/lib/validator/types'
 
-export const AI_PROVIDERS = ['openai', 'anthropic', 'opencode-go', 'opencode-zen'] as const
+export const AI_PROVIDERS = ['openai', 'anthropic', 'opencode-go', 'opencode-zen', 'openrouter', 'gemini', 'opencode-local'] as const
 
 export type AiProvider = typeof AI_PROVIDERS[number]
 
@@ -10,8 +10,10 @@ export function isAiProvider(value: unknown): value is AiProvider {
 
 export interface AiReviewConfig {
   provider: AiProvider
-  apiKey: string
+  apiKey?: string
   model?: string
+  localUrl?: string
+  localUsername?: string
   redactSecrets: boolean
 }
 
@@ -65,6 +67,14 @@ Format your response as JSON with keys: executiveSummary, findings (array of {ti
 }
 
 async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string> {
+  if (config.provider === 'opencode-local') {
+    return callLocalOpenCode(config, prompt)
+  }
+
+  if (!config.apiKey) {
+    throw new Error(`Missing API key for ${config.provider}`)
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -94,6 +104,8 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
     anthropic: 'https://api.anthropic.com/v1/messages',
     'opencode-go': 'https://opencode.ai/zen/go/v1/chat/completions',
     'opencode-zen': 'https://opencode.ai/zen/v1/chat/completions',
+    openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
   }[config.provider]
 
   const res = await fetch(apiUrl, {
@@ -114,6 +126,45 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
     return data.content?.[0]?.text || ''
   }
   return data.choices?.[0]?.message?.content || ''
+}
+
+async function callLocalOpenCode(config: AiReviewConfig, prompt: string): Promise<string> {
+  const serverUrl = (config.localUrl || 'http://127.0.0.1:4096').replace(/\/$/, '')
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (config.apiKey) {
+    headers.Authorization = `Basic ${btoa(`${config.localUsername || 'opencode'}:${config.apiKey}`)}`
+  }
+
+  const sessionResponse = await fetch(`${serverUrl}/session`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ title: 'AI Skill Shield review' }),
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!sessionResponse.ok) {
+    throw new Error(`Local OpenCode error (${sessionResponse.status}): ${await sessionResponse.text()}`)
+  }
+
+  const session = await sessionResponse.json() as { id?: string }
+  if (!session.id) {
+    throw new Error('Local OpenCode did not return a session ID')
+  }
+
+  const messageResponse = await fetch(`${serverUrl}/session/${encodeURIComponent(session.id)}/message`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ parts: [{ type: 'text', text: prompt }] }),
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!messageResponse.ok) {
+    throw new Error(`Local OpenCode error (${messageResponse.status}): ${await messageResponse.text()}`)
+  }
+
+  const message = await messageResponse.json() as { parts?: Array<{ type?: string; text?: string }> }
+  return message.parts
+    ?.filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join('\n') || ''
 }
 
 function parseAiResponse(response: string): AiReviewResult {

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       }, { status: 400 }), rl)
     }
 
-    const providerEnv: Record<AiProvider, { apiKey: string | undefined; model?: string }> = {
+    const providerEnv: Record<AiProvider, { apiKey?: string; model?: string; localUrl?: string; localUsername?: string }> = {
       openai: { apiKey: process.env.OPENAI_API_KEY },
       anthropic: { apiKey: process.env.ANTHROPIC_API_KEY },
       'opencode-go': {
@@ -43,19 +43,29 @@ export async function POST(request: Request) {
         apiKey: process.env.OPENCODE_ZEN_API_KEY,
         model: process.env.OPENCODE_ZEN_MODEL,
       },
+      openrouter: { apiKey: process.env.OPENROUTER_API_KEY, model: process.env.OPENROUTER_MODEL },
+      gemini: { apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL },
+      'opencode-local': {
+        apiKey: process.env.OPENCODE_LOCAL_PASSWORD,
+        localUrl: process.env.OPENCODE_LOCAL_URL,
+        localUsername: process.env.OPENCODE_LOCAL_USERNAME,
+      },
     }
-    const provider = requestedProvider || AI_PROVIDERS.find(candidate => providerEnv[candidate].apiKey)
+    const provider = requestedProvider || AI_PROVIDERS.find(candidate => providerEnv[candidate].apiKey || providerEnv[candidate].localUrl)
     const providerSettings = provider ? providerEnv[provider] : undefined
 
-    if (!provider || !providerSettings?.apiKey) {
+    if (!provider || (!providerSettings?.apiKey && !providerSettings?.localUrl)) {
       const requiredKey = provider
         ? {
             openai: 'OPENAI_API_KEY',
             anthropic: 'ANTHROPIC_API_KEY',
             'opencode-go': 'OPENCODE_GO_API_KEY',
             'opencode-zen': 'OPENCODE_ZEN_API_KEY',
+            openrouter: 'OPENROUTER_API_KEY',
+            gemini: 'GEMINI_API_KEY',
+            'opencode-local': 'OPENCODE_LOCAL_URL',
           }[provider]
-        : 'OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENCODE_GO_API_KEY, or OPENCODE_ZEN_API_KEY'
+        : 'OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENCODE_GO_API_KEY, OPENCODE_ZEN_API_KEY, OPENROUTER_API_KEY, GEMINI_API_KEY, or OPENCODE_LOCAL_URL'
       return addRateLimitHeaders(Response.json({
         error: 'AI review not configured',
         message: `Set ${requiredKey} to enable AI review`,
@@ -66,6 +76,8 @@ export async function POST(request: Request) {
       provider,
       apiKey: providerSettings.apiKey,
       model: providerSettings.model,
+      localUrl: providerSettings.localUrl,
+      localUsername: providerSettings.localUsername,
       redactSecrets: true,
     }
     const reportedTotal = typeof totalFindings === 'number' && Number.isSafeInteger(totalFindings) && totalFindings >= findings.length

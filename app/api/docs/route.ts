@@ -120,7 +120,7 @@ export async function GET() {
                   properties: {
                     findings: { type: 'array' },
                     skillName: { type: 'string' },
-                    provider: { type: 'string', enum: ['openai', 'anthropic', 'opencode-go', 'opencode-zen'] },
+                    provider: { type: 'string', enum: ['openai', 'anthropic', 'opencode-go', 'opencode-zen', 'openrouter', 'gemini', 'opencode-local'] },
                   },
                 },
               },

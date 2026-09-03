@@ -11,10 +11,10 @@ const finding: Finding = {
   message: 'A downloaded script is executed directly.',
 }
 
-async function reviewWith(provider: AiProvider) {
+async function reviewWith(provider: AiProvider, apiKey = 'test-key') {
   return reviewFindings([finding], 'test-skill', {
     provider,
-    apiKey: 'test-key',
+    apiKey,
     redactSecrets: true,
   })
 }
@@ -62,6 +62,46 @@ describe('OpenCode AI review providers', () => {
     const prompt = JSON.parse(request.body).messages[0].content
     expect(prompt).toContain('The scan found 7856 findings in total')
     expect(prompt).toContain('The 1 findings below are the highest-priority sample')
+  })
+
+  it.each([
+    ['openrouter', 'https://openrouter.ai/api/v1/chat/completions'],
+    ['gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'],
+  ] as const)('sends %s reviews through its OpenAI-compatible endpoint', async (provider, endpoint) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: '{"executiveSummary":"Reviewed"}' } }],
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const review = await reviewWith(provider)
+
+    expect(fetchMock).toHaveBeenCalledWith(endpoint, expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
+    }))
+    expect(review.executiveSummary).toBe('Reviewed')
+  })
+
+  it('sends a redacted review request to a local OpenCode session', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'session-123' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        info: { id: 'message-123' },
+        parts: [{ type: 'text', text: '{"executiveSummary":"Local review"}' }],
+      }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const review = await reviewWith('opencode-local', '')
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://127.0.0.1:4096/session', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ title: 'AI Skill Shield review' }),
+    }))
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:4096/session/session-123/message', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"parts"'),
+    }))
+    expect(review.executiveSummary).toBe('Local review')
   })
 
   it('renders alternate summary and remediation response shapes', async () => {

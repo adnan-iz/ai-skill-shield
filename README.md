@@ -14,7 +14,7 @@ AI Skill Shield reviews `SKILL.md` packages and GitHub repositories for prompt i
 2. Paste a GitHub repository URL, upload a skill package, or paste a `SKILL.md`
 3. Review the verdict, risky lines, and install-surface evidence
 
-The standard static scan works without an AI provider. Optional AI review supports OpenAI, Anthropic, OpenCode Go, and OpenCode Zen when the deployment has matching provider credentials configured.
+The standard static scan works without an AI provider. Optional AI review supports OpenAI, Anthropic, OpenCode Go, OpenCode Zen, OpenRouter, Gemini, and a locally running OpenCode server when configured.
 
 ## Automatic GitHub owner notifications
 
@@ -60,6 +60,8 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). For optional AI review, copy `.env.example` to `.env.local` and add a supported provider key.
+
+To use your local OpenCode installation, run `opencode serve --port 4096`, then set `OPENCODE_LOCAL_URL=http://127.0.0.1:4096` in `.env.local`. If you protect that server with `OPENCODE_SERVER_PASSWORD`, set the matching local username and password variables too.
 
 ## CLI (source only)
 
