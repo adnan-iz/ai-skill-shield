@@ -12,6 +12,7 @@ node_modules/
 
 # testing
 /coverage
+/.worktrees/
 
 # next.js
 /.next/
