@@ -101,15 +101,21 @@ Represents one reassessment triggered by one comment.
 - `target` text
 - `commit_sha` text
 - `status` enum: `queued`, `processing`, `awaiting_approval`, `completed`, `failed`
+- `stage` enum: `queued`, `collecting_evidence`, `adjudicating`, `publishing`, `done`
+- `run_at` bigint
+- `attempts` integer
+- `last_error` text nullable
 - `original_score` integer
 - `original_risk_level` text
 - `proposed_risk_level` text nullable
 - `effective_risk_level` text nullable
 - `verified_rescan_id` text nullable
+- `reply_comment_id` bigint nullable
 - `provider` and `model` text nullable
 - `prompt_version` text
 - `summary` text nullable
-- `created_at`, `completed_at` bigint timestamps
+- `stage_data` JSON text nullable, containing only validated resumable output for the current stage
+- `created_at`, `started_at`, `completed_at` bigint timestamps
 
 ### `finding_reviews`
 
