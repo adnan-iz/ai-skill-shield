@@ -2,16 +2,17 @@
 
 ## Summary
 
-AI Skill Shield will accept evidence submitted as comments on the GitHub issues it creates for repository scans. A queued review will compare each concrete claim with the original scan result and the exact scanned commit, produce structured finding decisions, calculate a proposed score through the existing deterministic scoring path, and post an auditable reply.
+AI Skill Shield will accept evidence submitted as comments on the GitHub issues it creates for repository scans. A queued review will compare each concrete claim with the original scan result and the exact scanned commit, produce structured finding decisions, derive corrected risk and report state, and post an auditable reply.
 
-The first release is deliberately conservative: no review changes a public finding or score automatically. A human reviewer must approve proposed changes. The original scan remains immutable, and approved revisions form a separate history used to derive the effective report.
+The first release is deliberately conservative: no review changes a public finding automatically. A human reviewer must approve proposed changes. The original scan remains immutable, and approved decisions form a separate history used to derive the effective findings, counts, risk, and installation verdict. The numerical validation score changes only through a normal validator rescan, never through an appeal adjustment formula.
 
 ## Goals
 
 - Let repository maintainers challenge false positives with evidence where the scan report already appears.
 - Verify claims independently instead of trusting the commenter or asking an AI model to choose a score.
 - Preserve the original scan, the exact evidence reviewed, and every decision.
-- Produce a deterministic proposed score from structured finding decisions.
+- Produce deterministic effective findings, counts, risk, and installation verdict from approved decisions.
+- Preserve a single numerical scoring model by changing the score only through a normal exact-commit rescan after scanner-rule correction.
 - Reply on the originating GitHub issue with a concise, evidence-linked result.
 - Provide a safe path to limited automatic suppression in a later release after accuracy is measured.
 
@@ -21,7 +22,7 @@ The first release is deliberately conservative: no review changes a public findi
 - Executing repository code or instructions while reviewing a claim.
 - Following arbitrary external links included in comments.
 - Reviewing general complaints that cannot be associated with specific findings.
-- Automatically changing public scores in the first release.
+- Creating a second numerical score-adjustment formula for appeals.
 - Combining newer repository content with the historical decision for an older scan.
 
 ## Product policy
@@ -65,7 +66,7 @@ The feature is divided into five boundaries:
 1. **GitHub ingress** validates and normalizes `issue_comment` webhooks.
 2. **Review queue** persists work and handles retries outside the webhook request.
 3. **Evidence review** maps claims to findings, loads the exact commit, and makes structured decisions.
-4. **Revision policy** validates decisions and calculates a proposed effective result through application code.
+4. **Revision policy** validates decisions and calculates effective findings, counts, risk, and installation verdict through application code.
 5. **Publication** exposes review status in the report and posts a GitHub reply.
 
 The existing `/api/webhooks` route manages outbound customer webhooks and will not be overloaded. GitHub App events receive a dedicated route at `/api/github/webhooks`.
@@ -101,8 +102,10 @@ Represents one reassessment triggered by one comment.
 - `commit_sha` text
 - `status` enum: `queued`, `processing`, `awaiting_approval`, `completed`, `failed`
 - `original_score` integer
-- `proposed_score` integer nullable
-- `effective_score` integer nullable
+- `original_risk_level` text
+- `proposed_risk_level` text nullable
+- `effective_risk_level` text nullable
+- `verified_rescan_id` text nullable
 - `provider` and `model` text nullable
 - `prompt_version` text
 - `summary` text nullable
@@ -122,21 +125,22 @@ Stores one structured decision per challenged finding.
 - `claim` text
 - `explanation` text
 - `evidence` JSON text containing bounded excerpts and source locations
-- `score_impact` integer nullable
 - `requires_approval` boolean
 - `approval_status` enum: `not_required`, `pending`, `approved`, `rejected`
 - `reviewed_by` text nullable
 - `reviewed_at` bigint nullable
 
-### `score_revisions`
+### `review_applications`
 
-Provides immutable history for approved changes.
+Provides immutable history for approved effective-report changes.
 
 - `id` text primary key
 - `scan_id` text
 - `review_id` text unique
-- `previous_score` integer
-- `revised_score` integer
+- `effective_finding_keys` JSON text
+- `suppressed_finding_keys` JSON text
+- `effective_risk_level` text
+- `effective_summary` JSON text
 - `applied_by` text
 - `reason` text
 - `created_at` bigint timestamp
@@ -173,7 +177,7 @@ Stages are resumable:
 - GitHub reply failure does not repeat analysis; it retries publication only.
 - Permanent failures retain a safe error summary without exposing tokens, raw provider responses, or secrets.
 
-An audit event is recorded at receipt, eligibility decision, processing start, decision creation, approval, revision application, reply success, and permanent failure.
+An audit event is recorded at receipt, eligibility decision, processing start, decision creation, approval, review application, verified rescan linkage, reply success, and permanent failure.
 
 ## Evidence collection
 
@@ -206,9 +210,9 @@ The response must be strict JSON containing:
 - Short explanation
 - Evidence references drawn only from supplied locations
 
-Application code validates all enums, severity transitions, confidence bounds, and evidence references. Invalid output fails the job; free-form fallback parsing is not accepted for score-affecting review.
+Application code validates all enums, severity transitions, confidence bounds, and evidence references. Invalid output fails the job; free-form fallback parsing is not accepted for report-affecting review.
 
-## Rescoring and effective reports
+## Effective reports and verified rescoring
 
 The AI never supplies a score. Application code creates an effective finding set by applying approved decisions to the original scan:
 
@@ -216,7 +220,9 @@ The AI never supplies a score. Application code creates an effective finding set
 - Approved severity changes replace only the severity used by the applicable deterministic calculation.
 - All other decisions leave the finding unchanged.
 
-The proposed score is calculated with the same validator and repository aggregation rules used for a normal scan. The implementation must not introduce an independent score formula in the review subsystem.
+Application code deterministically rebuilds the finding summary, highest risk level, and installation verdict from that effective finding set. The original axis scores and overall validation score remain unchanged because they cannot be reconstructed accurately from findings alone.
+
+When an appeal exposes a scanner-rule defect, maintainers correct the rule and run the normal validators against the exact original commit. If the rescan uses the same source SHA and the corrected scanner version, it may be linked as `verified_rescan_id`; only that normal validation result can supply a revised numerical score. The review subsystem must not introduce an independent score formula or restore arbitrary points.
 
 Because the product currently separates weighted validation score, risk level, repository audit risk, approval status, and installation verdict, reassessment must recompute each affected derived value rather than treating a single number as the whole result. The report will label these values as reviewed derivatives of the immutable original scan.
 
@@ -227,10 +233,10 @@ The first release exposes a protected internal approval action, building on the 
 - A reviewer sees the original finding, claim, exact-commit evidence, AI decision, confidence, and proposed effect.
 - The reviewer approves or rejects decisions individually.
 - Application code recalculates the complete proposal after every decision.
-- Applying the review writes one immutable `score_revisions` record and marks the review completed.
+- Applying the review writes one immutable `review_applications` record and marks the review completed.
 - Repeated application is idempotent.
 
-An approval cannot change the decision to an arbitrary score. Reviewers approve finding-level changes; the system derives all displayed results.
+An approval cannot change the numerical score. Reviewers approve finding-level changes; the system derives effective counts, risk, and installation verdict. A linked normal rescan is required for a numerical score change.
 
 ## GitHub reply
 
@@ -238,7 +244,8 @@ The reply is posted with the repository installation token and includes:
 
 - Exact reviewed commit
 - Counts by decision
-- Original and proposed score when a proposal exists
+- Original score, with an explicit note that an appeal does not adjust it
+- Original and proposed risk level when a proposal exists
 - One concise explanation and source location per challenged finding
 - Current state: no change, awaiting human review, approved, or rejected
 - Link to the detailed review page
@@ -252,7 +259,8 @@ The first reply is posted after analysis. When a pending proposal is approved or
 
 Public repository and validation reports show:
 
-- Original scan score and effective reviewed score, when different
+- Original scan score and a linked verified-rescan score, when one exists
+- Original and effective reviewed risk, when different
 - Review status
 - Exact commit used
 - Number of challenged, confirmed, suppressed, changed, and unresolved findings
@@ -260,7 +268,7 @@ Public repository and validation reports show:
 - Whether each change was AI-proposed and human-approved
 - Link to the originating GitHub comment
 
-The original report remains accessible. Badges use the effective approved result and never use an unapproved proposal.
+The original report remains accessible. Badges use approved effective risk and install state, while their numerical score remains the original score until a verified normal rescan is linked. They never use an unapproved proposal.
 
 ## Security and abuse controls
 
@@ -283,7 +291,7 @@ The original report remains accessible. Badges use the effective approved result
 - Text files only, with bounded evidence windows.
 - Comments must identify a finding through a file path, line, quoted title, or unambiguous finding description.
 - New comments received during an active review are queued separately and run after it finishes.
-- No automatic public-score changes.
+- No appeal-derived numerical score changes.
 
 ## Testing strategy
 
@@ -295,7 +303,7 @@ The original report remains accessible. Badges use the effective approved result
 - Claim-to-finding validation.
 - Strict AI response parsing and rejection of invented evidence.
 - Decision policy and approval state transitions.
-- Effective finding construction and deterministic rescoring.
+- Effective finding construction and deterministic risk, summary, and install-verdict projection.
 - GitHub reply formatting, escaping, and hidden markers.
 
 ### Integration tests
@@ -303,7 +311,8 @@ The original report remains accessible. Badges use the effective approved result
 - Webhook receipt through queued review creation.
 - Exact-SHA evidence retrieval with mocked GitHub responses.
 - Retry behavior for GitHub, database, and model failures.
-- Approval through score revision and report projection.
+- Approval through review application and report projection.
+- Exact-commit normal rescan linkage as the only source of a revised numerical score.
 - Reply creation followed by approval-state edit.
 
 ### Regression fixture
@@ -321,7 +330,7 @@ Issue `pekral/ai-olympus#89` will be represented by a local fixture containing t
 
 ## Delivery sequence
 
-1. Add schema and migrations for events, reviews, decisions, revisions, and queue state.
+1. Add schema and migrations for events, reviews, decisions, applications, and queue state.
 2. Add GitHub ingress authentication, normalization, eligibility, and idempotent queueing.
 3. Add exact-commit evidence retrieval and stable finding identity.
 4. Add strict claim extraction and finding adjudication.
@@ -335,9 +344,8 @@ Issue `pekral/ai-olympus#89` will be represented by a local fixture containing t
 - An eligible comment on a tracked scan issue creates exactly one review job.
 - Every decision cites evidence from the exact scanned commit.
 - No model output can directly choose or mutate a score.
-- No public score changes without a recorded first-release human approval.
+- No appeal path directly changes a numerical validation score.
 - The original scan and all revision history remain available.
-- The GitHub reply and public report agree on review state and effective score.
+- The GitHub reply and public report agree on review state, effective findings, risk, installation verdict, and numerical-score provenance.
 - Duplicate webhooks, retries, and bot comments do not create duplicate reviews or replies.
 - The issue #89 regression fixture yields reviewable false-positive proposals for documentation-only dangerous-pattern examples.
-
