@@ -58,7 +58,7 @@
 - Create `app/api/scan-reviews/[id]/route.ts`: public-safe review read model.
 - Create `app/api/scan-reviews/[id]/decisions/route.ts`: token-protected approval/rejection endpoint.
 - Create `components/report/review-status.tsx`: effective-state summary and evidence history.
-- Modify `lib/trust-server.ts`: return public result plus applied review projection.
+- Modify `lib/trust-server.ts`: preserve `getPublicTrustResult()` and add a combined public result plus applied review projection.
 - Modify `app/trust/github/[owner]/[repo]/[[...path]]/page.tsx`: render effective risk and review history.
 - Modify `.env.example`: document webhook, review-provider, admin, and cron configuration.
 
@@ -563,7 +563,7 @@ git commit -m "feat: process and publish scan appeal reviews"
 - Modify: `tests/report/route.test.ts`
 
 **Interfaces:**
-- Produces: `getPublicReviewReadModel(scanId)` and `<ReviewStatus review={...} />`.
+- Produces: `getPublicReviewReadModel(scanId)`, `getPublicTrustReadModel(owner, repo, path)`, and `<ReviewStatus review={...} />`.
 - Consumes: `getAppliedProjection()`, `projectEffectiveResult()`, original validation result, and optional same-SHA verified rescan.
 
 - [ ] **Step 1: Write report read-model and rendering tests**
@@ -593,7 +593,7 @@ export interface PublicTrustReadModel {
 }
 ```
 
-Keep public-repository checks in `getPublicTrustResult()`. Load only completed applications for effective projection; expose awaiting-approval status without applying it.
+Preserve the existing `getPublicTrustResult()` signature for badge, metadata, and other callers. Add `getPublicTrustReadModel()` for the report page, reuse the same public-repository checks, load only completed applications for effective projection, and expose awaiting-approval status without applying it.
 
 - [ ] **Step 4: Render the review status without obscuring provenance**
 
