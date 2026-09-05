@@ -36,6 +36,10 @@ test.skipIf(!testDatabaseUrl)('ensureDatabase bootstraps all required PostgreSQL
       'rate_limits',
       'validation_results',
       'webhooks',
+      'github_comment_events',
+      'scan_reviews',
+      'finding_reviews',
+      'review_applications',
     ])
   )
   await client.end()

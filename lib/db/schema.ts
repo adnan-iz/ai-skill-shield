@@ -1,4 +1,4 @@
-import { bigint, boolean, integer, pgTable, text } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const validationResults = pgTable('validation_results', {
   id: text('id').primaryKey(),
@@ -65,3 +65,90 @@ export const githubNotificationJobs = pgTable('github_notification_jobs', {
   startedAt: bigint('started_at', { mode: 'number' }),
   completedAt: bigint('completed_at', { mode: 'number' }),
 })
+
+export const githubCommentEvents = pgTable('github_comment_events', {
+  deliveryId: text('delivery_id').primaryKey(),
+  eventAction: text('event_action').notNull(),
+  owner: text('owner').notNull(),
+  repo: text('repo').notNull(),
+  issueNumber: integer('issue_number').notNull(),
+  commentId: bigint('comment_id', { mode: 'number' }).notNull(),
+  commenterLogin: text('commenter_login').notNull(),
+  authorAssociation: text('author_association').notNull(),
+  commentBody: text('comment_body').notNull(),
+  status: text('status', { enum: ['ignored', 'queued', 'processing', 'completed', 'failed'] }).notNull(),
+  ignoreReason: text('ignore_reason'),
+  lastError: text('last_error'),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  startedAt: bigint('started_at', { mode: 'number' }),
+  completedAt: bigint('completed_at', { mode: 'number' }),
+}, (table) => [
+  uniqueIndex('github_comment_identity_idx').on(table.owner, table.repo, table.issueNumber, table.commentId),
+])
+
+export const scanReviews = pgTable('scan_reviews', {
+  id: text('id').primaryKey(),
+  deliveryId: text('delivery_id').notNull(),
+  scanId: text('scan_id').notNull(),
+  target: text('target').notNull(),
+  commitSha: text('commit_sha').notNull(),
+  status: text('status', { enum: ['queued', 'processing', 'awaiting_approval', 'completed', 'failed'] }).notNull().default('queued'),
+  stage: text('stage', { enum: ['queued', 'collecting_evidence', 'adjudicating', 'publishing', 'done'] }).notNull().default('queued'),
+  runAt: bigint('run_at', { mode: 'number' }).notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  originalScore: integer('original_score').notNull(),
+  originalRiskLevel: text('original_risk_level').notNull(),
+  proposedRiskLevel: text('proposed_risk_level'),
+  effectiveRiskLevel: text('effective_risk_level'),
+  verifiedRescanId: text('verified_rescan_id'),
+  replyCommentId: bigint('reply_comment_id', { mode: 'number' }),
+  provider: text('provider'),
+  model: text('model'),
+  promptVersion: text('prompt_version').notNull().default(''),
+  summary: text('summary'),
+  /** Validated resumable stage output only; never credentials or raw provider/repository content. */
+  stageData: text('stage_data'),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  startedAt: bigint('started_at', { mode: 'number' }),
+  completedAt: bigint('completed_at', { mode: 'number' }),
+}, (table) => [
+  uniqueIndex('scan_reviews_delivery_id_idx').on(table.deliveryId),
+  index('scan_reviews_due_idx').on(table.status, table.runAt),
+])
+
+export const findingReviews = pgTable('finding_reviews', {
+  id: text('id').primaryKey(),
+  reviewId: text('review_id').notNull(),
+  findingKey: text('finding_key').notNull(),
+  decision: text('decision', { enum: ['confirmed', 'false_positive', 'severity_reduced', 'severity_increased', 'fixed_after_scan', 'insufficient_evidence', 'not_related'] }).notNull(),
+  originalSeverity: text('original_severity').notNull(),
+  proposedSeverity: text('proposed_severity'),
+  confidence: integer('confidence').notNull(),
+  claim: text('claim').notNull(),
+  explanation: text('explanation').notNull(),
+  evidence: text('evidence').notNull(),
+  requiresApproval: boolean('requires_approval').notNull(),
+  approvalStatus: text('approval_status', { enum: ['not_required', 'pending', 'approved', 'rejected'] }).notNull(),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: bigint('reviewed_at', { mode: 'number' }),
+}, (table) => [
+  uniqueIndex('finding_reviews_review_finding_idx').on(table.reviewId, table.findingKey),
+  index('finding_reviews_review_id_idx').on(table.reviewId),
+])
+
+export const reviewApplications = pgTable('review_applications', {
+  id: text('id').primaryKey(),
+  scanId: text('scan_id').notNull(),
+  reviewId: text('review_id').notNull(),
+  effectiveFindingKeys: text('effective_finding_keys').notNull(),
+  suppressedFindingKeys: text('suppressed_finding_keys').notNull(),
+  effectiveRiskLevel: text('effective_risk_level').notNull(),
+  effectiveSummary: text('effective_summary').notNull(),
+  appliedBy: text('applied_by').notNull(),
+  reason: text('reason').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+}, (table) => [
+  uniqueIndex('review_applications_review_id_idx').on(table.reviewId),
+  index('review_applications_scan_id_idx').on(table.scanId),
+])
