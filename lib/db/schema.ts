@@ -1,4 +1,5 @@
 import { bigint, boolean, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 export const validationResults = pgTable('validation_results', {
   id: text('id').primaryKey(),
@@ -90,6 +91,10 @@ export const scanReviews = pgTable('scan_reviews', {
   id: text('id').primaryKey(),
   deliveryId: text('delivery_id').notNull(),
   scanId: text('scan_id').notNull(),
+  owner: text('owner').notNull(),
+  repo: text('repo').notNull(),
+  path: text('path').notNull(),
+  issueNumber: integer('issue_number').notNull(),
   target: text('target').notNull(),
   commitSha: text('commit_sha').notNull(),
   status: text('status', { enum: ['queued', 'processing', 'awaiting_approval', 'completed', 'failed'] }).notNull().default('queued'),
@@ -99,6 +104,7 @@ export const scanReviews = pgTable('scan_reviews', {
   lastError: text('last_error'),
   originalScore: integer('original_score').notNull(),
   originalRiskLevel: text('original_risk_level').notNull(),
+  originalSummary: text('original_summary').notNull(),
   proposedRiskLevel: text('proposed_risk_level'),
   effectiveRiskLevel: text('effective_risk_level'),
   verifiedRescanId: text('verified_rescan_id'),
@@ -114,6 +120,8 @@ export const scanReviews = pgTable('scan_reviews', {
   completedAt: bigint('completed_at', { mode: 'number' }),
 }, (table) => [
   uniqueIndex('scan_reviews_delivery_id_idx').on(table.deliveryId),
+  uniqueIndex('scan_reviews_active_issue_idx').on(table.owner, table.repo, table.issueNumber)
+    .where(sql`${table.status} IN ('queued', 'processing', 'awaiting_approval')`),
   index('scan_reviews_due_idx').on(table.status, table.runAt),
 ])
 

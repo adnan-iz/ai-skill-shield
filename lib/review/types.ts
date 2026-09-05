@@ -35,10 +35,15 @@ export interface CommentEventInput {
 export interface NewScanReview {
   deliveryId: string
   scanId: string
+  owner: string
+  repo: string
+  path: string
+  issueNumber: number
   target: string
   commitSha: string
   originalScore: number
   originalRiskLevel: ValidationResult['riskLevel']
+  originalSummary: ValidationSummary
   runAt?: number
   promptVersion?: string
 }
@@ -69,14 +74,11 @@ export interface FindingReviewInput {
 
 export interface ApplyReviewInput {
   reviewId: string
-  effectiveFindingKeys: string[]
-  suppressedFindingKeys: string[]
-  effectiveRiskLevel: ValidationResult['riskLevel']
-  effectiveSummary: ValidationSummary
   appliedBy: string
   reason: string
-  verifiedRescanId?: string
 }
+
+export type RescanLinkResult = { linked: true } | { linked: false, reason: 'review_not_found' | 'rescan_not_found' | 'source_mismatch' | 'rescan_already_linked' }
 
 export interface ReviewProjection {
   reviewId: string

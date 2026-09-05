@@ -8,6 +8,13 @@
       "when": 1779700196888,
       "tag": "0000_mushy_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788588800000,
+      "tag": "0001_scan_appeal_reviews",
+      "breakpoints": true
     }
   ]
 }

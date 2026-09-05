@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS scan_reviews (
   id TEXT PRIMARY KEY NOT NULL,
   delivery_id TEXT NOT NULL UNIQUE,
   scan_id TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  path TEXT NOT NULL,
+  issue_number INTEGER NOT NULL,
   target TEXT NOT NULL,
   commit_sha TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'queued',
@@ -32,6 +36,7 @@ CREATE TABLE IF NOT EXISTS scan_reviews (
   last_error TEXT,
   original_score INTEGER NOT NULL,
   original_risk_level TEXT NOT NULL,
+  original_summary TEXT NOT NULL,
   proposed_risk_level TEXT,
   effective_risk_level TEXT,
   verified_rescan_id TEXT,
@@ -48,6 +53,10 @@ CREATE TABLE IF NOT EXISTS scan_reviews (
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS scan_reviews_due_idx
 ON scan_reviews (status, run_at);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS scan_reviews_active_issue_idx
+ON scan_reviews (owner, repo, issue_number)
+WHERE status IN ('queued', 'processing', 'awaiting_approval');
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS finding_reviews (
   id TEXT PRIMARY KEY NOT NULL,
