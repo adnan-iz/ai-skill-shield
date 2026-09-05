@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, expect, test, vi } from 'vitest'
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
@@ -11,6 +12,17 @@ test('requires a PostgreSQL database URL', async () => {
   const { databaseConfig } = await import('@/lib/db')
 
   expect(() => databaseConfig()).toThrow('DATABASE_URL must be a PostgreSQL connection URL')
+})
+
+test('upgrades scan review identity columns before creating the active-issue index', () => {
+  const bootstrap = readFileSync('lib/db/index.ts', 'utf8')
+  const index = bootstrap.indexOf('CREATE UNIQUE INDEX IF NOT EXISTS scan_reviews_active_issue_idx')
+
+  expect(index).toBeGreaterThan(-1)
+  for (const column of ['owner', 'repo', 'path', 'issue_number', 'original_summary']) {
+    expect(bootstrap.indexOf(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS ${column}`)).toBeGreaterThan(-1)
+    expect(bootstrap.indexOf(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS ${column}`)).toBeLessThan(index)
+  }
 })
 
 test.skipIf(!testDatabaseUrl)('ensureDatabase bootstraps all required PostgreSQL tables', async () => {

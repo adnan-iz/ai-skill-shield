@@ -167,6 +167,35 @@ export async function ensureDatabase(): Promise<void> {
         CREATE INDEX IF NOT EXISTS scan_reviews_due_idx
         ON scan_reviews (status, run_at)
       `)
+      await client.query(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS owner TEXT`)
+      await client.query(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS repo TEXT`)
+      await client.query(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS path TEXT`)
+      await client.query(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS issue_number INTEGER`)
+      await client.query(`ALTER TABLE scan_reviews ADD COLUMN IF NOT EXISTS original_summary TEXT`)
+      await client.query(`
+        UPDATE scan_reviews
+        SET owner = COALESCE(owner, 'legacy'),
+            repo = COALESCE(repo, 'legacy'),
+            path = COALESCE(path, target, ''),
+            original_summary = COALESCE(original_summary, '{"totalChecks":0,"passed":0,"warnings":0,"failed":0,"criticalCount":0,"highCount":0,"mediumCount":0,"lowCount":0,"infoCount":0}')
+        WHERE owner IS NULL OR repo IS NULL OR path IS NULL OR original_summary IS NULL
+      `)
+      await client.query(`
+        WITH missing_issue_numbers AS (
+          SELECT id, -ROW_NUMBER() OVER (ORDER BY id)::INTEGER AS issue_number
+          FROM scan_reviews
+          WHERE issue_number IS NULL
+        )
+        UPDATE scan_reviews review
+        SET issue_number = missing.issue_number
+        FROM missing_issue_numbers missing
+        WHERE review.id = missing.id
+      `)
+      await client.query(`ALTER TABLE scan_reviews ALTER COLUMN owner SET NOT NULL`)
+      await client.query(`ALTER TABLE scan_reviews ALTER COLUMN repo SET NOT NULL`)
+      await client.query(`ALTER TABLE scan_reviews ALTER COLUMN path SET NOT NULL`)
+      await client.query(`ALTER TABLE scan_reviews ALTER COLUMN issue_number SET NOT NULL`)
+      await client.query(`ALTER TABLE scan_reviews ALTER COLUMN original_summary SET NOT NULL`)
       await client.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS scan_reviews_active_issue_idx
         ON scan_reviews (owner, repo, issue_number)

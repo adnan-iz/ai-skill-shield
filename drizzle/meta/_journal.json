@@ -15,6 +15,13 @@
       "when": 1788588800000,
       "tag": "0001_scan_appeal_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788675200000,
+      "tag": "0002_scan_review_issue_identity",
+      "breakpoints": true
     }
   ]
 }

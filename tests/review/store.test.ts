@@ -14,9 +14,10 @@ test('loads the review store without requiring database configuration', async ()
   await expect(import('@/lib/review/store')).resolves.toBeDefined()
 })
 
-test('registers the scan appeal migration in the Drizzle journal', () => {
+test('registers scan appeal migrations in the Drizzle journal', () => {
   const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8')) as { entries: Array<{ tag: string }> }
   expect(journal.entries.map((entry) => entry.tag)).toContain('0001_scan_appeal_reviews')
+  expect(journal.entries.map((entry) => entry.tag)).toContain('0002_scan_review_issue_identity')
 })
 
 function reviewInput(overrides: Partial<{

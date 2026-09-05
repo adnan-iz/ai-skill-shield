@@ -54,10 +54,6 @@ CREATE TABLE IF NOT EXISTS scan_reviews (
 CREATE INDEX IF NOT EXISTS scan_reviews_due_idx
 ON scan_reviews (status, run_at);
 --> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS scan_reviews_active_issue_idx
-ON scan_reviews (owner, repo, issue_number)
-WHERE status IN ('queued', 'processing', 'awaiting_approval');
---> statement-breakpoint
 CREATE TABLE IF NOT EXISTS finding_reviews (
   id TEXT PRIMARY KEY NOT NULL,
   review_id TEXT NOT NULL,
