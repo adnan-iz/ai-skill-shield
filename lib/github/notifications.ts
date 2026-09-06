@@ -1,29 +1,19 @@
-import { createSign } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { ensureDatabase, getDatabase } from '@/lib/db'
 import { githubScanNotifications } from '@/lib/db/schema'
+import { createGitHubAppJwt, getInstallationToken, githubHeaders, githubPublicUrl, hasGitHubAppCredentials } from '@/lib/github/app-client'
 import { githubBadgePath, githubTrustPath, trustTargetForResult } from '@/lib/trust'
 import type { Finding, ValidationResult } from '@/lib/validator/types'
 
-const GITHUB_API = 'https://api.github.com'
-const USER_AGENT = 'ai-skill-shield-github-app'
 const ISSUE_TITLE_PREFIX = 'AI Skill Shield scan report'
+
+export { createGitHubAppJwt } from '@/lib/github/app-client'
 
 export type NotificationOutcome = 'disabled' | 'ineligible' | 'already-notified' | 'not-installed' | 'notified'
 
 export interface NotificationOptions {
   /** A deliberate user action may notify a public repository through the bot account. */
   allowBotFallback?: boolean
-}
-
-interface GitHubAppConfig {
-  appId: string
-  privateKey: string
-  publicUrl: string
-}
-
-interface Installation {
-  id: number
 }
 
 interface Issue {
@@ -38,65 +28,8 @@ const severityOrder: Record<Finding['severity'], number> = {
   info: 4,
 }
 
-function base64Url(value: string | Buffer): string {
-  return Buffer.from(value).toString('base64url')
-}
-
-function appConfig(): GitHubAppConfig | null {
-  const appId = process.env.GITHUB_APP_ID?.trim()
-  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, '\n').trim()
-  const publicUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (!appId || !privateKey || !publicUrl) return null
-  return { appId, privateKey, publicUrl: publicUrl.replace(/\/$/, '') }
-}
-
-function notificationPublicUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://ai-skill-shield.suppeng.com').replace(/\/$/, '')
-}
-
 function botToken(): string | null {
   return process.env.GITHUB_BOT_TOKEN?.trim() || null
-}
-
-export function createGitHubAppJwt(appId: string, privateKey: string, now = Math.floor(Date.now() / 1000)): string {
-  const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const payload = base64Url(JSON.stringify({ iat: now - 60, exp: now + 9 * 60, iss: appId }))
-  const signer = createSign('RSA-SHA256')
-  signer.update(`${header}.${payload}`)
-  signer.end()
-  return `${header}.${payload}.${signer.sign(privateKey).toString('base64url')}`
-}
-
-function headers(token: string): HeadersInit {
-  return {
-    Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${token}`,
-    'User-Agent': USER_AGENT,
-    'X-GitHub-Api-Version': '2022-11-28',
-  }
-}
-
-async function githubFetch(path: string, token: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${GITHUB_API}${path}`, {
-    ...init,
-    headers: { ...headers(token), ...init.headers },
-    signal: AbortSignal.timeout(10_000),
-  })
-}
-
-async function installationToken(owner: string, repo: string, config: GitHubAppConfig): Promise<string | null> {
-  const appJwt = createGitHubAppJwt(config.appId, config.privateKey)
-  const installationResponse = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/installation`, appJwt)
-  if (installationResponse.status === 404) return null
-  if (!installationResponse.ok) throw new Error(`GitHub installation lookup failed (${installationResponse.status})`)
-  const installation = await installationResponse.json() as Installation
-  if (!Number.isInteger(installation.id)) throw new Error('GitHub installation lookup returned no installation id')
-
-  const tokenResponse = await githubFetch(`/app/installations/${installation.id}/access_tokens`, appJwt, { method: 'POST' })
-  if (!tokenResponse.ok) throw new Error(`GitHub installation token request failed (${tokenResponse.status})`)
-  const token = await tokenResponse.json() as { token?: unknown }
-  if (typeof token.token !== 'string' || !token.token) throw new Error('GitHub installation token response was invalid')
-  return token.token
 }
 
 export function githubNotificationBody(result: ValidationResult, publicUrl: string): string | null {
@@ -195,10 +128,10 @@ export async function notifyGitHubRepositoryOwner(
   result: ValidationResult,
   options: NotificationOptions = {}
 ): Promise<NotificationOutcome> {
-  const config = appConfig()
+  const appConfigured = hasGitHubAppCredentials()
   const target = notificationTarget(result)
   const source = result.source
-  const body = githubNotificationBody(result, notificationPublicUrl())
+  const body = githubNotificationBody(result, githubPublicUrl())
   if (!target || !source?.owner || !source.repo || !source.sha || !body) return 'ineligible'
 
   await ensureDatabase()
@@ -208,9 +141,9 @@ export async function notifyGitHubRepositoryOwner(
   if (current[0]?.lastSha === source.sha) return 'already-notified'
 
   let installationTokenValue: string | null = null
-  if (config) {
+  if (appConfigured) {
     try {
-      installationTokenValue = await installationToken(source.owner, source.repo, config)
+      installationTokenValue = await getInstallationToken(source.owner, source.repo)
     } catch (error) {
       if (!options.allowBotFallback) throw error
       console.warn(JSON.stringify({
@@ -223,15 +156,17 @@ export async function notifyGitHubRepositoryOwner(
     }
   }
   const token = installationTokenValue || (options.allowBotFallback ? botToken() : null)
-  if (!token) return config ? 'not-installed' : 'disabled'
+  if (!token) return appConfigured ? 'not-installed' : 'disabled'
 
   const existing = current[0]
   const issueResponse = existing
-    ? await githubFetch(`/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/issues/${existing.issueNumber}`, token, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `${ISSUE_TITLE_PREFIX}: ${result.skillName}`, body }),
+    ? await fetch(`https://api.github.com/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/issues/${existing.issueNumber}`, {
+        method: 'PATCH', body: JSON.stringify({ title: `${ISSUE_TITLE_PREFIX}: ${result.skillName}`, body }),
+        headers: { ...githubHeaders(token), 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10_000),
       })
-    : await githubFetch(`/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/issues`, token, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `${ISSUE_TITLE_PREFIX}: ${result.skillName}`, body }),
+    : await fetch(`https://api.github.com/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/issues`, {
+        method: 'POST', body: JSON.stringify({ title: `${ISSUE_TITLE_PREFIX}: ${result.skillName}`, body }),
+        headers: { ...githubHeaders(token), 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10_000),
       })
   if (!issueResponse.ok) throw new Error(`GitHub issue ${existing ? 'update' : 'creation'} failed (${issueResponse.status})`)
   const issue = await issueResponse.json() as Issue
