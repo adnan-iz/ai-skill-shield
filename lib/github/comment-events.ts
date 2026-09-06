@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { ensureDatabase, getDatabase } from '@/lib/db'
-import { createScanReview, recordCommentEvent } from '@/lib/review/store'
+import { recordCommentEvent, recordCommentEventAndCreateScanReview } from '@/lib/review/store'
 import { getResult } from '@/lib/store'
 import { normalizeGitHubSkillPath } from '@/lib/trust'
 import type { CommentEventInput } from '@/lib/review/types'
@@ -21,11 +21,15 @@ const issueCommentEventSchema = z.object({
   comment: z.object({
     id: z.number().int().safe().positive(),
     body: z.string(),
-    author_association: z.string().trim().min(1).max(32),
+    author_association: z.string().min(1).max(32),
     user: z.object({
       login: loginSchema,
       type: z.string().trim().min(1).max(32).optional(),
     }),
+  }),
+  sender: z.object({
+    login: loginSchema,
+    type: z.string().trim().min(1).max(32).optional(),
   }),
 })
 
@@ -37,6 +41,8 @@ export interface IssueCommentEvent {
   commentId: number
   commenterLogin: string
   commenterType?: string
+  senderLogin: string
+  senderType?: string
   authorAssociation: string
   commentBody: string
 }
@@ -84,6 +90,8 @@ export function parseIssueCommentEvent(raw: string): IssueCommentEvent | null {
     commentId: parsed.data.comment.id,
     commenterLogin: parsed.data.comment.user.login,
     commenterType: parsed.data.comment.user.type,
+    senderLogin: parsed.data.sender.login,
+    senderType: parsed.data.sender.type,
     authorAssociation: parsed.data.comment.author_association,
     commentBody: parsed.data.comment.body,
   }
@@ -115,12 +123,7 @@ export async function acceptIssueComment(event: IssueCommentEvent, deliveryId: s
 
   const scan = await getResult(notification.last_scan_id)
   if (!isTrackedScan(scan, notification)) return recordIgnored(event, deliveryId, 'scan_unavailable')
-  if (await hasActiveReview(notification)) return recordIgnored(event, deliveryId, 'active_review')
-
-  const recorded = await recordCommentEvent(commentEventInput(event, deliveryId, 'queued'))
-  if (!recorded.inserted) return { status: 'duplicate' }
-
-  await createScanReview({
+  const result = await recordCommentEventAndCreateScanReview(commentEventInput(event, deliveryId, 'queued'), {
     deliveryId,
     scanId: scan.id,
     owner: notification.owner,
@@ -133,7 +136,7 @@ export async function acceptIssueComment(event: IssueCommentEvent, deliveryId: s
     originalRiskLevel: scan.riskLevel,
     originalSummary: scan.summary,
   })
-  return { status: 'queued' }
+  return result.status === 'queued' ? { status: 'queued' } : result
 }
 
 async function trackedNotification(event: IssueCommentEvent): Promise<NotificationRow | null> {
@@ -149,24 +152,12 @@ async function trackedNotification(event: IssueCommentEvent): Promise<Notificati
   return result.rows[0] ?? null
 }
 
-/** This is an admission check only; createScanReview remains the race-safe constraint. */
-async function hasActiveReview(notification: NotificationRow): Promise<boolean> {
-  const { client } = getDatabase()
-  const result = await client.query(
-    `SELECT 1
-     FROM scan_reviews
-     WHERE owner = $1 AND repo = $2 AND issue_number = $3
-       AND status IN ('queued', 'processing', 'awaiting_approval')
-     LIMIT 1`,
-    [notification.owner, notification.repo, notification.issue_number]
-  )
-  return result.rows.length > 0
-}
-
 function isBotOrSelfComment(event: IssueCommentEvent): boolean {
-  if (event.commenterType?.toLowerCase() === 'bot') return true
-  const botLogin = process.env.GITHUB_BOT_LOGIN?.trim()
-  return Boolean(botLogin && event.commenterLogin.toLowerCase() === botLogin.toLowerCase())
+  if (event.commenterType?.toLowerCase() === 'bot' || event.senderType?.toLowerCase() === 'bot') return true
+  return [event.commenterLogin, event.senderLogin].some((login) => {
+    const normalized = login.toLowerCase()
+    return normalized === 'ai-skill-shield' || normalized.endsWith('[bot]')
+  })
 }
 
 function isTrackedScan(scan: ValidationResult | undefined, notification: NotificationRow): scan is ValidationResult {

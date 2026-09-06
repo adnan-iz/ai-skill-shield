@@ -48,6 +48,11 @@ export interface NewScanReview {
   promptVersion?: string
 }
 
+export type CommentReviewQueueResult =
+  | { status: 'queued'; reviewId: string }
+  | { status: 'duplicate' }
+  | { status: 'ignored'; reason: 'active_review' }
+
 export interface ClaimedReview {
   id: string
   deliveryId: string

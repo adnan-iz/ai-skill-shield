@@ -4,7 +4,7 @@ import { ensureDatabase, getDatabase } from '@/lib/db'
 import { getResult } from '@/lib/store'
 import { normalizeGitHubSkillPath } from '@/lib/trust'
 import { REVIEW_DECISIONS } from './types'
-import type { ApplyReviewInput, ClaimedReview, CommentEventInput, FindingReviewInput, NewScanReview, RescanLinkResult, ReviewDecision, ReviewProjection } from './types'
+import type { ApplyReviewInput, ClaimedReview, CommentEventInput, CommentReviewQueueResult, FindingReviewInput, NewScanReview, RescanLinkResult, ReviewDecision, ReviewProjection } from './types'
 import type { ValidationResult, ValidationSummary } from '@/lib/validator/types'
 
 interface ReviewRow {
@@ -79,6 +79,60 @@ export async function createScanReview(input: NewScanReview): Promise<string> {
   )
   if (existing.rows[0]?.id) return existing.rows[0].id
   throw new Error('Unable to create or retrieve scan review')
+}
+
+/** Atomically records a delivery and queues its review, leaving failed deliveries retryable. */
+export async function recordCommentEventAndCreateScanReview(
+  event: CommentEventInput,
+  review: NewScanReview
+): Promise<CommentReviewQueueResult> {
+  if (event.deliveryId !== review.deliveryId) throw new Error('Comment event and review delivery IDs must match')
+
+  await ensureDatabase()
+  const { client: pool } = getDatabase()
+  const client = await pool.connect()
+  await client.query('BEGIN')
+  try {
+    const now = Date.now()
+    const recorded = await client.query<{ delivery_id: string }>(
+      `INSERT INTO github_comment_events (delivery_id, event_action, owner, repo, issue_number, comment_id, commenter_login, author_association, comment_body, status, ignore_reason, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'queued', NULL, $10)
+       ON CONFLICT DO NOTHING RETURNING delivery_id`,
+      [event.deliveryId, event.eventAction, event.owner, event.repo, event.issueNumber, event.commentId, event.commenterLogin, event.authorAssociation, event.commentBody, now]
+    )
+    if (!recorded.rows[0]) return committed(client, { status: 'duplicate' })
+
+    const id = randomUUID()
+    const inserted = await client.query<{ id: string }>(
+      `INSERT INTO scan_reviews (id, delivery_id, scan_id, owner, repo, path, issue_number, target, commit_sha, status, stage, run_at, attempts, original_score, original_risk_level, original_summary, prompt_version, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'queued', 'queued', $10, 0, $11, $12, $13, $14, $15)
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [id, review.deliveryId, review.scanId, review.owner, review.repo, normalizeGitHubSkillPath(review.path), review.issueNumber, review.target, review.commitSha, review.runAt ?? now, review.originalScore, review.originalRiskLevel, JSON.stringify(review.originalSummary), review.promptVersion ?? '', now]
+    )
+    if (inserted.rows[0]?.id) return committed(client, { status: 'queued', reviewId: inserted.rows[0].id })
+
+    const active = await client.query<{ id: string }>(
+      `SELECT id FROM scan_reviews
+       WHERE owner = $1 AND repo = $2 AND issue_number = $3
+         AND status IN ('queued', 'processing', 'awaiting_approval')
+       LIMIT 1`,
+      [review.owner, review.repo, review.issueNumber]
+    )
+    if (!active.rows[0]) throw new Error('Unable to create scan review')
+
+    await client.query(
+      `UPDATE github_comment_events
+       SET status = 'ignored', ignore_reason = 'active_review'
+       WHERE delivery_id = $1`,
+      [event.deliveryId]
+    )
+    return committed(client, { status: 'ignored', reason: 'active_review' })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function claimQueuedReviews(limit = 5): Promise<ClaimedReview[]> {

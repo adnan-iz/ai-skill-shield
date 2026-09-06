@@ -14,6 +14,11 @@ test('loads the review store without requiring database configuration', async ()
   await expect(import('@/lib/review/store')).resolves.toBeDefined()
 })
 
+test('exposes one atomic operation for a comment event and review creation', async () => {
+  const store = await import('@/lib/review/store')
+  expect(store.recordCommentEventAndCreateScanReview).toBeTypeOf('function')
+})
+
 test('registers scan appeal migrations in the Drizzle journal', () => {
   const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8')) as { entries: Array<{ tag: string }> }
   expect(journal.entries.map((entry) => entry.tag)).toContain('0001_scan_appeal_reviews')
@@ -46,6 +51,21 @@ function reviewInput(overrides: Partial<{
       totalChecks: 1, passed: 0, warnings: 0, failed: 1,
       criticalCount: 0, highCount: 1, mediumCount: 0, lowCount: 0, infoCount: 0,
     },
+  }
+}
+
+function commentEventInput(deliveryId: string, issueNumber: number, commentId: number) {
+  return {
+    deliveryId,
+    eventAction: 'created',
+    owner: 'openai',
+    repo: 'skills',
+    issueNumber,
+    commentId,
+    commenterLogin: 'maintainer',
+    authorAssociation: 'OWNER',
+    commentBody: 'This finding is documentation only.',
+    status: 'queued' as const,
   }
 }
 
@@ -102,6 +122,58 @@ test.skipIf(!testDatabaseUrl)('records a GitHub comment delivery only once', asy
   try {
     expect(await recordCommentEvent(input)).toEqual({ inserted: true })
     expect(await recordCommentEvent(input)).toEqual({ inserted: false })
+  } finally {
+    await client.end()
+  }
+})
+
+test.skipIf(!testDatabaseUrl)('atomically queues one of two concurrent deliveries for the same active issue', async () => {
+  process.env.DATABASE_URL = testDatabaseUrl
+  const { recordCommentEventAndCreateScanReview } = await import('@/lib/review/store')
+  const { client } = (await import('@/lib/db')).getDatabase()
+  const issueNumber = 100_000_000 + Math.floor(Math.random() * 100_000_000)
+  const firstDelivery = randomUUID()
+  const secondDelivery = randomUUID()
+
+  try {
+    const [first, second] = await Promise.all([
+      recordCommentEventAndCreateScanReview(commentEventInput(firstDelivery, issueNumber, issueNumber * 10 + 1), reviewInput({ deliveryId: firstDelivery, issueNumber })),
+      recordCommentEventAndCreateScanReview(commentEventInput(secondDelivery, issueNumber, issueNumber * 10 + 2), reviewInput({ deliveryId: secondDelivery, issueNumber })),
+    ])
+
+    expect([first.status, second.status].sort()).toEqual(['ignored', 'queued'])
+    const events = await client.query<{ status: string; ignore_reason: string | null }>(
+      'SELECT status, ignore_reason FROM github_comment_events WHERE delivery_id = ANY($1::text[]) ORDER BY delivery_id',
+      [[firstDelivery, secondDelivery]]
+    )
+    expect(events.rows).toEqual(expect.arrayContaining([
+      { status: 'queued', ignore_reason: null },
+      { status: 'ignored', ignore_reason: 'active_review' },
+    ]))
+    const reviews = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::INTEGER AS count FROM scan_reviews WHERE owner = $1 AND repo = $2 AND issue_number = $3',
+      ['openai', 'skills', issueNumber]
+    )
+    expect(reviews.rows[0]?.count).toBe(1)
+  } finally {
+    await client.end()
+  }
+})
+
+test.skipIf(!testDatabaseUrl)('rolls back the event when review insertion fails so the delivery can retry', async () => {
+  process.env.DATABASE_URL = testDatabaseUrl
+  const { recordCommentEvent, recordCommentEventAndCreateScanReview } = await import('@/lib/review/store')
+  const { client } = (await import('@/lib/db')).getDatabase()
+  const issueNumber = 300_000_000 + Math.floor(Math.random() * 100_000_000)
+  const deliveryId = randomUUID()
+  const event = commentEventInput(deliveryId, issueNumber, issueNumber * 10 + 1)
+
+  try {
+    await expect(recordCommentEventAndCreateScanReview(event, {
+      ...reviewInput({ deliveryId, issueNumber }),
+      originalScore: null as unknown as number,
+    })).rejects.toThrow()
+    expect(await recordCommentEvent(event)).toEqual({ inserted: true })
   } finally {
     await client.end()
   }

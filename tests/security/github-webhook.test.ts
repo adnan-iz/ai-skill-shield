@@ -64,3 +64,30 @@ test('returns accepted only after a valid signed delivery is queued', async () =
   expect(await response.json()).toEqual({ status: 'queued' })
   expect(handleGitHubCommentWebhook).toHaveBeenCalledWith(raw, expect.any(Headers))
 })
+
+test('rejects an oversized delivery without trusting absent or misleading Content-Length', async () => {
+  const oversized = 'x'.repeat(32 * 1024 + 1)
+  const signature = `sha256=${createHmac('sha256', secret).update(oversized).digest('hex')}`
+  const { POST } = await import('@/app/api/github/webhooks/route')
+  process.env.GITHUB_WEBHOOK_SECRET = secret
+
+  for (const contentLength of [undefined, '1']) {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(oversized))
+        controller.close()
+      },
+    })
+    const response = await POST(new Request('http://localhost/api/github/webhooks', {
+      method: 'POST',
+      headers: {
+        'x-hub-signature-256': signature,
+        ...(contentLength ? { 'content-length': contentLength } : {}),
+      },
+      body: stream,
+      duplex: 'half',
+    } as RequestInit))
+
+    expect(response.status).toBe(413)
+  }
+})

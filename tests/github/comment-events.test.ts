@@ -1,17 +1,16 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
 const recordCommentEvent = vi.fn()
-const createScanReview = vi.fn()
+const recordCommentEventAndCreateScanReview = vi.fn()
 const getResult = vi.fn()
 const query = vi.fn()
 
-vi.mock('@/lib/review/store', () => ({ recordCommentEvent, createScanReview }))
+vi.mock('@/lib/review/store', () => ({ recordCommentEvent, recordCommentEventAndCreateScanReview }))
 vi.mock('@/lib/store', () => ({ getResult }))
 vi.mock('@/lib/db', () => ({ ensureDatabase: async () => {}, getDatabase: () => ({ client: { query } }) }))
 
 afterEach(() => {
   vi.resetAllMocks()
-  delete process.env.GITHUB_BOT_LOGIN
 })
 
 function payload(overrides: Record<string, unknown> = {}) {
@@ -66,42 +65,40 @@ test('rejects unsupported events, actions, and comments over 32 KiB', async () =
   expect(parseIssueCommentEvent('{not-json')).toBeNull()
 })
 
-test('queues one eligible comment on its tracked scan issue and deduplicates the delivery', async () => {
+test('queues one eligible comment on its tracked scan issue and returns an atomic duplicate', async () => {
   const { acceptIssueComment, parseIssueCommentEvent } = await import('@/lib/github/comment-events')
   const event = parseIssueCommentEvent(payload())
   if (!event) throw new Error('fixture did not parse')
   query
-    .mockResolvedValueOnce({ rows: [trackedNotification()] })
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [trackedNotification()] })
-    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValue({ rows: [trackedNotification()] })
   getResult.mockResolvedValue(matchingScan())
-  recordCommentEvent.mockResolvedValueOnce({ inserted: true }).mockResolvedValueOnce({ inserted: false })
-  createScanReview.mockResolvedValue('review-1')
+  recordCommentEventAndCreateScanReview
+    .mockResolvedValueOnce({ status: 'queued', reviewId: 'review-1' })
+    .mockResolvedValueOnce({ status: 'duplicate' })
 
   expect(await acceptIssueComment(event, 'delivery-1')).toEqual({ status: 'queued' })
   expect(await acceptIssueComment(event, 'delivery-1')).toEqual({ status: 'duplicate' })
 })
 
-test('records an eligible comment without queuing it while its scan issue has an active review', async () => {
+test('records an eligible comment as active-review ignored through the atomic queue operation', async () => {
   const { acceptIssueComment, parseIssueCommentEvent } = await import('@/lib/github/comment-events')
   const event = parseIssueCommentEvent(payload())
   if (!event) throw new Error('fixture did not parse')
-  query.mockResolvedValueOnce({ rows: [trackedNotification()] }).mockResolvedValueOnce({ rows: [{ present: 1 }] })
+  query.mockResolvedValueOnce({ rows: [trackedNotification()] })
   getResult.mockResolvedValue(matchingScan())
-  recordCommentEvent.mockResolvedValue({ inserted: true })
+  recordCommentEventAndCreateScanReview.mockResolvedValue({ status: 'ignored', reason: 'active_review' })
 
   expect(await acceptIssueComment(event, 'active-review-delivery')).toEqual({ status: 'ignored', reason: 'active_review' })
-  expect(createScanReview).not.toHaveBeenCalled()
 })
 
 test('records but does not queue untracked, bot, ineligible, or unavailable scan comments', async () => {
   const { acceptIssueComment, parseIssueCommentEvent } = await import('@/lib/github/comment-events')
   const ownerEvent = parseIssueCommentEvent(payload())
   const botEvent = parseIssueCommentEvent(payload({ comment: { id: 101, body: 'loop', author_association: 'OWNER', user: { login: 'skill-shield[bot]', type: 'Bot' } } }))
-  const selfEvent = parseIssueCommentEvent(payload({ comment: { id: 102, body: 'loop', author_association: 'OWNER', user: { login: 'skill-shield[bot]', type: 'User' } } }))
+  const selfEvent = parseIssueCommentEvent(payload({ comment: { id: 102, body: 'loop', author_association: 'OWNER', user: { login: 'ai-skill-shield', type: 'User' } } }))
+  const senderBotEvent = parseIssueCommentEvent(payload({ sender: { login: 'ai-skill-shield[bot]', type: 'Bot' } }))
   const contributorEvent = parseIssueCommentEvent(payload({ comment: { id: 101, body: 'appeal', author_association: 'CONTRIBUTOR', user: { login: 'contributor', type: 'User' } } }))
-  if (!ownerEvent || !botEvent || !selfEvent || !contributorEvent) throw new Error('fixture did not parse')
+  if (!ownerEvent || !botEvent || !selfEvent || !senderBotEvent || !contributorEvent) throw new Error('fixture did not parse')
   recordCommentEvent.mockResolvedValue({ inserted: true })
 
   query.mockResolvedValueOnce({ rows: [] })
@@ -110,9 +107,11 @@ test('records but does not queue untracked, bot, ineligible, or unavailable scan
   query.mockResolvedValueOnce({ rows: [trackedNotification()] })
   expect(await acceptIssueComment(botEvent, 'bot')).toEqual({ status: 'ignored', reason: 'bot_comment' })
 
-  process.env.GITHUB_BOT_LOGIN = 'skill-shield[bot]'
   query.mockResolvedValueOnce({ rows: [trackedNotification()] })
   expect(await acceptIssueComment(selfEvent, 'self')).toEqual({ status: 'ignored', reason: 'bot_comment' })
+
+  query.mockResolvedValueOnce({ rows: [trackedNotification()] })
+  expect(await acceptIssueComment(senderBotEvent, 'bot-sender')).toEqual({ status: 'ignored', reason: 'bot_comment' })
 
   query.mockResolvedValueOnce({ rows: [trackedNotification()] })
   expect(await acceptIssueComment(contributorEvent, 'contributor')).toEqual({ status: 'ignored', reason: 'ineligible_author' })
@@ -120,7 +119,18 @@ test('records but does not queue untracked, bot, ineligible, or unavailable scan
   query.mockResolvedValueOnce({ rows: [trackedNotification()] })
   getResult.mockResolvedValueOnce(undefined)
   expect(await acceptIssueComment(ownerEvent, 'unavailable')).toEqual({ status: 'ignored', reason: 'scan_unavailable' })
-  expect(createScanReview).not.toHaveBeenCalled()
+})
+
+test('treats only the exact GitHub association values as eligible', async () => {
+  const { acceptIssueComment, parseIssueCommentEvent } = await import('@/lib/github/comment-events')
+  const event = parseIssueCommentEvent(payload({
+    comment: { id: 103, body: 'appeal', author_association: ' OWNER ', user: { login: 'maintainer', type: 'User' } },
+  }))
+  if (!event) throw new Error('fixture did not parse')
+  query.mockResolvedValueOnce({ rows: [trackedNotification()] })
+  recordCommentEvent.mockResolvedValue({ inserted: true })
+
+  expect(await acceptIssueComment(event, 'whitespace-association')).toEqual({ status: 'ignored', reason: 'ineligible_author' })
 })
 
 test('ignores webhook deliveries without the required GitHub event and delivery headers', async () => {
