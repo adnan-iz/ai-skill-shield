@@ -83,23 +83,6 @@ export default function HomePage() {
   const [pasteContent, setPasteContent] = useState('')
   const [resolutionHint, setResolutionHint] = useState('')
   const rescanStarted = useRef(false)
-  const scanPath =
-    tab === 'url'
-      ? 'github.com/owner/repo'
-      : tab === 'upload'
-      ? 'local://skill-package'
-      : 'editor://SKILL.md'
-  const scanSteps = loading
-    ? [
-        ['Read SKILL.md', 'Running'],
-        ['Trace install scripts', 'Scanning'],
-        ['Score runtime risk', 'Queued'],
-      ]
-    : [
-        ['Read SKILL.md', 'Ready'],
-        ['Trace install scripts', tab === 'url' ? 'Armed' : 'Awaiting'],
-        ['Score runtime risk', 'Ready'],
-      ]
 
   useEffect(() => {
     let frameId = 0
@@ -263,139 +246,143 @@ export default function HomePage() {
       data-motion-ready={motionReady ? 'true' : 'false'}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
-      <div className="mx-auto max-w-6xl px-4">
-      <div className="home-hero-intro mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
-        <div className="home-hero-content">
-          <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-shield-200/40 bg-shield-50/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-shield-700">
+      <div className="mx-auto max-w-6xl px-4 flex flex-col items-center">
+        {/* Tactical Hero */}
+        <div className="text-center max-w-3xl mb-10">
+          <div className="home-hero-badge mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-mono uppercase tracking-[0.2em] text-primary shadow-[0_0_12px_-2px_rgba(75,226,119,0.3)]">
             <span className="material-symbols-outlined text-sm">shield</span>
-            Pre-install skill security
+            PRE-INSTALL SKILL DEFENSE GATEWAY
           </div>
-          <h1 className="home-hero-title text-4xl font-bold text-on-surface sm:text-5xl">
-            AI Skill Checker &amp; Agent Skill Validator
+          <h1 className="home-hero-title text-4xl sm:text-5xl font-bold tracking-tight text-on-surface mb-3">
+            AI Skill Shield
           </h1>
-          <p className="home-hero-copy mt-2 text-lg text-on-surface-secondary">
-            Scan AI agent skills, SKILL.md files, and GitHub repositories for security, compatibility, and install risk before they touch your environment.
+          <p className="home-hero-copy text-base sm:text-lg text-on-surface-secondary max-w-2xl mx-auto leading-relaxed">
+            Scan AI agent skills, SKILL.md packages, and GitHub repositories for security vulnerabilities, prompt injection, and install risks before runtime execution.
           </p>
-          <Link href="/explore" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-shield-700 hover:text-shield-800">
-            Explore public GitHub scans
-          </Link>
-          <Link href="/trust/github/anthropics/skills" className="mt-5 ml-5 inline-flex items-center gap-2 text-sm font-semibold text-on-surface-secondary hover:text-on-surface">
-            Try a sample report
-          </Link>
+          <div className="mt-4 flex items-center justify-center gap-6 text-sm font-semibold">
+            <Link href="/explore" className="text-primary hover:underline flex items-center gap-1 font-mono text-xs">
+              Explore public GitHub scans &rarr;
+            </Link>
+            <Link href="/trust/github/anthropics/skills" className="text-on-surface-variant hover:text-on-surface text-xs font-mono">
+              Try a sample report
+            </Link>
+          </div>
         </div>
 
-        <div className="home-scan-stage hidden lg:block" aria-hidden="true">
-          <div className="home-scan-topbar">
-            <div className="home-scan-window-dots">
-              <span />
-              <span />
-              <span />
-            </div>
-            <span className="home-scan-path">{scanPath}</span>
-            <span className="home-scan-live">{loading ? 'SCAN' : 'LIVE'}</span>
-          </div>
-
-          <div className="home-scan-viewport">
-            <div className="home-scan-grid" />
-            <div className="home-scan-beam" />
-            <div className="home-scan-signal home-scan-signal-a" />
-            <div className="home-scan-signal home-scan-signal-b" />
-            <div className="home-scan-lock">
-              <span className="material-symbols-outlined">verified_user</span>
-            </div>
-          </div>
-
-          <div className="home-scan-steps">
-            {scanSteps.map(([label, status]) => (
-              <div key={label} className="home-scan-step">
-                <span className="home-scan-step-dot" />
-                <span>{label}</span>
-                <strong>{status}</strong>
+        {/* Tactical Scanner Container */}
+        <div className="w-full max-w-3xl mb-12 relative">
+          <div className="absolute -inset-4 bg-primary/10 blur-3xl rounded-full z-0 scanner-glow pointer-events-none"></div>
+          <div className="relative z-10 bg-surface-container/85 backdrop-blur-xl border border-outline-variant/60 rounded-xl overflow-hidden flex flex-col shadow-2xl">
+            {/* Top Bar with Window Dots & Tabs */}
+            <div className="flex flex-wrap items-center justify-between border-b border-outline-variant/50 bg-surface-container-high/70 px-4 py-2.5 gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-error/70"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-secondary/70"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-primary/70"></div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <section id="upload" className="home-panel scroll-mt-20 mb-12">
-        <div className="glass-card">
-          <div className="home-tabs flex border-b border-outline" role="tablist" aria-label="Skill input method">
-            {([['url', 'GitHub Repo'], ['search', 'Search GitHub'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                role="tab"
-                aria-selected={tab === key}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                  tab === key
-                    ? 'border-b-2 border-shield-500 text-shield-700 bg-shield-50'
-                    : key === 'search'
-                    ? 'text-shield-700 hover:bg-shield-50/60'
-                    : 'text-on-surface-secondary hover:text-on-surface hover:bg-surface-secondary'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6">
-            {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
-
-            {tab === 'url' && (
-              <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
-            )}
-
-            {tab === 'search' && <GitHubSearch loading={loading} onSelect={handleUrlParse} />}
-
-            {tab === 'paste' && (
-              <div className="space-y-4">
-                <textarea
-                  value={pasteContent}
-                  onChange={(e) => setPasteContent(e.target.value)}
-                  placeholder={`---\nname: my-skill\ndescription: What your skill does and when to use it.\n---\n\n# Your Skill Instructions\n\nStart typing your SKILL.md content here...`}
-                  rows={16}
-                  className="w-full rounded-lg border border-outline bg-surface-container p-4 text-sm font-mono text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none focus:ring-1 focus:ring-shield-500"
-                />
-                <div className="flex justify-end">
+              <div className="flex gap-2 sm:gap-3" role="tablist" aria-label="Skill input method">
+                {([['url', 'GitHub Repo'], ['search', 'Search GitHub'], ['upload', 'Upload Files'], ['paste', 'Paste SKILL.md']] as [Tab, string][]).map(([key, label]) => (
                   <button
-                    onClick={handlePasteValidate}
-                    disabled={!pasteContent.trim() || loading}
-                    className="rounded-lg bg-shield-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-shield-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    key={key}
+                    onClick={() => setTab(key)}
+                    role="tab"
+                    aria-selected={tab === key}
+                    className={`px-3 py-1 text-xs font-mono uppercase tracking-wider rounded transition-all ${
+                      tab === key
+                        ? 'border border-primary/40 bg-primary/15 text-primary font-bold shadow-[0_0_10px_-2px_rgba(75,226,119,0.3)]'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
+                    }`}
                   >
-                    {loading ? 'Validating...' : 'Validate'}
+                    {label}
                   </button>
-                </div>
+                ))}
               </div>
-            )}
+            </div>
 
-          {loading && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-on-surface-secondary">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-shield-200 border-t-shield-600" />
-                Running validation and repository audit...
+            {/* Scanner Input Area */}
+            <div className="p-6">
+              {tab === 'upload' && <Dropzone onFiles={handleDropFiles} />}
+
+              {tab === 'url' && (
+                <UrlInput onParse={handleUrlParse} resolutionHint={resolutionHint} loading={loading} />
+              )}
+
+              {tab === 'search' && <GitHubSearch loading={loading} onSelect={handleUrlParse} />}
+
+              {tab === 'paste' && (
+                <div className="space-y-4">
+                  <div className="relative rounded-lg border border-outline-variant/60 bg-surface-container-lowest/90 overflow-hidden input-glow">
+                    <div className="border-b border-outline-variant/40 bg-surface-container-high/40 px-3 py-1.5 text-[11px] font-mono text-on-surface-variant flex items-center justify-between">
+                      <span>SKILL.md &middot; UTF-8</span>
+                      <span>Markdown Buffer</span>
+                    </div>
+                    <textarea
+                      value={pasteContent}
+                      onChange={(e) => setPasteContent(e.target.value)}
+                      placeholder={`---\nname: my-skill\ndescription: What your skill does and when to use it.\n---\n\n# Your Skill Instructions\n\nStart typing your SKILL.md content here...`}
+                      rows={14}
+                      className="w-full bg-transparent p-4 text-xs font-mono text-on-surface placeholder-on-surface-variant/40 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-on-surface-variant/60">
+                      {pasteContent.length} bytes
+                    </span>
+                    <button
+                      onClick={handlePasteValidate}
+                      disabled={!pasteContent.trim() || loading}
+                      className="flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-on-primary hover:bg-primary-fixed disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_-3px_rgba(75,226,119,0.4)]"
+                    >
+                      {loading && (
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      )}
+                      <span>{loading ? 'Validating...' : 'Validate Skill'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between text-[11px] font-mono text-on-surface-variant opacity-75">
+                <span>Target: <strong className="text-on-surface font-semibold">{tab === 'url' ? 'remote_repository' : tab === 'paste' ? 'buffer_skill_md' : 'package_archive'}</strong></span>
+                <span>Engine: <strong className="text-primary font-semibold">v2.0.0-dev</strong></span>
               </div>
-            )}
+
+              {loading && (
+                <div className="mt-4 flex items-center justify-center gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs font-mono text-primary animate-pulse">
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <span>Executing static heuristics, runtime AST analysis, and security audit...</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </section>
 
-      <div className="home-stat-grid mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="home-stat-card home-stat-card-1 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">insights</span>
-          <div className="text-3xl font-bold text-shield-600">11</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">validation axes assessed</div>
+        {/* Quick Start Intelligence 3-Card Grid */}
+        <div className="w-full max-w-4xl mb-12">
+          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-on-surface-secondary mb-4 pl-2 border-l-2 border-primary">
+            QUICK START INTELLIGENCE
+          </h2>
+          <div className="home-stat-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="home-stat-card home-stat-card-1 bg-surface-container/70 backdrop-blur-md border border-outline-variant/50 rounded-lg p-5 hover:border-primary/50 transition-all duration-300 group relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-primary/15 to-transparent rounded-bl-full pointer-events-none"></div>
+              <div className="mb-3 text-primary"><span className="material-symbols-outlined text-2xl">verified_user</span></div>
+              <h3 className="text-sm font-bold text-on-surface mb-1 group-hover:text-primary transition-colors">11 Validation Axes</h3>
+              <p className="text-xs text-on-surface-secondary leading-relaxed">Comprehensive multidimensional analysis covering frontmatter, AST code, permissions, and supply chain.</p>
+            </div>
+            <div className="home-stat-card home-stat-card-2 bg-surface-container/70 backdrop-blur-md border border-outline-variant/50 rounded-lg p-5 hover:border-primary/50 transition-all duration-300 group relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-error/15 to-transparent rounded-bl-full pointer-events-none"></div>
+              <div className="mb-3 text-error"><span className="material-symbols-outlined text-2xl">warning</span></div>
+              <h3 className="text-sm font-bold text-on-surface mb-1 group-hover:text-primary transition-colors">12 Threat Categories</h3>
+              <p className="text-xs text-on-surface-secondary leading-relaxed">Real-time heuristics detecting prompt injection, credential exposure, obfuscation, and dangerous shell pipelines.</p>
+            </div>
+            <div className="home-stat-card home-stat-card-3 bg-surface-container/70 backdrop-blur-md border border-outline-variant/50 rounded-lg p-5 hover:border-primary/50 transition-all duration-300 group relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-tertiary/15 to-transparent rounded-bl-full pointer-events-none"></div>
+              <div className="mb-3 text-tertiary"><span className="material-symbols-outlined text-2xl">terminal</span></div>
+              <h3 className="text-sm font-bold text-on-surface mb-1 group-hover:text-primary transition-colors">23 Agent Signatures</h3>
+              <p className="text-xs text-on-surface-secondary leading-relaxed">Runtime markers for Claude, Codex, OpenClaw, Cursor, OpenAI Agents, and LangChain ecosystem tools.</p>
+            </div>
+          </div>
         </div>
-        <div className="home-stat-card home-stat-card-2 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">warning</span>
-          <div className="text-3xl font-bold text-shield-600">12</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">threat categories tracked</div>
-        </div>
-        <div className="home-stat-card home-stat-card-3 glass-card p-6">
-          <span className="material-symbols-outlined mb-3 inline-block text-3xl text-shield-500">extension</span>
-          <div className="text-3xl font-bold text-shield-600">23</div>
-          <div className="mt-1 text-sm text-on-surface-secondary">agent-specific signatures checked</div>
-        </div>
-      </div>
 
       <section className="home-feature-shell">
         <div className="glass-card p-8">

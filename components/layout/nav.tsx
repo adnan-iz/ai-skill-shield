@@ -33,43 +33,54 @@ export function SideNavBar() {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-0 top-0 z-50 hidden h-full w-56 flex-col gap-2 border-r border-stitch-sidebar-hover bg-stitch-sidebar px-3 py-4 md:flex">
+    <aside className="fixed left-0 top-0 z-50 hidden h-full w-56 flex-col gap-2 border-r border-outline-variant/60 bg-surface-container-lowest/95 backdrop-blur-xl px-3 py-4 md:flex">
       <Link
         href="/"
         aria-label="AI Skill Shield home"
-        className="mb-4 flex h-11 items-center gap-3 rounded-xl px-2 text-white"
+        className="mb-4 flex h-12 items-center gap-3 rounded-lg border border-outline-variant/50 bg-surface-container/60 px-2.5 text-on-surface transition-colors hover:border-primary/40"
       >
-        <BrandMark size={36} />
-        <span>
-          <span className="block text-sm font-bold">AI Skill Shield</span>
-          <span className="block text-[10px] text-slate-400">by Support Engine</span>
-        </span>
+        <BrandMark size={32} />
+        <div>
+          <span className="block text-xs font-bold tracking-wider text-on-surface">AI SKILL SHIELD</span>
+          <span className="block text-[10px] font-mono text-primary flex items-center gap-1">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
+            DEFENSE GATEWAY
+          </span>
+        </div>
       </Link>
-      {navItems.map((item) => {
-        const isActive =
-          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
-        const classes = `flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
-          isActive
-            ? "bg-shield-500/20 text-shield-400"
-            : "text-on-surface-secondary hover:bg-stitch-sidebar-hover hover:text-on-surface"
-        }`
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            title={item.label}
-            aria-label={item.label}
-            aria-current={isActive ? 'page' : undefined}
-            className={classes}
-          >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        )
-      })}
-      <div className="mt-auto mb-2 flex items-center gap-3 px-3 text-sm text-slate-400">
-        <ThemeToggle />
-        <span>Theme</span>
+      <div className="flex flex-col gap-1">
+        {navItems.map((item) => {
+          const isActive =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+          const classes = `flex h-9 w-full items-center gap-3 rounded-md px-3 text-xs font-medium tracking-wide transition-all ${
+            isActive
+              ? "border border-primary/40 bg-primary/10 text-primary font-semibold shadow-[0_0_12px_-3px_rgba(75,226,119,0.3)]"
+              : "text-on-surface-secondary hover:bg-surface-container-high/60 hover:text-on-surface"
+          }`
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={item.label}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+              className={classes}
+            >
+              <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          )
+        })}
+      </div>
+      <div className="mt-auto flex flex-col gap-2 border-t border-outline-variant/30 pt-3">
+        <div className="flex items-center justify-between px-2 text-[11px] font-mono text-on-surface-secondary/70">
+          <span>STATUS: ACTIVE</span>
+          <span className="text-primary font-semibold">v2.0.0</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-surface-container/40 p-1.5 text-xs text-on-surface-secondary">
+          <ThemeToggle />
+          <span>Toggle Theme</span>
+        </div>
       </div>
     </aside>
   )

@@ -20,42 +20,134 @@
   --color-threat-low: #65a30d;
   --color-threat-info: #2563eb;
 
+  --color-primary: #16a34a;
+  --color-primary-fixed: #15803d;
+  --color-primary-container: #dcfce7;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #14532d;
+
   --color-surface: #f8fafc;
+  --color-surface-dim: #f1f5f9;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #cbd5e1;
   --color-surface-secondary: #f1f5f9;
-  --color-surface-container: #ffffff;
+
   --color-on-surface: #0f172a;
   --color-on-surface-secondary: #475569;
-  --color-outline: #e2e8f0;
-  --color-outline-variant: #cbd5e1;
+  --color-on-surface-variant: #64748b;
+
+  --color-outline: #cbd5e1;
+  --color-outline-variant: #e2e8f0;
+
   --color-error: #dc2626;
   --color-error-container: #fef2f2;
-  --color-secondary: #6366f1;
-  --color-secondary-container: #eef2ff;
-  --color-tertiary: #8b5cf6;
-  --color-tertiary-container: #f5f3ff;
 
-  --color-stitch-sidebar: #0f172a;
-  --color-stitch-sidebar-hover: #1e293b;
-  --color-stitch-sidebar-active: #22c55e;
+  --color-secondary: #475569;
+  --color-secondary-container: #e2e8f0;
+
+  --color-tertiary: #6366f1;
+  --color-tertiary-container: #eef2ff;
+
+  --color-stitch-sidebar: #ffffff;
+  --color-stitch-sidebar-hover: #f1f5f9;
+  --color-stitch-sidebar-active: #16a34a;
 }
 
 .dark {
-  --color-surface: #0f172a;
-  --color-surface-secondary: #27364a;
-  --color-surface-container: #1e293b;
-  --color-on-surface: #f1f5f9;
-  --color-on-surface-secondary: #94a3b8;
-  --color-outline: #334155;
-  --color-outline-variant: #475569;
-  --color-error-container: #450a0a;
-  --color-secondary-container: #1e1b4b;
-  --color-tertiary-container: #1f0d3d;
+  --color-primary: #4be277;
+  --color-primary-fixed: #3cd469;
+  --color-primary-container: #005322;
+  --color-on-primary: #003915;
+  --color-on-primary-container: #6ef991;
+
+  --color-surface: #0b1326;
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+  --color-surface-secondary: #131b2e;
+
+  --color-on-surface: #dae2fd;
+  --color-on-surface-secondary: #bccbb9;
+  --color-on-surface-variant: #869585;
+
+  --color-outline: #869585;
+  --color-outline-variant: #3d4a3d;
+
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+
+  --color-secondary: #c3c7cb;
+  --color-secondary-container: #454a4d;
+
+  --color-tertiary: #c1c2ff;
+  --color-tertiary-container: #2623b8;
+
+  --color-stitch-sidebar: #0b1326;
+  --color-stitch-sidebar-hover: #171f33;
+  --color-stitch-sidebar-active: #4be277;
 }
 
-.dark .glass-card {
-  background: rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(12px);
-  border-color: var(--color-outline);
+.glass-panel,
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-outline);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass-card,
+.dark .glass-panel {
+  background: rgba(23, 31, 51, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #3d4a3d;
+  box-shadow: none;
+}
+
+.hairline-border {
+  border: 1px solid var(--color-outline);
+}
+
+.dark .hairline-border {
+  border: 1px solid #3d4a3d;
+}
+
+.scanner-glow {
+  box-shadow: 0 10px 40px -10px rgba(22, 163, 74, 0.12);
+}
+
+.dark .scanner-glow {
+  box-shadow: 0 0 60px -15px rgba(75, 226, 119, 0.25);
+}
+
+.input-glow:focus-within {
+  box-shadow: 0 0 12px -2px rgba(22, 163, 74, 0.25);
+  border-color: var(--color-primary) !important;
+}
+
+.dark .input-glow:focus-within {
+  box-shadow: 0 0 15px -3px rgba(75, 226, 119, 0.4);
+  border-color: #4be277 !important;
+}
+
+.bg-tactical-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+}
+
+.dark .bg-tactical-grid {
+  background-image: linear-gradient(to right, rgba(61, 74, 61, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(61, 74, 61, 0.2) 1px, transparent 1px);
 }
 
 @layer base {

@@ -3,6 +3,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Finding, Severity } from '@/lib/validator/types'
 
+function ChevronRightIcon({ className = 'h-3.5 w-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon({ className = 'h-3.5 w-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
 interface FindingsTableProps {
   findings: Finding[]
 }
@@ -19,11 +35,11 @@ const severityOrder: Record<Severity, number> = {
 }
 
 const severityColors: Record<Severity, string> = {
-  critical: 'bg-threat-critical/10 text-threat-critical border-threat-critical/20',
-  high: 'bg-threat-high/10 text-threat-high border-threat-high/20',
-  medium: 'bg-threat-medium/10 text-threat-medium border-threat-medium/20',
-  low: 'bg-threat-low/10 text-threat-low border-threat-low/20',
-  info: 'bg-threat-info/10 text-threat-info border-threat-info/20',
+  critical: 'bg-error-container/20 text-error border-error/40',
+  high: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
+  low: 'bg-primary/15 text-primary border-primary/30',
+  info: 'bg-secondary-container/25 text-secondary border-secondary/30',
 }
 
 const filterOptions: { label: string; value: Severity | 'all' }[] = [
@@ -125,13 +141,15 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-outline px-4 pb-3 pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-outline-variant/40 bg-surface-container-high/30 px-4 py-3">
         <button
           type="button"
           onClick={() => changeSeverity('priority')}
           aria-pressed={filterSeverity === 'priority'}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
-            filterSeverity === 'priority' ? 'bg-shield-600 text-white shadow-sm' : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
+          className={`rounded font-mono px-2.5 py-1 text-xs uppercase tracking-wider transition-all focus-visible:outline-none ${
+            filterSeverity === 'priority'
+              ? 'border border-primary/50 bg-primary/20 text-primary font-bold shadow-[0_0_10px_-2px_rgba(75,226,119,0.3)]'
+              : 'border border-outline-variant/50 bg-surface-container-low text-on-surface-secondary hover:text-on-surface hover:border-primary/30'
           }`}
         >
           Priority findings
@@ -142,10 +160,10 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
             key={opt.value}
             onClick={() => changeSeverity(opt.value)}
             aria-pressed={filterSeverity === opt.value}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shield-500/70 ${
+            className={`rounded font-mono px-2.5 py-1 text-xs uppercase tracking-wider transition-all focus-visible:outline-none ${
               filterSeverity === opt.value
-                ? 'bg-shield-600 text-white shadow-sm'
-                : 'bg-surface-secondary text-on-surface-secondary hover:bg-outline'
+                ? 'border border-primary/50 bg-primary/20 text-primary font-bold shadow-[0_0_10px_-2px_rgba(75,226,119,0.3)]'
+                : 'border border-outline-variant/50 bg-surface-container-low text-on-surface-secondary hover:text-on-surface hover:border-primary/30'
             }`}
           >
             {opt.label}
@@ -155,7 +173,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
           aria-label="Filter findings by category"
           value={filterCategory}
           onChange={(event) => changeCategory(event.target.value)}
-          className="rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface"
+          className="rounded border border-outline-variant/50 bg-surface-container-low px-3 py-1 font-mono text-xs text-on-surface focus:outline-none focus:border-primary/50"
         >
           <option value="all">All categories</option>
           {categories.map((category) => <option key={category} value={category}>{category}</option>)}
@@ -165,18 +183,18 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
           aria-label="Search findings"
           value={query}
           onChange={(event) => changeQuery(event.target.value)}
-          placeholder="Search titles, files, or evidence"
-          className="min-w-40 flex-1 rounded-full border border-outline bg-surface-container px-3 py-1 text-xs text-on-surface placeholder-on-surface-secondary"
+          placeholder="Search titles, files, or evidence..."
+          className="min-w-44 flex-1 rounded border border-outline-variant/50 bg-surface-container-lowest px-3 py-1 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50"
         />
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-outline text-left text-xs font-semibold uppercase text-on-surface-secondary">
+            <tr className="border-b border-outline-variant/60 text-left text-[11px] font-mono font-semibold uppercase tracking-wider text-on-surface-secondary bg-surface-container-high/20">
               <th
                 tabIndex={0}
-                className="cursor-pointer px-4 py-3 hover:text-on-surface"
+                className="cursor-pointer px-4 py-2.5 hover:text-primary transition-colors"
                 onClick={() => toggleSort('severity')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('severity'); } }}
               >
@@ -184,7 +202,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
               </th>
               <th
                 tabIndex={0}
-                className="cursor-pointer px-4 py-3 hover:text-on-surface"
+                className="cursor-pointer px-4 py-2.5 hover:text-primary transition-colors"
                 onClick={() => toggleSort('category')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('category'); } }}
               >
@@ -192,14 +210,14 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
               </th>
               <th
                 tabIndex={0}
-                className="cursor-pointer px-4 py-3 hover:text-on-surface"
+                className="cursor-pointer px-4 py-2.5 hover:text-primary transition-colors"
                 onClick={() => toggleSort('title')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('title'); } }}
               >
                 Title{sortArrow('title')}
               </th>
-              <th className="px-4 py-3">File:Line</th>
-              <th className="px-4 py-3">Recommendation</th>
+              <th className="px-4 py-2.5">File:Line</th>
+              <th className="px-4 py-2.5">Recommendation</th>
             </tr>
           </thead>
           <tbody>
@@ -210,44 +228,49 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                 <tr
                   key={finding.id}
                   id={findingAnchorId}
-                  className={`border-b border-outline transition-colors ${
-                    isExpanded ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                  className={`border-b border-outline-variant/30 transition-colors ${
+                    isExpanded ? 'bg-surface-container-high/50' : 'hover:bg-surface-container-high/30'
                   }`}
                 >
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                      className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
                         severityColors[finding.severity]
                       }`}
                     >
                       {finding.severity}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-on-surface-secondary">{finding.category}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-on-surface-secondary">{finding.category}</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
                       aria-expanded={isExpanded}
-                      className="text-left font-medium text-on-surface hover:text-shield-600 transition-colors"
+                      className="text-left font-medium text-on-surface hover:text-primary transition-colors flex items-center gap-1.5"
                     >
-                      {finding.title}
+                      {isExpanded ? (
+                        <ChevronDownIcon className="h-3.5 w-3.5 text-on-surface-secondary shrink-0" />
+                      ) : (
+                        <ChevronRightIcon className="h-3.5 w-3.5 text-on-surface-secondary shrink-0" />
+                      )}
+                      <span>{finding.title}</span>
                     </button>
                     {isExpanded && (
-                      <div className="mt-2 space-y-3 rounded-md bg-surface-secondary p-3 text-xs">
+                      <div className="mt-3 space-y-2.5 rounded-lg border border-outline-variant/60 bg-surface-container-lowest p-3.5 text-xs shadow-inner">
                         <div>
-                          <div className="mb-1 font-medium text-on-surface-secondary">Why it matters</div>
-                          <p className="text-on-surface">{finding.message}</p>
+                          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-on-surface-secondary">VULNERABILITY CONTEXT</div>
+                          <p className="text-on-surface font-sans text-xs">{finding.message}</p>
                         </div>
                         <div>
-                          <div className="mb-1 font-medium text-on-surface-secondary">Evidence</div>
-                          <pre className="overflow-auto whitespace-pre-wrap text-on-surface">
+                          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-primary">AUDIT EVIDENCE</div>
+                          <pre className="overflow-auto whitespace-pre-wrap rounded border border-outline-variant/40 bg-surface-container-low p-2.5 font-mono text-xs text-on-surface">
                             {finding.snippet || 'No source snippet was captured for this file-level finding.'}
                           </pre>
                         </div>
                         {finding.recommendation && (
                           <div>
-                            <div className="mb-1 font-medium text-on-surface-secondary">Recommended action</div>
-                            <p className="text-on-surface">{finding.recommendation}</p>
+                            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-secondary">RECOMMENDED REMEDIATION</div>
+                            <p className="text-on-surface font-sans text-xs">{finding.recommendation}</p>
                           </div>
                         )}
                       </div>
@@ -256,7 +279,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                   <td className="px-4 py-3 font-mono text-xs text-on-surface-secondary">
                     {finding.filePath || 'SKILL.md'}{finding.lineNumber && finding.lineNumber > 0 ? `:${finding.lineNumber}` : ' · file-level'}
                   </td>
-                  <td className="px-4 py-3 text-xs text-on-surface-secondary">{finding.recommendation}</td>
+                  <td className="px-4 py-3 text-xs text-on-surface-secondary leading-relaxed">{finding.recommendation}</td>
                 </tr>
               )
             })}

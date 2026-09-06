@@ -103,10 +103,10 @@ export default function Dropzone({ onFiles }: DropzoneProps) {
       onDrop={handleDrop}
       onClick={handleClick}
       aria-label="Upload skill files. Drop files here or click to browse."
-      className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors ${
+      className={`cursor-pointer rounded-xl border border-dashed p-10 text-center transition-all duration-300 ${
         dragging
-          ? 'border-shield-500 bg-shield-50'
-          : 'border-outline bg-surface-secondary/50 hover:border-shield-400 hover:bg-surface-secondary'
+          ? 'border-primary bg-primary/10 shadow-[0_0_25px_-5px_rgba(75,226,119,0.3)]'
+          : 'border-outline-variant/60 bg-surface-container-low/40 hover:border-primary/50 hover:bg-surface-container-low/80'
       }`}
     >
       <input
@@ -118,14 +118,14 @@ export default function Dropzone({ onFiles }: DropzoneProps) {
         className="hidden"
         aria-label="File input for skill upload"
       />
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-secondary text-on-surface-secondary">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
         <span className="material-symbols-outlined text-2xl">cloud_upload</span>
       </div>
-      <p className="text-sm font-medium text-on-surface">
-        Drop your skill folder or ZIP here
+      <p className="text-sm font-semibold tracking-wide text-on-surface">
+        DROP SKILL DIRECTORY OR ARCHIVE HERE
       </p>
-      <p className="mt-1 text-xs text-on-surface-secondary">
-        or click to browse &middot; SKILL.md, ZIP, or directory
+      <p className="mt-1 font-mono text-xs text-on-surface-secondary">
+        or click to browse &middot; SKILL.md, ZIP, or package files
       </p>
       {fileNames.length > 0 && (
         <div className="mt-4 space-y-1">
