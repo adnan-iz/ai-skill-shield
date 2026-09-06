@@ -114,6 +114,7 @@ export interface TokenAnalysis {
   limit: number
   breakdown: TokenBreakdownItem[]
   cacheEfficiencyScore?: number
+  cacheRecommendations?: string[]
   estimatedCostPer1kRuns?: {
     claudeSonnet: number
     gpt4o: number

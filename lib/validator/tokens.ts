@@ -71,6 +71,7 @@ export function analyzeTokens(
     limit: TOKEN_LIMIT,
     breakdown,
     cacheEfficiencyScore: economics.cacheEfficiencyScore,
+    cacheRecommendations: economics.cacheRecommendations,
     estimatedCostPer1kRuns: economics.estimatedCostPer1kRuns,
   }
 }
