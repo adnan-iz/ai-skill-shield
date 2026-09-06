@@ -53,14 +53,23 @@ and explain what will execute before they run it.
 - CI and GitHub Action polish around install-surface reporting
 - stronger diff and comparison workflows for repeated scans
 
-## Explicitly not done yet
+## Completed in v2.0.0
+- MCP Tool Schema poisoning & precedence hijacking detection
+- Capability Drift Analyzer (manifest vs static code reality)
+- Token Economics & KV-cache prefix optimization profiler
+- Install Command Risk Analyzer (pipe-to-shell, sudo, dangerous flags)
+- SkillBOM (CycloneDX 1.5 JSON for AI Skills)
+- Adversarial Prompt Fuzzing & Red-Teaming Harness (21 attack vectors)
+- Language Server Protocol (LSP) Diagnostics & QuickFix Engine
+- Runtime MCP Gateway Proxy & Interceptor (DLP, shell injection, path traversal)
+- Ed25519 Cryptographic Signing, Canonical Digests & Tamper Detection
+- Enterprise Multi-Role Governance & Multi-Signature Approval Chain
+- Server-Sent Events (SSE) Live Scan Streaming Pipeline (`/api/validate/stream`)
+- Runtime Sandbox Isolation Runner (`node:vm` restricted context)
+- Skill Diff & Permission Escalation Detection Engine
+- Golden Skill Registry & Enterprise Catalog API (`/api/registry`)
 
-Older docs mentioned several features as completed when they were not. These should still be treated as future work unless the code says otherwise:
-
-- SSO or SAML auth
-- RBAC
-- team workspaces
-- SSE or WebSocket live scanning
-- Helm charts
-- billing tiers
-- runtime sandbox execution
+## Future Work
+- SSO / SAML Enterprise Identity Providers (Okta, Azure AD)
+- Native Helm Charts & Kubernetes Operator for sidecar injection
+- Dedicated hardware-isolated microVM sandboxing (Firecracker)
