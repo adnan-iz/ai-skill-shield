@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { collectEvidence, fetchExactFile } from '@/lib/review/evidence'
 import { findingKey } from '@/lib/review/finding-key'
 import type { Finding, ValidationResult } from '@/lib/validator/types'
@@ -22,8 +22,10 @@ function scan(overrides: Partial<ValidationResult['source']> = {}): ValidationRe
 }
 
 function githubContent(content: Buffer | string, size = Buffer.byteLength(content)): Response {
-  return Response.json({ encoding: 'base64', size, content: Buffer.from(content).toString('base64') })
+  return Response.json({ type: 'file', encoding: 'base64', size, content: Buffer.from(content).toString('base64') })
 }
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('exact-commit evidence', () => {
   it('reads the scan-owned file at the stored full SHA and bounds its context window', async () => {
@@ -45,6 +47,46 @@ describe('exact-commit evidence', () => {
     const request = vi.fn().mockResolvedValue(response)
 
     await expect(fetchExactFile(scan(), finding, request)).resolves.toBeNull()
+  })
+
+  it.each([
+    ['missing type', { encoding: 'base64', size: 4, content: 'dGVzdA==' }],
+    ['directory type', { type: 'dir', encoding: 'base64', size: 4, content: 'dGVzdA==' }],
+    ['missing size', { type: 'file', encoding: 'base64', content: 'dGVzdA==' }],
+    ['string size', { type: 'file', encoding: 'base64', size: '4', content: 'dGVzdA==' }],
+    ['fractional size', { type: 'file', encoding: 'base64', size: 4.5, content: 'dGVzdA==' }],
+    ['negative size', { type: 'file', encoding: 'base64', size: -1, content: 'dGVzdA==' }],
+  ])('rejects a Contents payload with %s', async (_label, payload) => {
+    const request = vi.fn().mockResolvedValue(Response.json(payload))
+
+    await expect(fetchExactFile(scan(), finding, request)).resolves.toBeNull()
+  })
+
+  it('rejects an oversized numeric Content-Length before parsing JSON', async () => {
+    const response = Response.json({ type: 'file', encoding: 'base64', size: 4, content: 'dGVzdA==' }, {
+      headers: { 'content-length': String(384 * 1024 + 1) },
+    })
+    const parseJson = vi.spyOn(response, 'json')
+    const request = vi.fn().mockResolvedValue(response)
+
+    await expect(fetchExactFile(scan(), finding, request)).resolves.toBeNull()
+    expect(parseJson).not.toHaveBeenCalled()
+  })
+
+  it('rejects oversized encoded content without decoding it', async () => {
+    const parseJson = vi.fn().mockResolvedValue({
+      type: 'file',
+      encoding: 'base64',
+      size: 256 * 1024,
+      content: 'A'.repeat(4 * Math.ceil((256 * 1024) / 3) + 4),
+    })
+    const response = { ok: true, headers: new Headers(), json: parseJson } as unknown as Response
+    const decode = vi.spyOn(Buffer, 'from')
+    const request = vi.fn().mockResolvedValue(response)
+
+    await expect(fetchExactFile(scan(), finding, request)).resolves.toBeNull()
+    expect(parseJson).toHaveBeenCalledOnce()
+    expect(decode).not.toHaveBeenCalled()
   })
 
   it('rejects finding paths that escape the scan-owned skill directory', async () => {

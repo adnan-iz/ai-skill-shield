@@ -6,6 +6,9 @@ import { indexFindings } from './finding-key'
 const MAX_FILE_BYTES = 256 * 1024
 const MAX_EVIDENCE_BYTES = 16 * 1024
 const MAX_REVIEW_EVIDENCE_BYTES = 128 * 1024
+const MAX_BASE64_ENCODED_BYTES = 4 * Math.ceil(MAX_FILE_BYTES / 3)
+const MAX_BASE64_WHITESPACE_BYTES = 2 * Math.ceil(MAX_BASE64_ENCODED_BYTES / 60) + 2
+const MAX_CONTENTS_JSON_BYTES = 384 * 1024
 const CONTEXT_LINES = 20
 const FULL_SHA = /^[0-9a-f]{40}$/i
 const GITHUB_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/
@@ -64,8 +67,14 @@ function scannedFilePath(rootPath: string, findingPath: string | undefined): str
 }
 
 function strictBase64(value: string): Buffer | null {
+  if (value.length > MAX_BASE64_ENCODED_BYTES + MAX_BASE64_WHITESPACE_BYTES) return null
   const compact = value.replace(/[\r\n\t ]/g, '')
-  if (!compact || compact.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(compact)) return null
+  if (
+    !compact ||
+    compact.length > MAX_BASE64_ENCODED_BYTES ||
+    compact.length % 4 !== 0 ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(compact)
+  ) return null
   const decoded = Buffer.from(compact, 'base64')
   return decoded.toString('base64') === compact ? decoded : null
 }
@@ -134,6 +143,8 @@ export async function fetchExactFile(
     return null
   }
   if (!response.ok) return null
+  const contentLength = response.headers.get('content-length')?.trim()
+  if (contentLength && /^[0-9]+$/.test(contentLength) && Number(contentLength) > MAX_CONTENTS_JSON_BYTES) return null
 
   let payload: unknown
   try {
@@ -143,9 +154,9 @@ export async function fetchExactFile(
   }
   if (!payload || typeof payload !== 'object') return null
   const file = payload as { encoding?: unknown; content?: unknown; size?: unknown; type?: unknown }
-  if (file.type !== undefined && file.type !== 'file') return null
+  if (file.type !== 'file') return null
   if (file.encoding !== 'base64' || typeof file.content !== 'string') return null
-  if (typeof file.size === 'number' && (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_FILE_BYTES)) return null
+  if (typeof file.size !== 'number' || !Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_FILE_BYTES) return null
 
   const text = decodeText(file.content)
   if (text === null) return null
@@ -183,6 +194,8 @@ export async function collectEvidence(
 
 export const evidenceLimits = {
   maxFileBytes: MAX_FILE_BYTES,
+  maxBase64EncodedBytes: MAX_BASE64_ENCODED_BYTES,
+  maxContentsJsonBytes: MAX_CONTENTS_JSON_BYTES,
   maxEvidenceBytes: MAX_EVIDENCE_BYTES,
   maxReviewEvidenceBytes: MAX_REVIEW_EVIDENCE_BYTES,
 }
