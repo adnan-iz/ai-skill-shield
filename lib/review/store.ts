@@ -3,6 +3,8 @@ import type { PoolClient } from 'pg'
 import { ensureDatabase, getDatabase } from '@/lib/db'
 import { getResult } from '@/lib/store'
 import { normalizeGitHubSkillPath } from '@/lib/trust'
+import { findingKey } from './finding-key'
+import { projectEffectiveResult } from './projection'
 import { REVIEW_DECISIONS } from './types'
 import type { ApplyReviewInput, ClaimedReview, CommentEventInput, CommentReviewQueueResult, FindingReviewInput, NewScanReview, RescanLinkResult, ReviewDecision, ReviewProjection } from './types'
 import type { ValidationResult, ValidationSummary } from '@/lib/validator/types'
@@ -190,7 +192,7 @@ export async function replaceFindingReviews(reviewId: string, decisions: Finding
   }
 }
 
-export async function applyReviewDecisions(input: ApplyReviewInput): Promise<ReviewProjection> {
+export async function applyReviewDecisions(input: ApplyReviewInput, original?: ValidationResult): Promise<ReviewProjection> {
   await ensureDatabase()
   const { client: pool } = getDatabase()
   const client = await pool.connect()
@@ -215,7 +217,9 @@ export async function applyReviewDecisions(input: ApplyReviewInput): Promise<Rev
        FROM finding_reviews WHERE review_id = $1 FOR UPDATE`, [input.reviewId]
     )
     if (decisions.rows.some((decision) => decision.approval_status === 'pending')) throw new Error('Scan review has pending approval decisions')
-    const projection = deriveProjection(row, decisions.rows)
+    const projection = original
+      ? deriveFullProjection(row, decisions.rows, original)
+      : deriveProjection(row, decisions.rows)
     const now = Date.now()
     const application = await client.query<ApplicationRow>(
       `INSERT INTO review_applications (id, scan_id, review_id, effective_finding_keys, suppressed_finding_keys, effective_risk_level, effective_summary, applied_by, reason, created_at)
@@ -233,6 +237,31 @@ export async function applyReviewDecisions(input: ApplyReviewInput): Promise<Rev
     throw error
   } finally {
     client.release()
+  }
+}
+
+function deriveFullProjection(
+  review: ReviewRow,
+  decisions: FindingReviewRow[],
+  original: ValidationResult,
+): Omit<ReviewProjection, 'reviewId' | 'scanId' | 'verifiedRescanId'> {
+  if (original.id !== review.scan_id) throw new Error('Immutable validation result does not belong to this review')
+  const effective = projectEffectiveResult(original, decisions.map((decision) => ({
+    findingKey: decision.finding_key,
+    decision: decision.decision,
+    proposedSeverity: decision.proposed_severity,
+    approvalStatus: decision.approval_status,
+  })))
+  const effectiveFindingKeys = effective.result.findings.map((finding) => findingKey(original.id, finding))
+  const effectiveKeySet = new Set(effectiveFindingKeys)
+  const suppressedFindingKeys = original.findings
+    .map((finding) => findingKey(original.id, finding))
+    .filter((key) => !effectiveKeySet.has(key))
+  return {
+    effectiveFindingKeys,
+    suppressedFindingKeys,
+    effectiveRiskLevel: effective.result.riskLevel,
+    effectiveSummary: effective.result.summary,
   }
 }
 

@@ -4,6 +4,9 @@ import { normalizeGitHubSkillPath } from '@/lib/trust'
 import { applyReviewDecisions, linkVerifiedRescan as persistVerifiedRescan } from './store'
 import type { RescanLinkResult, ReviewProjection } from './types'
 import type { SkillSource } from '@/lib/validator/types'
+import { projectEffectiveResult } from './projection'
+import type { AppliedFindingDecision } from './projection'
+import type { ReviewDecision } from './types'
 
 const MAX_DECISION_IDS = 20
 
@@ -47,6 +50,9 @@ interface ReviewRow {
 interface DecisionRow {
   id: string
   review_id: string
+  finding_key: string
+  decision: ReviewDecision
+  proposed_severity: 'critical' | 'high' | 'medium' | 'low' | 'info' | null
   requires_approval: boolean
   approval_status: 'not_required' | 'pending' | 'approved' | 'rejected'
 }
@@ -59,6 +65,7 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
   const client = await pool.connect()
   let scanId = ''
   let pendingDecisionCount = 0
+  let decisions: AppliedFindingDecision[] = []
 
   await client.query('BEGIN')
   try {
@@ -74,7 +81,7 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
     scanId = review.scan_id
 
     const selected = await client.query<DecisionRow>(
-      `SELECT id, review_id, requires_approval, approval_status
+      `SELECT id, review_id, finding_key, decision, proposed_severity, requires_approval, approval_status
        FROM finding_reviews WHERE id = ANY($1::text[]) FOR UPDATE`,
       [input.findingReviewIds],
     )
@@ -107,6 +114,17 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
       [input.reviewId],
     )
     pendingDecisionCount = pending.rows[0]?.count ?? 0
+    const allDecisions = await client.query<DecisionRow>(
+      `SELECT id, review_id, finding_key, decision, proposed_severity, requires_approval, approval_status
+       FROM finding_reviews WHERE review_id = $1 ORDER BY id`,
+      [input.reviewId],
+    )
+    decisions = allDecisions.rows.map((decision) => ({
+      findingKey: decision.finding_key,
+      decision: decision.decision,
+      proposedSeverity: decision.proposed_severity,
+      approvalStatus: decision.approval_status,
+    }))
     await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK')
@@ -119,12 +137,19 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
     return { reviewId: input.reviewId, status: 'awaiting_approval', pendingDecisionCount, application: null }
   }
 
+  const original = await getResult(scanId)
+  if (!original) throw new Error('Immutable validation result for scan review was not found')
+  const projected = projectEffectiveResult(original, decisions)
   const application = await applyReviewDecisions({
     reviewId: input.reviewId,
     appliedBy: input.reviewer.trim(),
     reason: input.notes?.trim() || `Finding review decisions ${input.action}d by ${input.reviewer.trim()}.`,
-  })
+  }, original)
   if (application.scanId !== scanId) throw new Error('Applied review does not match its locked scan')
+  if (application.effectiveRiskLevel !== projected.result.riskLevel
+    || JSON.stringify(application.effectiveSummary) !== JSON.stringify(projected.result.summary)) {
+    throw new Error('Persisted review projection does not match the deterministic effective result')
+  }
   return { reviewId: input.reviewId, status: 'completed', pendingDecisionCount: 0, application }
 }
 

@@ -49,7 +49,7 @@ export function projectEffectiveResult(
     summary: buildEffectiveSummary(original.summary, findings),
   }
 
-  return { result, installDecision: buildInstallDecision(result, null) }
+  return { result, installDecision: buildInstallDecision(result, 'approved') }
 }
 
 function projectFindings(

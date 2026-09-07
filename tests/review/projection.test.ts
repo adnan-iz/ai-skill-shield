@@ -59,6 +59,10 @@ test('projects approved finding changes without changing numerical scores', () =
   expect(projected.result.overallScore).toBe(original.overallScore)
   expect(projected.result.axes.map((axis) => axis.score)).toEqual(original.axes.map((axis) => axis.score))
   expect(projected.installDecision.label).toBe('Safe to Review')
+  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')).toMatchObject({
+    status: 'neutral',
+    detail: expect.stringContaining('completed'),
+  })
   expect(original.findings).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: 'critical-id', severity: 'critical' }),
     expect.objectContaining({ id: 'high-id', severity: 'high' }),
@@ -78,6 +82,7 @@ test('does not apply pending or rejected proposals', () => {
   expect(projected.result).toEqual(original)
   expect(projected.result).not.toBe(original)
   expect(projected.installDecision.label).toBe('Do Not Install')
+  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')?.detail).not.toContain('No human review')
 })
 
 test('rejects an approved severity change without its replacement severity', () => {
