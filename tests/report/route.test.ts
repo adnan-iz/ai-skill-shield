@@ -6,6 +6,10 @@ vi.mock('@/lib/store', () => ({
   getResult: vi.fn(),
 }))
 
+vi.mock('@/lib/trust-server', () => ({
+  getPublicReviewApiModel: vi.fn(),
+}))
+
 vi.mock('@/lib/security/rate-limit', () => ({
   checkRateLimit: vi.fn(async () => ({
     allowed: true,
@@ -21,6 +25,8 @@ vi.mock('@/lib/security/rate-limit-headers', () => ({
 
 const { getResult } = await import('@/lib/store')
 const { GET } = await import('@/app/api/report/route')
+const { getPublicReviewApiModel } = await import('@/lib/trust-server')
+const { GET: getScanReview } = await import('@/app/api/scan-reviews/[id]/route')
 
 function makeResult(): ValidationResult {
   return {
@@ -138,5 +144,64 @@ describe('GET /api/report', () => {
     expect(body.indexOf('Finding 104')).toBeLessThan(body.indexOf('Finding 0'))
     expect(body).toContain('Showing the 25 largest token sections of 30')
     expect(body.indexOf('Section 29')).toBeLessThan(body.indexOf('Section 5'))
+  })
+})
+
+describe('GET /api/scan-reviews/[id]', () => {
+  it('returns only the public-safe review model', async () => {
+    vi.mocked(getPublicReviewApiModel).mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111',
+      scanId: '22222222-2222-4222-8222-222222222222',
+      status: 'awaiting_approval',
+      originalScore: 90,
+      originalRiskLevel: 'critical',
+      effectiveRiskLevel: 'critical',
+      proposedRiskLevel: 'medium',
+      commitSha: '0123456789012345678901234567890123456789',
+      createdAt: 1_788_585_600_000,
+      completedAt: null,
+      challengedCount: 1,
+      confirmedCount: 0,
+      suppressedCount: 0,
+      changedCount: 0,
+      unresolvedCount: 1,
+      commentUrl: 'https://github.com/pekral/ai-olympus/issues/89#issuecomment-123',
+      commitUrl: 'https://github.com/pekral/ai-olympus/commit/0123456789012345678901234567890123456789',
+      decisions: [{
+        findingKey: 'a'.repeat(64),
+        decision: 'insufficient_evidence',
+        originalSeverity: 'critical',
+        approvalStatus: 'not_required',
+        explanation: 'The exact file was unavailable.',
+        evidence: [],
+        aiProposed: true,
+        humanApproved: false,
+      }],
+    })
+
+    const response = await getScanReview(
+      new Request('http://localhost:3000/api/scan-reviews/22222222-2222-4222-8222-222222222222'),
+      { params: Promise.resolve({ id: '22222222-2222-4222-8222-222222222222' }) },
+    )
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(body).toContain('insufficient_evidence')
+    expect(body).not.toContain('commentBody')
+    expect(body).not.toContain('providerResponse')
+    expect(body).not.toContain('reviewedBy')
+    expect(body).not.toContain('lastError')
+    expect(body).not.toContain('appliedBy')
+  })
+
+  it('does not reveal whether a non-public or unknown scan has a review', async () => {
+    vi.mocked(getPublicReviewApiModel).mockResolvedValue(null)
+
+    const response = await getScanReview(
+      new Request('http://localhost:3000/api/scan-reviews/22222222-2222-4222-8222-222222222222'),
+      { params: Promise.resolve({ id: '22222222-2222-4222-8222-222222222222' }) },
+    )
+
+    expect(response.status).toBe(404)
   })
 })

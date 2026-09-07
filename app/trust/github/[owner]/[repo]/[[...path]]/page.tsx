@@ -2,11 +2,12 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import ScoreGauge from '@/components/report/score-gauge'
+import ReviewStatus from '@/components/report/review-status'
 import { notFound } from 'next/navigation'
 import TrustActions from '@/components/trust/trust-actions'
 import { buildInstallDecision } from '@/lib/report/install-decision'
 import { githubBadgePath, githubTrustImagePath, githubTrustPath, parseGitHubTrustTarget } from '@/lib/trust'
-import { getPublicTrustResult } from '@/lib/trust-server'
+import { getPublicTrustReadModel } from '@/lib/trust-server'
 import type { Finding } from '@/lib/validator/types'
 
 export const dynamic = 'force-dynamic'
@@ -36,8 +37,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const target = parseGitHubTrustTarget(owner, repo, path)
   if (!target) return { title: 'Trust report unavailable', robots: { index: false, follow: false } }
 
-  const result = await getPublicTrustResult(target.owner, target.repo, target.path)
-  if (!result) return { title: 'Trust report unavailable', robots: { index: false, follow: false } }
+  const readModel = await getPublicTrustReadModel(target.owner, target.repo, target.path)
+  if (!readModel) return { title: 'Trust report unavailable', robots: { index: false, follow: false } }
+  const result = readModel.effective
 
   const decision = buildInstallDecision(result, null)
   const title = `${target.owner}/${target.repo} — ${decision.label}`
@@ -59,13 +61,14 @@ export default async function TrustPage({ params }: Props) {
   const target = parseGitHubTrustTarget(owner, repo, path)
   if (!target) notFound()
 
-  const result = await getPublicTrustResult(target.owner, target.repo, target.path)
-  if (!result) notFound()
+  const readModel = await getPublicTrustReadModel(target.owner, target.repo, target.path)
+  if (!readModel) notFound()
+  const { original, effective: result, review, verifiedRescan } = readModel
 
-  const source = result.source!
+  const source = original.source!
   const meta = source.repositoryMeta!
   const audit = source.repositoryAudit
-  const decision = buildInstallDecision(result, null)
+  const decision = buildInstallDecision(result, review?.status === 'awaiting_approval' ? 'pending' : review?.status === 'completed' ? 'approved' : null)
   const trustPath = githubTrustPath(target)
   const badgePath = githubBadgePath(target)
   const repoLabel = `${target.owner}/${target.repo}`
@@ -111,20 +114,20 @@ export default async function TrustPage({ params }: Props) {
               </a>
             </div>
             <div className="flex items-center gap-4 rounded-xl border border-outline bg-surface-secondary/40 p-4 lg:w-52 lg:flex-col lg:text-center">
-              <ScoreGauge score={result.overallScore} riskLevel={result.riskLevel} compact />
+              <ScoreGauge score={(verifiedRescan ?? original).overallScore} riskLevel={result.riskLevel} compact />
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Latest scan</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">{verifiedRescan ? 'Verified rescan' : 'Original scan score'}</p>
                 <p className="mt-1 text-sm font-semibold text-on-surface">{result.riskLevel} severity</p>
                 <p className="mt-1 text-xs text-on-surface-secondary">Static analysis score</p>
               </div>
             </div>
           </div>
           <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-outline pt-5">
-            <Link href={`/validate/${result.id}`} className="rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700">
+            <Link href={`/validate/${original.id}`} className="rounded-lg bg-shield-600 px-4 py-2 text-sm font-semibold text-white hover:bg-shield-700">
               View full report
             </Link>
             <Link
-              href={`/validate/${result.id}#ai-review`}
+              href={`/validate/${original.id}#ai-review`}
               className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-secondary/80"
             >
               AI review
@@ -147,7 +150,7 @@ export default async function TrustPage({ params }: Props) {
           <div className="rounded-xl border border-outline bg-surface-secondary/50 p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-secondary">Scan identity</p>
             <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between gap-4"><dt className="text-on-surface-secondary">Scanned</dt><dd className="font-medium text-on-surface">{new Date(result.timestamp).toISOString().slice(0, 10)}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-on-surface-secondary">Scanned</dt><dd className="font-medium text-on-surface">{new Date(original.timestamp).toISOString().slice(0, 10)}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-on-surface-secondary">Commit</dt><dd className="font-mono text-xs font-medium text-on-surface">{source.sha?.slice(0, 12) || 'default branch'}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-on-surface-secondary">License</dt><dd className="font-medium text-on-surface">{meta.license || 'Not detected'}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-on-surface-secondary">Repository</dt><dd className="font-medium text-on-surface">{meta.archived ? 'Archived' : 'Active'}</dd></div>
@@ -192,7 +195,7 @@ export default async function TrustPage({ params }: Props) {
             <h2 className="text-lg font-bold text-red-500">Highest-priority findings</h2>
             <p className="mt-1 text-xs text-on-surface-secondary">The latest default-branch scan, ordered by severity.</p>
           </div>
-          <Link href={`/validate/${result.id}`} className="text-sm font-semibold text-shield-700 hover:text-shield-800">Full report</Link>
+          <Link href={`/validate/${original.id}`} className="text-sm font-semibold text-shield-700 hover:text-shield-800">Full report</Link>
         </div>
         {topFindings.length === 0 ? (
           <div className="mt-5 rounded-lg border border-shield-200 bg-shield-50 p-4 text-sm text-shield-800">No findings were raised in this scan.</div>
@@ -211,6 +214,8 @@ export default async function TrustPage({ params }: Props) {
         )}
       </section>
 
+      <ReviewStatus review={review} />
+
       <div className="mt-6 flex justify-center">
         <Image
           src={badgePath}
@@ -221,7 +226,7 @@ export default async function TrustPage({ params }: Props) {
         />
       </div>
       <div className="mt-6">
-        <TrustActions badgePath={badgePath} repoLabel={repoLabel} scanId={result.id} trustPath={trustPath} />
+        <TrustActions badgePath={badgePath} repoLabel={repoLabel} scanId={original.id} trustPath={trustPath} />
       </div>
       <p className="mt-5 text-center text-xs leading-5 text-on-surface-secondary">
         AI Skill Shield is an automated pre-install review, not a guarantee of safety. Confirm sensitive permissions and execution paths before installation.
