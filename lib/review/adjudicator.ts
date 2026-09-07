@@ -199,20 +199,11 @@ interface PromptEvidence {
   startLine?: number
   endLine?: number
   content: string
-  available: boolean
 }
 
 function promptEvidence(item: CollectedEvidence, index: number): PromptEvidence {
   const reference = `exact-commit-${index + 1}`
-  if (!item.evidence) {
-    return {
-      reference,
-      findingKey: item.findingKey,
-      filePath: redacted(item.finding.filePath || 'SKILL.md'),
-      content: '',
-      available: false,
-    }
-  }
+  if (!item.evidence) throw new Error(`Missing exact-commit evidence: ${item.findingKey}`)
   return {
     reference,
     findingKey: item.findingKey,
@@ -220,7 +211,6 @@ function promptEvidence(item: CollectedEvidence, index: number): PromptEvidence 
     startLine: item.evidence.startLine,
     endLine: item.evidence.endLine,
     content: redacted(item.evidence.content),
-    available: true,
   }
 }
 
@@ -232,21 +222,39 @@ export async function adjudicateClaims(
   if (claims.length === 0) return []
   if (claims.length > MAX_CANDIDATE_CLAIMS) throw new Error('Too many claims to adjudicate')
 
-  const evidenceByKey = new Map<string, { source: CollectedEvidence; prompt: PromptEvidence }>()
+  const evidenceByKey = new Map<string, { source: CollectedEvidence; prompt?: PromptEvidence }>()
   evidence.forEach((item, index) => {
     if (evidenceByKey.has(item.findingKey)) throw new Error(`Duplicate evidence key: ${item.findingKey}`)
-    evidenceByKey.set(item.findingKey, { source: item, prompt: promptEvidence(item, index) })
+    evidenceByKey.set(item.findingKey, {
+      source: item,
+      prompt: item.evidence ? promptEvidence(item, index) : undefined,
+    })
   })
 
   const allowed = new Map<string, AllowedAdjudicationClaim>()
   const selectedEvidence: Array<{ source: CollectedEvidence; prompt: PromptEvidence }> = []
+  const modelClaims: CandidateClaim[] = []
+  const forcedDecisions = new Map<string, FindingReviewInput>()
   const seenClaims = new Set<string>()
   for (const claim of claims) {
     if (seenClaims.has(claim.findingKey)) throw new Error(`Duplicate finding key: ${claim.findingKey}`)
     seenClaims.add(claim.findingKey)
     const item = evidenceByKey.get(claim.findingKey)
     if (!item) throw new Error(`Missing evidence for finding key: ${claim.findingKey}`)
-    selectedEvidence.push(item)
+    if (!item.prompt) {
+      forcedDecisions.set(claim.findingKey, {
+        findingKey: claim.findingKey,
+        decision: 'insufficient_evidence',
+        originalSeverity: item.source.finding.severity,
+        confidence: 100,
+        claim: claim.claim,
+        explanation: 'Exact-commit evidence was unavailable, so the claim could not be adjudicated.',
+        evidence: [],
+      })
+      continue
+    }
+    modelClaims.push(claim)
+    selectedEvidence.push({ source: item.source, prompt: item.prompt })
     allowed.set(claim.findingKey, {
       originalSeverity: item.source.finding.severity,
       evidenceRefs: [item.prompt.reference],
@@ -262,7 +270,7 @@ Return {"decisions":[{"findingKey":"supplied key","decision":"allowed enum","con
 Do not choose or calculate a numerical scan score.
 
 <untrusted_claims>
-${jsonData(claims.map((claim) => ({
+${jsonData(modelClaims.map((claim) => ({
     findingKey: claim.findingKey,
     claim: redacted(claim.claim),
     originalSeverity: allowed.get(claim.findingKey)?.originalSeverity,
@@ -273,14 +281,18 @@ ${jsonData(claims.map((claim) => ({
 ${jsonData(selectedEvidence.map((item) => item.prompt))}
 </exact_commit_evidence>`
 
-  const response = await callConfiguredAi(config, prompt)
-  const decisions = await parseAdjudication(response, allowed)
+  const decisions = allowed.size > 0
+    ? await parseAdjudication(await callConfiguredAi(config, prompt), allowed)
+    : []
 
-  const claimByKey = new Map(claims.map((claim) => [claim.findingKey, claim]))
-  return decisions.map((item) => {
-    const claim = claimByKey.get(item.findingKey)
-    const original = evidenceByKey.get(item.findingKey)
-    if (!claim || !original) throw new Error(`Unknown finding key: ${item.findingKey}`)
+  const modelDecisions = new Map(decisions.map((item) => [item.findingKey, item]))
+  return claims.map((claim) => {
+    const forced = forcedDecisions.get(claim.findingKey)
+    if (forced) return forced
+
+    const item = modelDecisions.get(claim.findingKey)
+    const original = evidenceByKey.get(claim.findingKey)
+    if (!item || !original?.prompt) throw new Error(`Missing adjudication decision: ${claim.findingKey}`)
 
     const evidenceByRef = new Map([[original.prompt.reference, original.prompt]])
     return {

