@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterEach, expect, test, vi } from 'vitest'
+import { findingKey } from '@/lib/review/finding-key'
+import type { Finding } from '@/lib/validator/types'
 import type { ValidationResult } from '@/lib/validator/types'
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
@@ -81,15 +83,27 @@ function decision(findingKey = 'finding-1') {
   }
 }
 
-function validationResult(id: string, path = 'reviewer', sha = '0123456789012345678901234567890123456789'): ValidationResult {
+function validationResult(
+  id: string,
+  path = 'reviewer',
+  sha = '0123456789012345678901234567890123456789',
+  findings: Finding[] = [],
+): ValidationResult {
   return {
     id,
     timestamp: '2026-09-05T00:00:00.000Z',
     skillName: 'reviewer',
     overallScore: 90,
     riskLevel: 'high',
-    summary: { totalChecks: 1, passed: 0, warnings: 0, failed: 1, criticalCount: 0, highCount: 1, mediumCount: 0, lowCount: 0, infoCount: 0 },
-    axes: [], findings: [],
+    summary: {
+      totalChecks: 1, passed: 0, warnings: 0, failed: 1,
+      criticalCount: findings.filter((finding) => finding.severity === 'critical').length,
+      highCount: findings.filter((finding) => finding.severity === 'high').length,
+      mediumCount: findings.filter((finding) => finding.severity === 'medium').length,
+      lowCount: findings.filter((finding) => finding.severity === 'low').length,
+      infoCount: findings.filter((finding) => finding.severity === 'info').length,
+    },
+    axes: [], findings,
     compatibility: { agents: [], overallCompatibility: 100 },
     tokenAnalysis: { totalTokens: 1, frontmatterTokens: 0, bodyTokens: 1, isUnderLimit: true, limit: 100, breakdown: [] },
     skillPreview: { frontmatter: {}, body: '', fileTree: [] },
@@ -182,11 +196,13 @@ test.skipIf(!testDatabaseUrl)('rolls back the event when review insertion fails 
 test.skipIf(!testDatabaseUrl)('claims each due review once and persists an applied projection idempotently', async () => {
   process.env.DATABASE_URL = testDatabaseUrl
   const { applyReviewDecisions, claimQueuedReviews, createScanReview, getAppliedProjection } = await import('@/lib/review/store')
+  const { saveResult } = await import('@/lib/store')
   const { client } = (await import('@/lib/db')).getDatabase()
   const deliveryId = randomUUID()
   const scanId = randomUUID()
 
   try {
+    await saveResult(validationResult(scanId))
     const reviewId = await createScanReview({
       ...reviewInput({ deliveryId, scanId }),
     })
@@ -210,10 +226,13 @@ test.skipIf(!testDatabaseUrl)('claims each due review once and persists an appli
 test.skipIf(!testDatabaseUrl)('does not rewrite finding decisions after a review has been applied', async () => {
   process.env.DATABASE_URL = testDatabaseUrl
   const { applyReviewDecisions, claimQueuedReviews, createScanReview, replaceFindingReviews } = await import('@/lib/review/store')
+  const { saveResult } = await import('@/lib/store')
   const { client } = (await import('@/lib/db')).getDatabase()
 
   try {
-    const reviewId = await createScanReview(reviewInput())
+    const scanId = randomUUID()
+    await saveResult(validationResult(scanId))
+    const reviewId = await createScanReview(reviewInput({ scanId }))
     await claimQueuedReviews()
     await replaceFindingReviews(reviewId, [decision()])
     await client.query("UPDATE finding_reviews SET approval_status = 'approved' WHERE review_id = $1", [reviewId])
@@ -249,18 +268,27 @@ test.skipIf(!testDatabaseUrl)('keeps replacement atomic when a duplicate finding
 test.skipIf(!testDatabaseUrl)('derives an applied projection only from approved finding decisions', async () => {
   process.env.DATABASE_URL = testDatabaseUrl
   const { applyReviewDecisions, claimQueuedReviews, createScanReview, replaceFindingReviews } = await import('@/lib/review/store')
+  const { saveResult } = await import('@/lib/store')
   const { client } = (await import('@/lib/db')).getDatabase()
 
   try {
-    const reviewId = await createScanReview(reviewInput())
+    const scanId = randomUUID()
+    const challenged: Finding = {
+      id: 'unstable-validator-id', axis: 'security', severity: 'high', category: 'Example',
+      title: 'Documented shell command', message: 'The command appears in documentation.', filePath: 'SKILL.md', lineNumber: 10,
+    }
+    const original = validationResult(scanId, 'reviewer', '0123456789012345678901234567890123456789', [challenged])
+    const challengedKey = findingKey(scanId, challenged)
+    await saveResult(original)
+    const reviewId = await createScanReview(reviewInput({ scanId, originalSummary: original.summary }))
     await claimQueuedReviews()
-    await replaceFindingReviews(reviewId, [decision()])
+    await replaceFindingReviews(reviewId, [decision(challengedKey)])
     await client.query("UPDATE finding_reviews SET approval_status = 'approved' WHERE review_id = $1", [reviewId])
     await client.query("UPDATE scan_reviews SET status = 'awaiting_approval' WHERE id = $1", [reviewId])
 
     await expect(applyReviewDecisions({ reviewId, appliedBy: 'reviewer', reason: 'Approved.' })).resolves.toMatchObject({
       effectiveFindingKeys: [],
-      suppressedFindingKeys: ['finding-1'],
+      suppressedFindingKeys: [challengedKey],
       effectiveRiskLevel: 'safe',
       effectiveSummary: { highCount: 0 },
     })

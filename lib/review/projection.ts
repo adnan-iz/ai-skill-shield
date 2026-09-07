@@ -17,6 +17,8 @@ export interface EffectiveReviewResult {
   installDecision: InstallDecision
 }
 
+export type EffectiveReviewApprovalState = 'pending' | 'approved' | 'rejected' | null
+
 const SEVERITY_ORDER: Record<Severity, number> = {
   info: 0,
   low: 1,
@@ -32,6 +34,7 @@ const SEVERITY_ORDER: Record<Severity, number> = {
 export function projectEffectiveResult(
   original: ValidationResult,
   decisions: AppliedFindingDecision[],
+  approvalState: EffectiveReviewApprovalState = aggregateApprovalState(decisions),
 ): EffectiveReviewResult {
   const byKey = new Map(decisions.map((decision) => [decision.findingKey, decision]))
   validateApprovedSeverityChanges(original, byKey)
@@ -49,7 +52,14 @@ export function projectEffectiveResult(
     summary: buildEffectiveSummary(original.summary, findings),
   }
 
-  return { result, installDecision: buildInstallDecision(result, 'approved') }
+  return { result, installDecision: buildInstallDecision(result, approvalState) }
+}
+
+function aggregateApprovalState(decisions: AppliedFindingDecision[]): EffectiveReviewApprovalState {
+  if (decisions.some((decision) => decision.approvalStatus === 'pending')) return 'pending'
+  if (decisions.some((decision) => decision.approvalStatus === 'rejected')) return 'rejected'
+  if (decisions.some((decision) => decision.approvalStatus === 'approved')) return 'approved'
+  return null
 }
 
 function projectFindings(

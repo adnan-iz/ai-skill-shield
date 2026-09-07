@@ -428,7 +428,7 @@ function boundedError(value: string): string {
   return value.replace(/[\r\n\t]+/g, ' ').slice(0, 1_000)
 }
 
-export async function applyReviewDecisions(input: ApplyReviewInput, original?: ValidationResult): Promise<ReviewProjection> {
+export async function applyReviewDecisions(input: ApplyReviewInput): Promise<ReviewProjection> {
   await ensureDatabase()
   const { client: pool } = getDatabase()
   const client = await pool.connect()
@@ -453,9 +453,9 @@ export async function applyReviewDecisions(input: ApplyReviewInput, original?: V
        FROM finding_reviews WHERE review_id = $1 FOR UPDATE`, [input.reviewId]
     )
     if (decisions.rows.some((decision) => decision.approval_status === 'pending')) throw new Error('Scan review has pending approval decisions')
-    const projection = original
-      ? deriveFullProjection(row, decisions.rows, original)
-      : deriveProjection(row, decisions.rows)
+    const original = await getResult(row.scan_id)
+    if (!original) throw new Error('Immutable validation result for scan review was not found')
+    const projection = deriveFullProjection(row, decisions.rows, original)
     const now = Date.now()
     const application = await client.query<ApplicationRow>(
       `INSERT INTO review_applications (id, scan_id, review_id, effective_finding_keys, suppressed_finding_keys, effective_risk_level, effective_summary, applied_by, reason, created_at)
@@ -487,7 +487,7 @@ function deriveFullProjection(
     decision: decision.decision,
     proposedSeverity: decision.proposed_severity,
     approvalStatus: decision.approval_status,
-  })))
+  })), 'approved')
   const effectiveFindingKeys = effective.result.findings.map((finding) => findingKey(original.id, finding))
   const effectiveKeySet = new Set(effectiveFindingKeys)
   const suppressedFindingKeys = original.findings
@@ -555,56 +555,6 @@ function projectionFromRow(row: ApplicationRow, verifiedRescanId?: string): Revi
     effectiveSummary: JSON.parse(row.effective_summary) as ValidationSummary,
     ...(verifiedRescanId ? { verifiedRescanId } : {}),
   }
-}
-
-function deriveProjection(review: ReviewRow, decisions: FindingReviewRow[]): Omit<ReviewProjection, 'reviewId' | 'scanId' | 'verifiedRescanId'> {
-  const summary = parseSummary(review.original_summary)
-  const effectiveFindingKeys: string[] = []
-  const suppressedFindingKeys: string[] = []
-  for (const decision of decisions) {
-    if (decision.approval_status === 'rejected') continue
-    if (decision.approval_status !== 'approved' && decision.approval_status !== 'not_required') continue
-    if (decision.requires_approval && decision.approval_status !== 'approved') continue
-    if (decision.decision === 'false_positive') {
-      decrementSeverity(summary, decision.original_severity)
-      suppressedFindingKeys.push(decision.finding_key)
-    } else {
-      effectiveFindingKeys.push(decision.finding_key)
-      if ((decision.decision === 'severity_reduced' || decision.decision === 'severity_increased') && decision.proposed_severity) {
-        decrementSeverity(summary, decision.original_severity)
-        incrementSeverity(summary, decision.proposed_severity)
-      }
-    }
-  }
-  return { effectiveFindingKeys, suppressedFindingKeys, effectiveRiskLevel: riskLevelFromSummary(summary), effectiveSummary: summary }
-}
-
-function parseSummary(value: string): ValidationSummary {
-  const summary = JSON.parse(value) as ValidationSummary
-  const fields: Array<keyof ValidationSummary> = ['totalChecks', 'passed', 'warnings', 'failed', 'criticalCount', 'highCount', 'mediumCount', 'lowCount', 'infoCount']
-  if (fields.some((field) => !Number.isInteger(summary[field]) || summary[field] < 0)) throw new Error('Scan review has an invalid immutable validation summary')
-  return { ...summary }
-}
-
-function decrementSeverity(summary: ValidationSummary, severity: FindingReviewRow['original_severity']): void {
-  const field = severityCountField(severity)
-  summary[field] = Math.max(0, summary[field] - 1)
-}
-
-function incrementSeverity(summary: ValidationSummary, severity: FindingReviewRow['original_severity']): void {
-  summary[severityCountField(severity)] += 1
-}
-
-function severityCountField(severity: FindingReviewRow['original_severity']): 'criticalCount' | 'highCount' | 'mediumCount' | 'lowCount' | 'infoCount' {
-  return `${severity}Count` as 'criticalCount' | 'highCount' | 'mediumCount' | 'lowCount' | 'infoCount'
-}
-
-function riskLevelFromSummary(summary: ValidationSummary): ValidationResult['riskLevel'] {
-  if (summary.criticalCount > 0) return 'critical'
-  if (summary.highCount > 0) return 'high'
-  if (summary.mediumCount > 0) return 'medium'
-  if (summary.lowCount > 0) return 'low'
-  return 'safe'
 }
 
 function sameReviewSource(result: ValidationResult, review: ReviewRow): boolean {

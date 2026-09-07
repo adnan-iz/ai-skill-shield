@@ -59,10 +59,7 @@ test('projects approved finding changes without changing numerical scores', () =
   expect(projected.result.overallScore).toBe(original.overallScore)
   expect(projected.result.axes.map((axis) => axis.score)).toEqual(original.axes.map((axis) => axis.score))
   expect(projected.installDecision.label).toBe('Safe to Review')
-  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')).toMatchObject({
-    status: 'neutral',
-    detail: expect.stringContaining('completed'),
-  })
+  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')?.detail).toContain('completed')
   expect(original.findings).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: 'critical-id', severity: 'critical' }),
     expect.objectContaining({ id: 'high-id', severity: 'high' }),
@@ -82,7 +79,31 @@ test('does not apply pending or rejected proposals', () => {
   expect(projected.result).toEqual(original)
   expect(projected.result).not.toBe(original)
   expect(projected.installDecision.label).toBe('Do Not Install')
-  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')?.detail).not.toContain('No human review')
+  expect(projected.installDecision.checklist.find((item) => item.label === 'Human review')).toMatchObject({
+    status: 'warn',
+    detail: expect.stringContaining('waiting'),
+  })
+})
+
+test('uses rejected preview state but lets a completed review supply approved state', () => {
+  const original = originalResult()
+  const decision = {
+    findingKey: findingKey(original.id, original.findings[0]),
+    decision: 'false_positive' as const,
+    approvalStatus: 'rejected' as const,
+  }
+
+  const preview = projectEffectiveResult(original, [decision])
+  const completed = projectEffectiveResult(original, [decision], 'approved')
+
+  expect(preview.installDecision.checklist.find((item) => item.label === 'Human review')).toMatchObject({
+    status: 'fail',
+    detail: expect.stringContaining('escalated'),
+  })
+  expect(completed.installDecision.checklist.find((item) => item.label === 'Human review')).toMatchObject({
+    status: 'neutral',
+    detail: expect.stringContaining('completed'),
+  })
 })
 
 test('rejects an approved severity change without its replacement severity', () => {

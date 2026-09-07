@@ -139,12 +139,12 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
 
   const original = await getResult(scanId)
   if (!original) throw new Error('Immutable validation result for scan review was not found')
-  const projected = projectEffectiveResult(original, decisions)
+  const projected = projectEffectiveResult(original, decisions, 'approved')
   const application = await applyReviewDecisions({
     reviewId: input.reviewId,
     appliedBy: input.reviewer.trim(),
     reason: input.notes?.trim() || `Finding review decisions ${input.action}d by ${input.reviewer.trim()}.`,
-  }, original)
+  })
   if (application.scanId !== scanId) throw new Error('Applied review does not match its locked scan')
   if (application.effectiveRiskLevel !== projected.result.riskLevel
     || JSON.stringify(application.effectiveSummary) !== JSON.stringify(projected.result.summary)) {
