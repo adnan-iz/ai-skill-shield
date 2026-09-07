@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { decideReview, ReviewServiceError } from '@/lib/review/service'
+import { refreshReviewReply } from '@/lib/github/review-replies'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,16 @@ export async function POST(
     const raw = await readBoundedBody(request, MAX_BODY_BYTES)
     const body = DecisionBodySchema.parse(JSON.parse(raw))
     const result = await decideReview({ reviewId, ...body })
+    try {
+      await refreshReviewReply(reviewId)
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: 'Scan review decision was saved but its GitHub reply could not be refreshed',
+        reviewId,
+        error: error instanceof Error ? error.message : String(error),
+      }))
+    }
     return Response.json(result)
   } catch (error) {
     if (error instanceof ReviewServiceError) {

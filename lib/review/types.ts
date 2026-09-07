@@ -66,6 +66,34 @@ export interface ClaimedReview {
   originalRiskLevel: ValidationResult['riskLevel']
 }
 
+export interface StoredCandidateClaim {
+  findingKey: string
+  claim: string
+}
+
+export interface ReviewProcessingContext extends ClaimedReview {
+  owner: string
+  repo: string
+  path: string
+  issueNumber: number
+  commentBody: string
+  stageData: { claims: StoredCandidateClaim[] } | null
+}
+
+export interface StoredFindingReview extends FindingReviewInput {
+  id: string
+  approvalStatus: DecisionApproval
+  requiresApproval: boolean
+}
+
+export interface ReviewReplyContext extends Omit<ReviewProcessingContext, 'status' | 'stageData'> {
+  status: 'processing' | 'awaiting_approval' | 'completed'
+  stage: ReviewStage
+  proposedRiskLevel: ValidationResult['riskLevel']
+  replyCommentId: number | null
+  decisions: StoredFindingReview[]
+}
+
 export interface FindingReviewInput {
   findingKey: string
   decision: ReviewDecision

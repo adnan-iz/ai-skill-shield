@@ -6,7 +6,7 @@ import { normalizeGitHubSkillPath } from '@/lib/trust'
 import { findingKey } from './finding-key'
 import { projectEffectiveResult } from './projection'
 import { REVIEW_DECISIONS } from './types'
-import type { ApplyReviewInput, ClaimedReview, CommentEventInput, CommentReviewQueueResult, FindingReviewInput, NewScanReview, RescanLinkResult, ReviewDecision, ReviewProjection } from './types'
+import type { ApplyReviewInput, ClaimedReview, CommentEventInput, CommentReviewQueueResult, FindingReviewInput, NewScanReview, RescanLinkResult, ReviewDecision, ReviewProcessingContext, ReviewProjection, ReviewReplyContext, StoredCandidateClaim, StoredFindingReview } from './types'
 import type { ValidationResult, ValidationSummary } from '@/lib/validator/types'
 
 interface ReviewRow {
@@ -38,12 +38,17 @@ interface ApplicationRow {
 }
 
 interface FindingReviewRow {
+  id: string
   finding_key: string
   decision: ReviewDecision
   original_severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
   proposed_severity: 'critical' | 'high' | 'medium' | 'low' | 'info' | null
   requires_approval: boolean
   approval_status: 'not_required' | 'pending' | 'approved' | 'rejected'
+  confidence: number
+  claim: string
+  explanation: string
+  evidence: string
 }
 
 const APPROVAL_REQUIRED_DECISIONS = new Set<ReviewDecision>(['false_positive', 'severity_reduced', 'severity_increased'])
@@ -155,15 +160,186 @@ export async function claimQueuedReviews(limit = 5): Promise<ClaimedReview[]> {
   }))
 }
 
-export async function replaceFindingReviews(reviewId: string, decisions: FindingReviewInput[]): Promise<void> {
-  if (decisions.length > MAX_FINDING_CANDIDATES) throw new Error(`A review can contain at most ${MAX_FINDING_CANDIDATES} finding candidates`)
-  const findingKeys = new Set<string>()
-  for (const decision of decisions) {
-    if (!REVIEW_DECISIONS.includes(decision.decision)) throw new Error(`Unsupported review decision: ${decision.decision}`)
-    if (!Number.isInteger(decision.confidence) || decision.confidence < 0 || decision.confidence > 100) throw new Error('Review confidence must be an integer between 0 and 100')
-    if (findingKeys.has(decision.findingKey)) throw new Error(`Duplicate finding key: ${decision.findingKey}`)
-    findingKeys.add(decision.findingKey)
+interface ProcessingContextRow extends ReviewRow {
+  comment_body: string
+  stage_data: string | null
+  reply_comment_id: number | null
+  proposed_risk_level: ValidationResult['riskLevel'] | null
+}
+
+/** Loads only a currently claimed review and its immutable triggering comment. */
+export async function getReviewProcessingContext(reviewId: string): Promise<ReviewProcessingContext | null> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const result = await client.query<ProcessingContextRow>(
+    `SELECT review.*, event.comment_body
+     FROM scan_reviews review INNER JOIN github_comment_events event ON event.delivery_id = review.delivery_id
+     WHERE review.id = $1 AND review.status = 'processing'`,
+    [reviewId],
+  )
+  const row = result.rows[0]
+  if (!row) return null
+  return {
+    id: row.id, deliveryId: row.delivery_id, scanId: row.scan_id, target: row.target, commitSha: row.commit_sha,
+    status: 'processing', stage: row.stage, attempts: row.attempts, originalScore: row.original_score,
+    originalRiskLevel: row.original_risk_level, owner: row.owner, repo: row.repo, path: row.path,
+    issueNumber: row.issue_number, commentBody: row.comment_body, stageData: parseStageData(row.stage_data),
   }
+}
+
+export async function beginReviewEvidenceCollection(reviewId: string): Promise<void> {
+  await updateProcessingStage(reviewId, ['queued', 'collecting_evidence'], 'collecting_evidence')
+}
+
+/** Saves validated claim identities before the adjudication provider may be called. */
+export async function saveReviewClaims(
+  reviewId: string,
+  claims: StoredCandidateClaim[],
+  provider: string,
+  model?: string,
+): Promise<void> {
+  validateStoredClaims(claims)
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const result = await client.query(
+    `UPDATE scan_reviews SET stage = 'adjudicating', stage_data = $2, provider = $3, model = $4
+     WHERE id = $1 AND status = 'processing' AND stage = 'collecting_evidence'`,
+    [reviewId, JSON.stringify({ claims }), provider, model ?? null],
+  )
+  if (result.rowCount !== 1) throw new Error('Scan review evidence stage is no longer claimable')
+}
+
+/** Atomically stores strict adjudication output and advances past the provider call. */
+export async function saveReviewAdjudication(
+  reviewId: string,
+  decisions: FindingReviewInput[],
+  proposedRiskLevel: ValidationResult['riskLevel'],
+): Promise<void> {
+  validateFindingReviewInputs(decisions)
+  await ensureDatabase()
+  const { client: pool } = getDatabase()
+  const client = await pool.connect()
+  await client.query('BEGIN')
+  try {
+    const review = await client.query<Pick<ReviewRow, 'status' | 'stage'>>(
+      'SELECT status, stage FROM scan_reviews WHERE id = $1 FOR UPDATE', [reviewId],
+    )
+    if (!review.rows[0] || review.rows[0].status !== 'processing' || review.rows[0].stage !== 'adjudicating') {
+      throw new Error('Scan review adjudication stage is no longer claimable')
+    }
+    await client.query('DELETE FROM finding_reviews WHERE review_id = $1', [reviewId])
+    await insertFindingReviews(client, reviewId, decisions)
+    await client.query(
+      `UPDATE scan_reviews SET stage = 'publishing', stage_data = NULL, proposed_risk_level = $2 WHERE id = $1`,
+      [reviewId, proposedRiskLevel],
+    )
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function getReviewReplyContext(reviewId: string): Promise<ReviewReplyContext | null> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const reviewResult = await client.query<ProcessingContextRow>(
+    `SELECT review.*, event.comment_body
+     FROM scan_reviews review INNER JOIN github_comment_events event ON event.delivery_id = review.delivery_id
+     WHERE review.id = $1 AND review.status IN ('processing', 'awaiting_approval', 'completed')`, [reviewId],
+  )
+  const row = reviewResult.rows[0]
+  if (!row || !row.proposed_risk_level) return null
+  const findings = await client.query<FindingReviewRow>(
+    `SELECT id, finding_key, decision, original_severity, proposed_severity, confidence, claim, explanation,
+            evidence, requires_approval, approval_status
+     FROM finding_reviews WHERE review_id = $1 ORDER BY id`, [reviewId],
+  )
+  return {
+    id: row.id, deliveryId: row.delivery_id, scanId: row.scan_id, target: row.target, commitSha: row.commit_sha,
+    status: row.status as ReviewReplyContext['status'], stage: row.stage, attempts: row.attempts,
+    originalScore: row.original_score, originalRiskLevel: row.original_risk_level, owner: row.owner, repo: row.repo,
+    path: row.path, issueNumber: row.issue_number, commentBody: row.comment_body,
+    proposedRiskLevel: row.proposed_risk_level, replyCommentId: row.reply_comment_id,
+    decisions: findings.rows.map(storedFindingReview),
+  }
+}
+
+export async function persistReviewReply(reviewId: string, commentId: number): Promise<void> {
+  if (!Number.isSafeInteger(commentId) || commentId < 1) throw new Error('Invalid GitHub reply comment id')
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const result = await client.query(
+    `UPDATE scan_reviews SET reply_comment_id = COALESCE(reply_comment_id, $2)
+     WHERE id = $1 AND status = 'processing' AND stage = 'publishing'
+       AND (reply_comment_id IS NULL OR reply_comment_id = $2)`, [reviewId, commentId],
+  )
+  if (result.rowCount !== 1) throw new Error('Scan review reply identity conflicts with stored state')
+}
+
+/** Makes a published proposal visible and returns whether human action is pending. */
+export async function finishReviewPublication(reviewId: string): Promise<{ status: 'awaiting_approval'; pendingDecisionCount: number }> {
+  await ensureDatabase()
+  const { client: pool } = getDatabase()
+  const client = await pool.connect()
+  await client.query('BEGIN')
+  try {
+    const locked = await client.query<Pick<ReviewRow, 'delivery_id'>>(
+      `SELECT delivery_id FROM scan_reviews
+       WHERE id = $1 AND status = 'processing' AND stage = 'publishing' AND reply_comment_id IS NOT NULL FOR UPDATE`, [reviewId],
+    )
+    if (!locked.rows[0]) throw new Error('Scan review publication stage is incomplete')
+    const pending = await client.query<{ count: number }>(
+      `SELECT COUNT(*)::INTEGER AS count FROM finding_reviews
+       WHERE review_id = $1 AND requires_approval = TRUE AND approval_status = 'pending'`, [reviewId],
+    )
+    await client.query(`UPDATE scan_reviews SET status = 'awaiting_approval', stage = 'done', completed_at = $2 WHERE id = $1`, [reviewId, Date.now()])
+    await client.query(`UPDATE github_comment_events SET status = 'completed' WHERE delivery_id = $1`, [locked.rows[0].delivery_id])
+    await client.query('COMMIT')
+    return { status: 'awaiting_approval', pendingDecisionCount: pending.rows[0]?.count ?? 0 }
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+/** Requeues only transient work and permanently fails it after three total claims. */
+export async function retryOrFailReview(reviewId: string, errorMessage: string, transient: boolean): Promise<'retried' | 'failed'> {
+  await ensureDatabase()
+  const { client: pool } = getDatabase()
+  const client = await pool.connect()
+  await client.query('BEGIN')
+  try {
+    const locked = await client.query<Pick<ReviewRow, 'attempts' | 'delivery_id'>>(
+      `SELECT attempts, delivery_id FROM scan_reviews WHERE id = $1 AND status = 'processing' FOR UPDATE`, [reviewId],
+    )
+    const review = locked.rows[0]
+    if (!review) throw new Error('Scan review is no longer processing')
+    const retry = transient && review.attempts < 3
+    const now = Date.now()
+    await client.query(
+      retry
+        ? `UPDATE scan_reviews SET status = 'queued', run_at = $2, last_error = $3 WHERE id = $1`
+        : `UPDATE scan_reviews SET status = 'failed', stage = 'done', completed_at = $2, last_error = $3 WHERE id = $1`,
+      [reviewId, retry ? now + Math.min(60_000, 1_000 * (2 ** review.attempts)) : now, boundedError(errorMessage)],
+    )
+    await client.query(`UPDATE github_comment_events SET status = $2 WHERE delivery_id = $1`, [review.delivery_id, retry ? 'processing' : 'failed'])
+    await client.query('COMMIT')
+    return retry ? 'retried' : 'failed'
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function replaceFindingReviews(reviewId: string, decisions: FindingReviewInput[]): Promise<void> {
+  validateFindingReviewInputs(decisions)
 
   await ensureDatabase()
   const { client: pool } = getDatabase()
@@ -175,14 +351,7 @@ export async function replaceFindingReviews(reviewId: string, decisions: Finding
     if (review.rows[0].status !== 'processing') throw new Error('Scan review must be processing before its decisions can change')
 
     await client.query('DELETE FROM finding_reviews WHERE review_id = $1', [reviewId])
-    for (const decision of decisions) {
-      const requiresApproval = APPROVAL_REQUIRED_DECISIONS.has(decision.decision)
-      await client.query(
-        `INSERT INTO finding_reviews (id, review_id, finding_key, decision, original_severity, proposed_severity, confidence, claim, explanation, evidence, requires_approval, approval_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [randomUUID(), reviewId, decision.findingKey, decision.decision, decision.originalSeverity, decision.proposedSeverity ?? null, decision.confidence, decision.claim, decision.explanation, JSON.stringify(decision.evidence), requiresApproval, requiresApproval ? 'pending' : 'not_required']
-      )
-    }
+    await insertFindingReviews(client, reviewId, decisions)
     await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK')
@@ -190,6 +359,73 @@ export async function replaceFindingReviews(reviewId: string, decisions: Finding
   } finally {
     client.release()
   }
+}
+
+async function updateProcessingStage(reviewId: string, expected: ClaimedReview['stage'][], stage: ClaimedReview['stage']): Promise<void> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const result = await client.query(
+    `UPDATE scan_reviews SET stage = $2 WHERE id = $1 AND status = 'processing' AND stage = ANY($3::text[])`,
+    [reviewId, stage, expected],
+  )
+  if (result.rowCount !== 1) throw new Error('Scan review stage is no longer claimable')
+}
+
+function validateStoredClaims(claims: StoredCandidateClaim[]): void {
+  if (!Array.isArray(claims) || claims.length > MAX_FINDING_CANDIDATES) throw new Error('Invalid stored scan review claims')
+  const keys = new Set<string>()
+  for (const claim of claims) {
+    if (!/^[a-f0-9]{64}$/.test(claim.findingKey) || !claim.claim.trim() || claim.claim.length > 1_000 || keys.has(claim.findingKey)) {
+      throw new Error('Invalid stored scan review claims')
+    }
+    keys.add(claim.findingKey)
+  }
+}
+
+function parseStageData(value: string | null): { claims: StoredCandidateClaim[] } | null {
+  if (!value) return null
+  let parsed: unknown
+  try { parsed = JSON.parse(value) } catch { throw new Error('Invalid stored scan review stage data') }
+  const claims = parsed && typeof parsed === 'object' ? (parsed as { claims?: unknown }).claims : undefined
+  if (!Array.isArray(claims)) throw new Error('Invalid stored scan review stage data')
+  validateStoredClaims(claims as StoredCandidateClaim[])
+  return { claims: claims as StoredCandidateClaim[] }
+}
+
+function validateFindingReviewInputs(decisions: FindingReviewInput[]): void {
+  if (decisions.length > MAX_FINDING_CANDIDATES) throw new Error(`A review can contain at most ${MAX_FINDING_CANDIDATES} finding candidates`)
+  const findingKeys = new Set<string>()
+  for (const decision of decisions) {
+    if (!REVIEW_DECISIONS.includes(decision.decision)) throw new Error(`Unsupported review decision: ${decision.decision}`)
+    if (!Number.isInteger(decision.confidence) || decision.confidence < 0 || decision.confidence > 100) throw new Error('Review confidence must be an integer between 0 and 100')
+    if (findingKeys.has(decision.findingKey)) throw new Error(`Duplicate finding key: ${decision.findingKey}`)
+    findingKeys.add(decision.findingKey)
+  }
+}
+
+async function insertFindingReviews(client: PoolClient, reviewId: string, decisions: FindingReviewInput[]): Promise<void> {
+  for (const decision of decisions) {
+    const requiresApproval = APPROVAL_REQUIRED_DECISIONS.has(decision.decision)
+    await client.query(
+      `INSERT INTO finding_reviews (id, review_id, finding_key, decision, original_severity, proposed_severity, confidence, claim, explanation, evidence, requires_approval, approval_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [randomUUID(), reviewId, decision.findingKey, decision.decision, decision.originalSeverity, decision.proposedSeverity ?? null, decision.confidence, decision.claim, decision.explanation, JSON.stringify(decision.evidence), requiresApproval, requiresApproval ? 'pending' : 'not_required'],
+    )
+  }
+}
+
+function storedFindingReview(row: FindingReviewRow): StoredFindingReview {
+  let evidence: FindingReviewInput['evidence']
+  try { evidence = JSON.parse(row.evidence) as FindingReviewInput['evidence'] } catch { throw new Error('Invalid stored finding review evidence') }
+  return {
+    id: row.id, findingKey: row.finding_key, decision: row.decision, originalSeverity: row.original_severity,
+    proposedSeverity: row.proposed_severity ?? undefined, confidence: row.confidence, claim: row.claim,
+    explanation: row.explanation, evidence, requiresApproval: row.requires_approval, approvalStatus: row.approval_status,
+  }
+}
+
+function boundedError(value: string): string {
+  return value.replace(/[\r\n\t]+/g, ' ').slice(0, 1_000)
 }
 
 export async function applyReviewDecisions(input: ApplyReviewInput, original?: ValidationResult): Promise<ReviewProjection> {
