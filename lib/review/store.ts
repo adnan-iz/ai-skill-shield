@@ -53,6 +53,9 @@ interface FindingReviewRow {
 
 const APPROVAL_REQUIRED_DECISIONS = new Set<ReviewDecision>(['false_positive', 'severity_reduced', 'severity_increased'])
 const MAX_FINDING_CANDIDATES = 20
+const PROCESSING_LEASE_MS = 10 * 60 * 1_000
+const REPLY_REFRESH_PENDING = JSON.stringify({ replyRefresh: 'pending' })
+const REPLY_REFRESH_PROCESSING = JSON.stringify({ replyRefresh: 'processing' })
 
 export async function recordCommentEvent(input: CommentEventInput): Promise<{ inserted: boolean }> {
   await ensureDatabase()
@@ -147,12 +150,22 @@ export async function claimQueuedReviews(limit = 5): Promise<ClaimedReview[]> {
   const { client } = getDatabase()
   const now = Date.now()
   const claimed = await client.query<ReviewRow>(
-    `WITH due AS (
-       SELECT id FROM scan_reviews WHERE status = 'queued' AND run_at <= $1 ORDER BY run_at ASC LIMIT $2 FOR UPDATE SKIP LOCKED
+    `WITH expired AS (
+       UPDATE scan_reviews SET status = 'failed', stage = 'done', completed_at = $1, last_error = 'Processing lease expired after three attempts'
+       WHERE status = 'processing' AND started_at <= $3 AND attempts >= 3
+       RETURNING delivery_id
+     ), failed_events AS (
+       UPDATE github_comment_events event SET status = 'failed'
+       FROM expired WHERE event.delivery_id = expired.delivery_id
+     ), due AS (
+       SELECT id FROM scan_reviews
+       WHERE (status = 'queued' AND run_at <= $1)
+          OR (status = 'processing' AND started_at <= $3 AND attempts < 3)
+       ORDER BY run_at ASC LIMIT $2 FOR UPDATE SKIP LOCKED
      )
      UPDATE scan_reviews review SET status = 'processing', attempts = review.attempts + 1, started_at = $1
      FROM due WHERE review.id = due.id RETURNING review.*`,
-    [now, Math.max(1, Math.min(limit, 10))]
+    [now, Math.max(1, Math.min(limit, 10)), now - PROCESSING_LEASE_MS]
   )
   return claimed.rows.map((row) => ({
     id: row.id, deliveryId: row.delivery_id, scanId: row.scan_id, target: row.target, commitSha: row.commit_sha,
@@ -280,14 +293,16 @@ export async function persistReviewReply(reviewId: string, commentId: number): P
 }
 
 /** Makes a published proposal visible and returns whether human action is pending. */
-export async function finishReviewPublication(reviewId: string): Promise<{ status: 'awaiting_approval'; pendingDecisionCount: number }> {
+export async function finishReviewPublication(reviewId: string): Promise<
+  { status: 'awaiting_approval'; pendingDecisionCount: number } | { status: 'completed'; pendingDecisionCount: 0 }
+> {
   await ensureDatabase()
   const { client: pool } = getDatabase()
   const client = await pool.connect()
   await client.query('BEGIN')
   try {
-    const locked = await client.query<Pick<ReviewRow, 'delivery_id'>>(
-      `SELECT delivery_id FROM scan_reviews
+    const locked = await client.query<ReviewRow>(
+      `SELECT * FROM scan_reviews
        WHERE id = $1 AND status = 'processing' AND stage = 'publishing' AND reply_comment_id IS NOT NULL FOR UPDATE`, [reviewId],
     )
     if (!locked.rows[0]) throw new Error('Scan review publication stage is incomplete')
@@ -295,16 +310,75 @@ export async function finishReviewPublication(reviewId: string): Promise<{ statu
       `SELECT COUNT(*)::INTEGER AS count FROM finding_reviews
        WHERE review_id = $1 AND requires_approval = TRUE AND approval_status = 'pending'`, [reviewId],
     )
-    await client.query(`UPDATE scan_reviews SET status = 'awaiting_approval', stage = 'done', completed_at = $2 WHERE id = $1`, [reviewId, Date.now()])
+    const pendingDecisionCount = pending.rows[0]?.count ?? 0
+    const now = Date.now()
+    if (pendingDecisionCount === 0) {
+      const decisions = await client.query<FindingReviewRow>(
+        `SELECT id, finding_key, decision, original_severity, proposed_severity, confidence, claim, explanation,
+                evidence, requires_approval, approval_status
+         FROM finding_reviews WHERE review_id = $1 FOR UPDATE`, [reviewId],
+      )
+      const original = await getResult(locked.rows[0].scan_id)
+      if (!original) throw new Error('Immutable validation result for scan review was not found')
+      const projection = deriveFullProjection(locked.rows[0], decisions.rows, original)
+      await client.query(
+        `INSERT INTO review_applications (id, scan_id, review_id, effective_finding_keys, suppressed_finding_keys, effective_risk_level, effective_summary, applied_by, reason, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'ai-skill-shield', 'No report-changing AI proposal required human approval.', $8)
+         ON CONFLICT (review_id) DO NOTHING`,
+        [randomUUID(), locked.rows[0].scan_id, reviewId, JSON.stringify(projection.effectiveFindingKeys), JSON.stringify(projection.suppressedFindingKeys), projection.effectiveRiskLevel, JSON.stringify(projection.effectiveSummary), now],
+      )
+      await client.query(`UPDATE scan_reviews SET status = 'completed', stage = 'done', effective_risk_level = $2, completed_at = $3 WHERE id = $1`, [reviewId, projection.effectiveRiskLevel, now])
+    } else {
+      await client.query(`UPDATE scan_reviews SET status = 'awaiting_approval', stage = 'done', completed_at = $2 WHERE id = $1`, [reviewId, now])
+    }
     await client.query(`UPDATE github_comment_events SET status = 'completed' WHERE delivery_id = $1`, [locked.rows[0].delivery_id])
     await client.query('COMMIT')
-    return { status: 'awaiting_approval', pendingDecisionCount: pending.rows[0]?.count ?? 0 }
+    return pendingDecisionCount === 0
+      ? { status: 'completed', pendingDecisionCount: 0 }
+      : { status: 'awaiting_approval', pendingDecisionCount }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
   } finally {
     client.release()
   }
+}
+
+/** Claims durable post-decision reply refresh work without changing review status. */
+export async function claimPendingReplyRefreshes(limit = 5): Promise<string[]> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  const now = Date.now()
+  const result = await client.query<{ id: string }>(
+    `WITH due AS (
+       SELECT id FROM scan_reviews
+       WHERE status IN ('awaiting_approval', 'completed') AND run_at <= $1
+         AND (stage_data = $2 OR (stage_data = $3 AND started_at <= $4))
+       ORDER BY run_at ASC LIMIT $5 FOR UPDATE SKIP LOCKED
+     )
+     UPDATE scan_reviews review SET stage_data = $3, started_at = $1
+     FROM due WHERE review.id = due.id RETURNING review.id`,
+    [now, REPLY_REFRESH_PENDING, REPLY_REFRESH_PROCESSING, now - PROCESSING_LEASE_MS, Math.max(1, Math.min(limit, 5))],
+  )
+  return result.rows.map((row) => row.id)
+}
+
+export async function completeReviewReplyRefresh(reviewId: string): Promise<void> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  await client.query(
+    `UPDATE scan_reviews SET stage_data = NULL WHERE id = $1 AND stage_data IN ($2, $3)`,
+    [reviewId, REPLY_REFRESH_PENDING, REPLY_REFRESH_PROCESSING],
+  )
+}
+
+export async function retryReviewReplyRefresh(reviewId: string): Promise<void> {
+  await ensureDatabase()
+  const { client } = getDatabase()
+  await client.query(
+    `UPDATE scan_reviews SET stage_data = $2, run_at = $3 WHERE id = $1 AND stage_data = $4`,
+    [reviewId, REPLY_REFRESH_PENDING, Date.now() + 30_000, REPLY_REFRESH_PROCESSING],
+  )
 }
 
 /** Requeues only transient work and permanently fails it after three total claims. */

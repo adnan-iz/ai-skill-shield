@@ -18,6 +18,7 @@ export interface ReviewReplyDecision {
   confidence: number
   explanation: string
   approvalStatus: DecisionApproval
+  evidence?: Array<{ filePath: string; lineStart?: number; lineEnd?: number }>
 }
 
 export interface ReviewReply {
@@ -56,16 +57,32 @@ function escapeMarkdown(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
 
+/** Prevents links, mentions, issue references, HTML, and formatting in model prose. */
+function neutralizeModelMarkdown(value: string): string {
+  return escapeMarkdown(value
+    .replace(/([\\`*_[\]{}()#+\-.!|>])/g, '\\$1'))
+    .replaceAll('@', '&#64;')
+    .replaceAll('://', ':&#47;&#47;')
+}
+
 function bounded(value: string, limit = MAX_EXPLANATION): string {
   const normalized = value.trim().replace(/\s+/g, ' ')
   return normalized.length <= limit ? normalized : `${normalized.slice(0, limit - 1)}…`
 }
 
 function assertTrustedIdentity(review: ReviewReply): void {
+  if (!/^[A-Za-z0-9-]{1,100}$/.test(review.reviewId)) throw new Error('Invalid scan review identity')
   if (!GITHUB_IDENTIFIER.test(review.owner) || !GITHUB_IDENTIFIER.test(review.repo)) throw new Error('Invalid GitHub repository identity')
   if (!FULL_SHA.test(review.commitSha)) throw new Error('Invalid reviewed commit SHA')
   if (!Number.isSafeInteger(review.issueNumber) || review.issueNumber < 1) throw new Error('Invalid GitHub issue number')
   if (review.replyCommentId != null && (!Number.isSafeInteger(review.replyCommentId) || review.replyCommentId < 1)) throw new Error('Invalid GitHub reply comment id')
+}
+
+function trustedFilePath(value: string): string | null {
+  const normalized = value.replaceAll('\\', '/')
+  if (!normalized || normalized.length > 1_000 || normalized.startsWith('/') || normalized.includes('//')) return null
+  const parts = normalized.split('/')
+  return parts.some((part) => !part || part === '.' || part === '..') ? null : parts.join('/')
 }
 
 function decisionLabel(decision: ReviewReplyDecision): string {
@@ -74,6 +91,27 @@ function decisionLabel(decision: ReviewReplyDecision): string {
     : decision.originalSeverity
   const approval = decision.approvalStatus === 'pending' ? 'human approval pending' : decision.approvalStatus.replaceAll('_', ' ')
   return `**${escapeMarkdown(decision.decision.replaceAll('_', ' '))}** · ${escapeMarkdown(severity)} · ${decision.confidence}% confidence · ${escapeMarkdown(approval)}`
+}
+
+function evidenceLinks(review: ReviewReply, decision: ReviewReplyDecision): string {
+  const links = (decision.evidence ?? []).slice(0, 3).flatMap((evidence) => {
+    const path = trustedFilePath(evidence.filePath)
+    if (!path) return []
+    const start = Number.isSafeInteger(evidence.lineStart) && Number(evidence.lineStart) > 0 ? Number(evidence.lineStart) : null
+    const end = Number.isSafeInteger(evidence.lineEnd) && Number(evidence.lineEnd) >= (start ?? 1) ? Number(evidence.lineEnd) : start
+    const anchor = start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''
+    const urlPath = path.split('/').map(encodeURIComponent).join('/')
+    const url = `https://github.com/${encodeURIComponent(review.owner)}/${encodeURIComponent(review.repo)}/blob/${review.commitSha}/${urlPath}${anchor}`
+    const location = `${path}${start ? `:${start}${end && end !== start ? `-${end}` : ''}` : ''}`
+    return [`[${escapeMarkdown(location)}](${url})`]
+  })
+  return links.length ? `\n  Evidence: ${links.join(', ')}` : ''
+}
+
+function decisionCounts(decisions: ReviewReplyDecision[]): string {
+  const counts = new Map<ReviewDecision, number>()
+  for (const decision of decisions.slice(0, 20)) counts.set(decision.decision, (counts.get(decision.decision) ?? 0) + 1)
+  return [...counts].map(([decision, count]) => `${count} ${decision.replaceAll('_', ' ')}`).join(' · ')
 }
 
 /** Formats only application-constructed links and escapes all model-controlled prose. */
@@ -85,9 +123,11 @@ export function formatReviewReply(review: ReviewReply, publicUrl = githubPublicU
   const commitUrl = `https://github.com/${encodeURIComponent(review.owner)}/${encodeURIComponent(review.repo)}/commit/${review.commitSha}`
   const completed = review.status === 'completed'
   const state = completed ? 'Decision applied' : 'Maintainer evidence reviewed — human approval pending'
-  const decisions = review.decisions.length === 0
+  const boundedDecisions = review.decisions.slice(0, 20)
+  const decisions = boundedDecisions.length === 0
     ? '_No scan finding was specifically challenged by this comment._'
-    : review.decisions.map((item) => `- ${decisionLabel(item)}\n  ${escapeMarkdown(bounded(item.explanation))}`).join('\n')
+    : boundedDecisions.map((item) => `- ${decisionLabel(item)}\n  ${neutralizeModelMarkdown(bounded(item.explanation))}${evidenceLinks(review, item)}`).join('\n')
+  const counts = boundedDecisions.length ? `Reviewed **${boundedDecisions.length}** challenged finding${boundedDecisions.length === 1 ? '' : 's'}: ${escapeMarkdown(decisionCounts(boundedDecisions))}.\n\n` : ''
 
   return `${marker}
 ## AI Skill Shield evidence review
@@ -100,7 +140,7 @@ export function formatReviewReply(review: ReviewReply, publicUrl = githubPublicU
 
 ### Finding decisions
 
-${decisions}
+${counts}${decisions}
 
 [View the scan report](${reportUrl}) · [View the exact scanned commit](${commitUrl})
 
@@ -179,7 +219,9 @@ export async function refreshReviewReply(reviewId: string): Promise<void> {
     findingKey: decision.findingKey,
     decision: decision.decision,
     proposedSeverity: decision.proposedSeverity,
-    approvalStatus: decision.approvalStatus,
+    approvalStatus: context.status === 'awaiting_approval' && decision.approvalStatus === 'pending'
+      ? 'approved'
+      : decision.approvalStatus,
   }))).result
   await publishReviewReply({
     reviewId: context.id,
@@ -191,7 +233,7 @@ export async function refreshReviewReply(reviewId: string): Promise<void> {
     originalScore: context.originalScore,
     originalRiskLevel: context.originalRiskLevel,
     status: context.status === 'completed' ? 'completed' : 'awaiting_approval',
-    proposedRiskLevel: context.status === 'completed' ? effective.riskLevel : context.proposedRiskLevel,
+    proposedRiskLevel: effective.riskLevel,
     replyCommentId: context.replyCommentId,
     decisions: context.decisions.map((decision) => ({
       findingKey: decision.findingKey,
@@ -201,6 +243,7 @@ export async function refreshReviewReply(reviewId: string): Promise<void> {
       confidence: decision.confidence,
       explanation: decision.explanation,
       approvalStatus: decision.approvalStatus,
+      evidence: decision.evidence.map((item) => ({ filePath: item.filePath, lineStart: item.lineStart, lineEnd: item.lineEnd })),
     })),
   })
 }

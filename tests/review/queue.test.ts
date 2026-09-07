@@ -12,6 +12,9 @@ const store = vi.hoisted(() => ({
   finishReviewPublication: vi.fn(),
   retryOrFailReview: vi.fn(),
   applyReviewDecisions: vi.fn(),
+  claimPendingReplyRefreshes: vi.fn(),
+  completeReviewReplyRefresh: vi.fn(),
+  retryReviewReplyRefresh: vi.fn(),
 }))
 const model = vi.hoisted(() => ({ extractClaims: vi.fn(), adjudicateClaims: vi.fn() }))
 const evidence = vi.hoisted(() => ({ collectEvidence: vi.fn() }))
@@ -21,7 +24,7 @@ const getResult = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/review/store', () => store)
 vi.mock('@/lib/review/adjudicator', () => model)
 vi.mock('@/lib/review/evidence', () => evidence)
-vi.mock('@/lib/github/review-replies', () => ({ publishReviewReply: githubReply }))
+vi.mock('@/lib/github/review-replies', () => ({ publishReviewReply: githubReply, refreshReviewReply: vi.fn() }))
 vi.mock('@/lib/store', () => ({ getResult }))
 
 import { processQueuedScanReviews } from '@/lib/review/queue'
@@ -66,6 +69,9 @@ beforeEach(() => {
   store.persistReviewReply.mockResolvedValue(undefined)
   store.finishReviewPublication.mockResolvedValue({ status: 'awaiting_approval', pendingDecisionCount: 1 })
   store.applyReviewDecisions.mockResolvedValue(undefined)
+  store.claimPendingReplyRefreshes.mockResolvedValue([])
+  store.completeReviewReplyRefresh.mockResolvedValue(undefined)
+  store.retryReviewReplyRefresh.mockResolvedValue(undefined)
   store.retryOrFailReview.mockResolvedValue('retried')
   model.extractClaims.mockResolvedValue([{ findingKey: key, claim: 'Documentation only.' }])
   evidence.collectEvidence.mockResolvedValue([{ findingKey: key, claim: 'Documentation only.', finding: scan.findings[0], evidence: null }])
@@ -102,6 +108,29 @@ describe('scan review queue', () => {
     expect(model.extractClaims).not.toHaveBeenCalled()
     expect(model.adjudicateClaims).not.toHaveBeenCalled()
     expect(githubReply).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not require AI configuration while resuming publication', async () => {
+    delete process.env.SCAN_REVIEW_AI_PROVIDER
+    delete process.env.OPENAI_API_KEY
+    store.claimQueuedReviews.mockResolvedValue([{ ...claimed, stage: 'publishing' }])
+    store.getReviewProcessingContext.mockResolvedValue({ ...processingContext, stage: 'publishing' })
+
+    await expect(processQueuedScanReviews()).resolves.toMatchObject({ awaitingApproval: 1, failed: 0 })
+    expect(model.extractClaims).not.toHaveBeenCalled()
+    expect(model.adjudicateClaims).not.toHaveBeenCalled()
+  })
+
+  it('accepts an atomically completed no-approval publication', async () => {
+    store.claimQueuedReviews.mockResolvedValue([{ ...claimed, stage: 'publishing' }])
+    store.getReviewProcessingContext.mockResolvedValue({ ...processingContext, stage: 'publishing' })
+    store.getReviewReplyContext.mockResolvedValue({
+      ...processingContext, stage: 'publishing', decisions: [{ ...decision, decision: 'confirmed', requiresApproval: false, approvalStatus: 'not_required' }], proposedRiskLevel: 'critical',
+    })
+    store.finishReviewPublication.mockResolvedValue({ status: 'completed', pendingDecisionCount: 0 })
+
+    await expect(processQueuedScanReviews()).resolves.toMatchObject({ completed: 1, awaitingApproval: 0 })
+    expect(store.applyReviewDecisions).not.toHaveBeenCalled()
   })
 
   it.each([1, 2])('retries a transient failure on attempt %s', async (attempts) => {

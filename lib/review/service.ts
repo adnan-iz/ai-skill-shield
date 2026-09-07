@@ -125,6 +125,10 @@ export async function decideReview(input: DecideReviewInput): Promise<DecideRevi
       proposedSeverity: decision.proposed_severity,
       approvalStatus: decision.approval_status,
     }))
+    await client.query(
+      `UPDATE scan_reviews SET stage_data = $2, run_at = $3 WHERE id = $1`,
+      [input.reviewId, JSON.stringify({ replyRefresh: 'pending' }), now],
+    )
     await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK')

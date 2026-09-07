@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { decideReview, ReviewServiceError } from '@/lib/review/service'
 import { refreshReviewReply } from '@/lib/github/review-replies'
+import { completeReviewReplyRefresh } from '@/lib/review/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,7 @@ export async function POST(
     const result = await decideReview({ reviewId, ...body })
     try {
       await refreshReviewReply(reviewId)
+      await completeReviewReplyRefresh(reviewId)
     } catch (error) {
       console.error(JSON.stringify({
         level: 'error',

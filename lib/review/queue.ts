@@ -1,11 +1,11 @@
 import { isAiProvider, type AiReviewConfig } from '@/lib/ai-review'
-import { publishReviewReply, type ReviewReply } from '@/lib/github/review-replies'
+import { publishReviewReply, refreshReviewReply, type ReviewReply } from '@/lib/github/review-replies'
 import { getResult } from '@/lib/store'
 import { adjudicateClaims, extractClaims } from './adjudicator'
 import { collectEvidence } from './evidence'
 import { indexFindings } from './finding-key'
 import { projectEffectiveResult } from './projection'
-import { applyReviewDecisions, beginReviewEvidenceCollection, claimQueuedReviews, finishReviewPublication, getReviewProcessingContext, getReviewReplyContext, persistReviewReply, retryOrFailReview, saveReviewAdjudication, saveReviewClaims } from './store'
+import { beginReviewEvidenceCollection, claimPendingReplyRefreshes, claimQueuedReviews, completeReviewReplyRefresh, finishReviewPublication, getReviewProcessingContext, getReviewReplyContext, persistReviewReply, retryOrFailReview, retryReviewReplyRefresh, saveReviewAdjudication, saveReviewClaims } from './store'
 import type { ClaimedReview, FindingReviewInput, ReviewProcessingContext, ReviewReplyContext, StoredCandidateClaim } from './types'
 import type { ValidationResult } from '@/lib/validator/types'
 
@@ -26,6 +26,7 @@ interface ReviewFailure extends Error {
 /** Claims bounded work so concurrent cron invocations cannot process the same review. */
 export async function processQueuedScanReviews(limit = MAX_BATCH): Promise<QueueResult> {
   const boundedLimit = Number.isInteger(limit) ? Math.max(1, Math.min(limit, MAX_BATCH)) : MAX_BATCH
+  await processPendingReplyRefreshes(boundedLimit)
   const reviews = await claimQueuedReviews(boundedLimit)
   const result: QueueResult = { claimed: reviews.length, completed: 0, awaitingApproval: 0, retried: 0, failed: 0 }
 
@@ -51,9 +52,9 @@ async function processClaimedReview(claimed: ClaimedReview): Promise<'completed'
 
   let stage = context.stage
   let claims = context.stageData?.claims ?? null
-  const config = reviewAiConfig()
 
   if (stage === 'queued' || stage === 'collecting_evidence') {
+    const config = reviewAiConfig()
     await beginReviewEvidenceCollection(context.id)
     claims = await extractClaims(context.commentBody, indexFindings(scan), config)
     await saveReviewClaims(context.id, claims, config.provider, config.model)
@@ -61,6 +62,7 @@ async function processClaimedReview(claimed: ClaimedReview): Promise<'completed'
   }
 
   if (stage === 'adjudicating') {
+    const config = reviewAiConfig()
     if (!claims) throw permanent('Stored scan review claims are unavailable')
     const collected = await collectEvidence(scan, claims)
     const decisions = await adjudicateClaims(claims, collected, config)
@@ -77,14 +79,19 @@ async function processClaimedReview(claimed: ClaimedReview): Promise<'completed'
   const published = await publishReviewReply(reply)
   await persistReviewReply(context.id, published.commentId)
   const publication = await finishReviewPublication(context.id)
+  return publication.status === 'completed' ? 'completed' : 'awaitingApproval'
+}
 
-  if (publication.pendingDecisionCount > 0) return 'awaitingApproval'
-  await applyReviewDecisions({
-    reviewId: context.id,
-    appliedBy: 'ai-skill-shield',
-    reason: 'No report-changing AI proposal required human approval.',
-  })
-  return 'completed'
+async function processPendingReplyRefreshes(limit: number): Promise<void> {
+  const reviewIds = await claimPendingReplyRefreshes(limit)
+  for (const reviewId of reviewIds) {
+    try {
+      await refreshReviewReply(reviewId)
+      await completeReviewReplyRefresh(reviewId)
+    } catch {
+      await retryReviewReplyRefresh(reviewId)
+    }
+  }
 }
 
 function proposedProjection(scan: ValidationResult, decisions: FindingReviewInput[]): ValidationResult {
@@ -117,6 +124,7 @@ function toReply(context: ReviewReplyContext, status: ReviewReply['status']): Re
       confidence: decision.confidence,
       explanation: decision.explanation,
       approvalStatus: decision.approvalStatus,
+      evidence: decision.evidence.map((item) => ({ filePath: item.filePath, lineStart: item.lineStart, lineEnd: item.lineEnd })),
     })),
   }
 }

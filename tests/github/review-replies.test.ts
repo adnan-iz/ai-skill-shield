@@ -20,8 +20,9 @@ function reply(overrides: Partial<ReviewReply> = {}): ReviewReply {
       decision: 'false_positive',
       originalSeverity: 'critical',
       confidence: 96,
-      explanation: '<script>alert(1)</script> This is documentation.',
+      explanation: '<script>alert(1)</script> @admin [click me](https://evil.example) #123 is documentation.',
       approvalStatus: 'pending',
+      evidence: [{ filePath: 'reviewer/SKILL.md', lineStart: 10, lineEnd: 14 }],
     }],
     ...overrides,
   }
@@ -34,8 +35,13 @@ describe('review reply formatting', () => {
     expect(body).toContain('<!-- ai-skill-shield-review:review-1 -->')
     expect(body).toContain('Numerical score remains **90/100**')
     expect(body).toContain('Proposed effective risk: **medium**')
-    expect(body).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(body).toContain('&lt;script')
+    expect(body).toContain('&lt;/script')
     expect(body).not.toContain('<script>')
+    expect(body).not.toContain('@admin')
+    expect(body).not.toContain('(https://evil.example)')
+    expect(body).toContain('Reviewed **1** challenged finding: 1 false positive.')
+    expect(body).toContain('/blob/0123456789012345678901234567890123456789/reviewer/SKILL.md#L10-L14')
     expect(body).toContain('https://github.com/acme/skills/commit/0123456789012345678901234567890123456789')
     expect(body).toContain('https://shield.example/trust/github/acme/skills/reviewer')
   })
@@ -48,6 +54,16 @@ describe('review reply formatting', () => {
 
     expect(body.length).toBeLessThan(4_000)
     expect(body).not.toContain('x'.repeat(1_001))
+  })
+
+  it('never turns untrusted evidence paths into links', () => {
+    const body = formatReviewReply(reply({ decisions: [{
+      ...reply().decisions[0],
+      evidence: [{ filePath: '../secrets', lineStart: 1 }],
+    }] }))
+
+    expect(body).not.toContain('../secrets')
+    expect(body).not.toContain('/blob/')
   })
 })
 
