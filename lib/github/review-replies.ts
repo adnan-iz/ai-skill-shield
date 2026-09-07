@@ -74,6 +74,7 @@ function assertTrustedIdentity(review: ReviewReply): void {
   if (!/^[A-Za-z0-9-]{1,100}$/.test(review.reviewId)) throw new Error('Invalid scan review identity')
   if (!GITHUB_IDENTIFIER.test(review.owner) || !GITHUB_IDENTIFIER.test(review.repo)) throw new Error('Invalid GitHub repository identity')
   if (!FULL_SHA.test(review.commitSha)) throw new Error('Invalid reviewed commit SHA')
+  if (review.path && !trustedFilePath(review.path)) throw new Error('Invalid reviewed repository path')
   if (!Number.isSafeInteger(review.issueNumber) || review.issueNumber < 1) throw new Error('Invalid GitHub issue number')
   if (review.replyCommentId != null && (!Number.isSafeInteger(review.replyCommentId) || review.replyCommentId < 1)) throw new Error('Invalid GitHub reply comment id')
 }
@@ -94,7 +95,7 @@ function decisionLabel(decision: ReviewReplyDecision): string {
 }
 
 function evidenceLinks(review: ReviewReply, decision: ReviewReplyDecision): string {
-  const links = (decision.evidence ?? []).slice(0, 3).flatMap((evidence) => {
+  const links = (decision.evidence ?? []).slice(0, 1).flatMap((evidence) => {
     const path = trustedFilePath(evidence.filePath)
     if (!path) return []
     const start = Number.isSafeInteger(evidence.lineStart) && Number(evidence.lineStart) > 0 ? Number(evidence.lineStart) : null
@@ -102,8 +103,8 @@ function evidenceLinks(review: ReviewReply, decision: ReviewReplyDecision): stri
     const anchor = start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''
     const urlPath = path.split('/').map(encodeURIComponent).join('/')
     const url = `https://github.com/${encodeURIComponent(review.owner)}/${encodeURIComponent(review.repo)}/blob/${review.commitSha}/${urlPath}${anchor}`
-    const location = `${path}${start ? `:${start}${end && end !== start ? `-${end}` : ''}` : ''}`
-    return [`[${escapeMarkdown(location)}](${url})`]
+    const location = bounded(`${path}${start ? `:${start}${end && end !== start ? `-${end}` : ''}` : ''}`, 240)
+    return [`[${neutralizeModelMarkdown(location)}](${url})`]
   })
   return links.length ? `\n  Evidence: ${links.join(', ')}` : ''
 }
