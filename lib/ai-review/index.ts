@@ -128,6 +128,11 @@ async function callAiApi(config: AiReviewConfig, prompt: string): Promise<string
   return data.choices?.[0]?.message?.content || ''
 }
 
+/** Calls the configured provider without applying reviewFindings' prose fallback. */
+export async function callConfiguredAi(config: AiReviewConfig, prompt: string): Promise<string> {
+  return callAiApi(config, prompt)
+}
+
 async function callLocalOpenCode(config: AiReviewConfig, prompt: string): Promise<string> {
   const serverUrl = (config.localUrl || 'http://127.0.0.1:4096').replace(/\/$/, '')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -233,7 +238,7 @@ export async function reviewFindings(
   const prompt = buildPromptForFindings(redactedFindings, skillName, totalFindings)
 
   try {
-    const response = await callAiApi(config, prompt)
+    const response = await callConfiguredAi(config, prompt)
     return parseAiResponse(response)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown AI error'
