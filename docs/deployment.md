@@ -41,6 +41,14 @@ The Compose configuration publishes the application on port `3000` and stores SQ
 | `DATABASE_AUTH_TOKEN` | Remote libSQL only | Authentication token for a remote database. |
 | `TURSO_DATABASE_URL` | No | Alias for a remote Turso/libSQL database URL. |
 | `TURSO_AUTH_TOKEN` | Remote Turso only | Alias for the remote database authentication token. |
+| `GITHUB_WEBHOOK_SECRET` | Scan appeals | HMAC secret for the GitHub App webhook endpoint. |
+| `SCAN_REVIEW_ADMIN_TOKEN` | Scan appeals | Bearer token for approving or rejecting review decisions. |
+| `SCAN_REVIEW_AI_PROVIDER` | No | Provider used for strict appeal adjudication; defaults to `openai`. |
+| `SCAN_REVIEW_AI_MODEL` | No | Model used for appeal adjudication; defaults to `gpt-4o-mini`. |
+
+### GitHub App scan appeals
+
+Install the GitHub App on participating repositories with repository **Contents: Read** and **Issues: Read and write** permissions. Subscribe to the **Issue comment** event and configure its webhook URL as `/api/github/webhooks` (with `GITHUB_WEBHOOK_SECRET`). Configure a scheduled request to `/api/cron/scan-reviews` with the `CRON_SECRET` bearer token. The worker is idempotent and may be retried safely.
 
 ## Storage
 

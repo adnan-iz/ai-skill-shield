@@ -1,0 +1,21 @@
+{
+  "issue": "https://github.com/pekral/ai-olympus/issues/89",
+  "scanId": "scan-ai-olympus-89",
+  "sourceSha": "2ce448fb4e90",
+  "comment": "The reported pipe-to-shell and DAN-pattern findings are documentation and detection examples, not executable behavior. Please re-check the report against the exact commit.",
+  "challengedFindingKeys": [
+    "pipe-to-shell-1",
+    "pipe-to-shell-2",
+    "pipe-to-shell-3",
+    "pipe-to-shell-4",
+    "pipe-to-shell-5",
+    "pipe-to-shell-6",
+    "dan-pattern-1",
+    "dan-pattern-2",
+    "ui-automation-1"
+  ],
+  "excerpts": [
+    { "path": "README.md", "startLine": 42, "endLine": 48, "text": "Detection example: shell pipelines are shown as inert documentation." },
+    { "path": "docs/security.md", "startLine": 18, "endLine": 24, "text": "DAN-pattern text is used to test the scanner and is not executed." }
+  ]
+}
