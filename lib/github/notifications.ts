@@ -155,7 +155,8 @@ export async function notifyGitHubRepositoryOwner(
       }))
     }
   }
-  const token = installationTokenValue || (options.allowBotFallback ? botToken() : null)
+  const personalToken = process.env.GITHUB_TOKEN?.trim() || null
+  const token = installationTokenValue || (options.allowBotFallback ? botToken() : null) || (!appConfigured ? personalToken : null)
   if (!token) return appConfigured ? 'not-installed' : 'disabled'
 
   const existing = current[0]
