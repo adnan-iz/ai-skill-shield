@@ -30,6 +30,10 @@ If that manual notification limit is exceeded, the request is stored and sent by
 * * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-domain.example/api/cron/github-notifications
 ```
 
+## Appeal a scan report
+
+Repository owners can comment on an automatically created scan issue to challenge findings. AI Skill Shield checks the comment against the original immutable report and exact commit evidence, then posts an auditable assessment. Approved decisions can change effective findings and risk, but never rewrite the original scan or its numerical score. Human approval is required before proposed changes are applied; unavailable evidence remains `insufficient_evidence`. Configure the GitHub App's **Contents: read** and **Issues: read/write** permissions, subscribe to **Issue comment**, and set `GITHUB_WEBHOOK_SECRET`, `SCAN_REVIEW_ADMIN_TOKEN`, and the secured review cron described in [the deployment guide](docs/deployment.md).
+
 ## What it checks
 
 - prompt injection and suspicious agent instructions
