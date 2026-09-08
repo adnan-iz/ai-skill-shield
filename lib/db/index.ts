@@ -33,8 +33,36 @@ export async function ensureDatabase(): Promise<void> {
           id TEXT PRIMARY KEY NOT NULL,
           result TEXT NOT NULL,
           created_at BIGINT NOT NULL,
-          expires_at BIGINT
+          expires_at BIGINT,
+          source_owner TEXT,
+          source_repo TEXT,
+          source_path TEXT,
+          source_type TEXT,
+          skill_name TEXT,
+          overall_score INTEGER,
+          risk_level TEXT,
+          findings_count INTEGER,
+          category TEXT,
+          description TEXT,
+          searchable TEXT
         )
+      `)
+      // Migrate existing tables
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS source_owner TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS source_repo TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS source_path TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS source_type TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS skill_name TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS overall_score INTEGER`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS risk_level TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS findings_count INTEGER`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS category TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS description TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS searchable TEXT`)
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_vr_explore
+          ON validation_results (created_at DESC)
+          WHERE expires_at IS NULL OR expires_at > 0 AND source_type = 'github'
       `)
 
       await client.query(`

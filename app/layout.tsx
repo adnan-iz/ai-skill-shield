@@ -119,6 +119,12 @@ export default function RootLayout({
             __html: `(function(){var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark', t ? t==='dark' : true);})();`,
           }}
         />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-H3NN0HQLQW" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-H3NN0HQLQW');`,
+          }}
+        />
       </head>
       <body className="min-h-dvh bg-surface text-on-surface">
         <a

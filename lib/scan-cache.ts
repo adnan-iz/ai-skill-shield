@@ -2,8 +2,37 @@ import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { createClient } from 'redis'
 import type { SkillInput, ValidationResult } from '@/lib/validator/types'
+import type { ExplorerMetaItem } from '@/lib/explorer'
 
 const EXPLORE_CACHE_KEY = 'skillshield:explore:public-results'
+const EXPLORE_ITEMS_CACHE_KEY = 'skillshield:explore:public-items'
+const IN_MEMORY_TTL_MS = 5 * 60 * 1000
+
+interface MemoryCacheEntry<T> {
+  data: T
+  expiry: number
+}
+
+const memoryCache = new Map<string, MemoryCacheEntry<unknown>>()
+let exploreGeneration = 0
+
+function getMemoryCache<T>(key: string): T | undefined {
+  const entry = memoryCache.get(key)
+  if (!entry) return undefined
+  if (Date.now() > entry.expiry) {
+    memoryCache.delete(key)
+    return undefined
+  }
+  return entry.data as T
+}
+
+function setMemoryCache<T>(key: string, data: T, ttlMs = IN_MEMORY_TTL_MS): void {
+  memoryCache.set(key, { data, expiry: Date.now() + ttlMs })
+}
+
+export function getExploreGeneration(): number {
+  return exploreGeneration
+}
 
 function connectClient(url: string) {
   const client = createClient({ url })
@@ -47,17 +76,25 @@ export async function setCachedResultId(key: string, id: string): Promise<void> 
 }
 
 export async function getCachedExploreResults(): Promise<ValidationResult[] | undefined> {
+  const memKey = EXPLORE_CACHE_KEY
+  const memCached = getMemoryCache<ValidationResult[]>(memKey)
+  if (memCached) return memCached
+
   try {
     const value = await (await getClient())?.get(EXPLORE_CACHE_KEY)
-    return value
-      ? JSON.parse(gunzipSync(Buffer.from(value, 'base64')).toString('utf8')) as ValidationResult[]
-      : undefined
+    if (value) {
+      const results = JSON.parse(gunzipSync(Buffer.from(value, 'base64')).toString('utf8')) as ValidationResult[]
+      setMemoryCache(memKey, results)
+      return results
+    }
   } catch {
-    return undefined
+    // Fall through to return undefined
   }
+  return undefined
 }
 
 export async function setCachedExploreResults(results: ValidationResult[]): Promise<void> {
+  setMemoryCache(EXPLORE_CACHE_KEY, results)
   try {
     await (await getClient())?.set(
       EXPLORE_CACHE_KEY,
@@ -69,9 +106,46 @@ export async function setCachedExploreResults(results: ValidationResult[]): Prom
   }
 }
 
-export async function invalidateExploreCache(): Promise<void> {
+export async function getCachedExploreItems(): Promise<ExplorerMetaItem[] | undefined> {
+  const memCached = getMemoryCache<ExplorerMetaItem[]>(EXPLORE_ITEMS_CACHE_KEY)
+  if (memCached) return memCached
+
   try {
-    await (await getClient())?.del(EXPLORE_CACHE_KEY)
+    const value = await (await getClient())?.get(EXPLORE_ITEMS_CACHE_KEY)
+    if (value) {
+      const items = JSON.parse(gunzipSync(Buffer.from(value, 'base64')).toString('utf8')) as ExplorerMetaItem[]
+      setMemoryCache(EXPLORE_ITEMS_CACHE_KEY, items)
+      return items
+    }
+  } catch {
+    // Fall through
+  }
+  return undefined
+}
+
+export async function setCachedExploreItems(items: ExplorerMetaItem[]): Promise<void> {
+  setMemoryCache(EXPLORE_ITEMS_CACHE_KEY, items)
+  try {
+    await (await getClient())?.set(
+      EXPLORE_ITEMS_CACHE_KEY,
+      gzipSync(JSON.stringify(items)).toString('base64'),
+      { EX: Number(process.env.EXPLORE_CACHE_TTL_SECONDS) || 300 }
+    )
+  } catch {
+    // Redis is an optimization
+  }
+}
+
+export async function invalidateExploreCache(): Promise<void> {
+  exploreGeneration++
+  memoryCache.delete(EXPLORE_CACHE_KEY)
+  memoryCache.delete(EXPLORE_ITEMS_CACHE_KEY)
+  try {
+    const client = await getClient()
+    if (client) {
+      await client.del(EXPLORE_CACHE_KEY)
+      await client.del(EXPLORE_ITEMS_CACHE_KEY)
+    }
   } catch {
     // A short TTL bounds stale Explore results when Redis is unavailable.
   }

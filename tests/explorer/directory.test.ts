@@ -25,3 +25,66 @@ test('normalizes public skills for directory filters', () => {
   expect(trustBand(90, 'high')).toBe('caution')
   expect(trustBand(90, 'critical')).toBe('restricted')
 })
+
+test('constructs ExplorerMetaItem from ExplorerMetaRow', async () => {
+  const { explorerItemFromMeta } = await import('@/lib/explorer')
+  const metaItem = explorerItemFromMeta({
+    id: 'res-1',
+    sourceOwner: 'acme',
+    sourceRepo: 'agent-tools',
+    sourcePath: 'skills/deploy',
+    sourceType: 'github',
+    skillName: 'deploy-agent',
+    overallScore: 85,
+    riskLevel: 'low',
+    findingsCount: 2,
+    category: 'DevOps',
+    description: 'Deploy skills easily',
+    searchable: 'acme agent-tools skills/deploy deploy-agent devops deploy skills easily',
+  })
+
+  expect(metaItem).not.toBeNull()
+  expect(metaItem).toMatchObject({
+    resultId: 'res-1',
+    owner: 'acme',
+    repo: 'agent-tools',
+    vendor: 'acme',
+    skillName: 'deploy-agent',
+    overallScore: 85,
+    category: 'DevOps',
+    trust: 'trusted',
+  })
+})
+
+test('rejects non-github or incomplete meta rows', async () => {
+  const { explorerItemFromMeta } = await import('@/lib/explorer')
+  expect(explorerItemFromMeta({
+    id: 'res-2',
+    sourceOwner: null,
+    sourceRepo: 'repo',
+    sourcePath: '',
+    sourceType: 'github',
+    skillName: 'skill',
+    overallScore: 90,
+    riskLevel: 'low',
+    findingsCount: 0,
+    category: 'Security',
+    description: '',
+    searchable: '',
+  })).toBeNull()
+
+  expect(explorerItemFromMeta({
+    id: 'res-3',
+    sourceOwner: 'owner',
+    sourceRepo: 'repo',
+    sourcePath: '',
+    sourceType: 'local',
+    skillName: 'skill',
+    overallScore: 90,
+    riskLevel: 'low',
+    findingsCount: 0,
+    category: 'Security',
+    description: '',
+    searchable: '',
+  })).toBeNull()
+})

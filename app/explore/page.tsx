@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { explorerItems, type ExplorerItem, type TrustBand } from '@/lib/explorer'
-import { buildInstallDecision } from '@/lib/report/install-decision'
+import type { ExplorerMetaItem, TrustBand } from '@/lib/explorer'
 import { githubTrustPath } from '@/lib/trust'
-import { getRecentPublicResults } from '@/lib/store'
+import { getRecentExplorerItems } from '@/lib/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +27,7 @@ function first(value?: string | string[]): string {
   return Array.isArray(value) ? value[0] || '' : value || ''
 }
 
-function countBy(items: ExplorerItem[], key: 'category' | 'vendor'): [string, number][] {
+function countBy(items: ExplorerMetaItem[], key: 'category' | 'vendor'): [string, number][] {
   const counts = new Map<string, number>()
   for (const item of items) counts.set(item[key], (counts.get(item[key]) || 0) + 1)
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -50,8 +49,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const sort = first(raw.sort) || 'newest'
   const requestedPage = Math.max(1, Number.parseInt(first(raw.page) || '1', 10) || 1)
 
-  // ponytail: in-memory filtering is enough until the public corpus makes indexed columns measurably necessary.
-  const allItems = explorerItems(await getRecentPublicResults(1_000))
+  const allItems = await getRecentExplorerItems()
   const categories = countBy(allItems, 'category')
   const vendors = countBy(allItems, 'vendor')
   const needle = q.toLowerCase()
@@ -63,10 +61,9 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   )
 
   filtered.sort((a, b) => {
-    if (sort === 'score') return b.result.overallScore - a.result.overallScore
-    if (sort === 'stars') return (b.result.source?.repositoryMeta?.stars || 0) - (a.result.source?.repositoryMeta?.stars || 0)
-    if (sort === 'name') return a.result.skillName.localeCompare(b.result.skillName)
-    return Date.parse(b.result.timestamp) - Date.parse(a.result.timestamp)
+    if (sort === 'score') return b.overallScore - a.overallScore
+    if (sort === 'name') return a.skillName.localeCompare(b.skillName)
+    return 0
   })
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -109,7 +106,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <option value="">All vendors</option>{vendors.map(([name, count]) => <option key={name} value={name}>{name} ({count})</option>)}
         </select>
         <select name="sort" defaultValue={sort} aria-label="Sort skills" className="rounded-xl border border-outline bg-surface-container px-3 py-3 text-sm text-on-surface">
-          <option value="newest">Newest</option><option value="score">Highest score</option><option value="stars">Most stars</option><option value="name">Name</option>
+          <option value="newest">Newest</option><option value="score">Highest score</option><option value="name">Name</option>
         </select>
         <button className="rounded-xl bg-shield-600 px-5 py-3 text-sm font-semibold text-white hover:bg-shield-700" type="submit">Apply</button>
       </form>
@@ -127,27 +124,26 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => {
-            const decision = buildInstallDecision(item.result, null)
             const tone = item.trust === 'trusted' ? 'bg-shield-100 text-shield-800' : item.trust === 'caution' ? 'bg-yellow-100 text-yellow-900' : 'bg-red-100 text-red-900'
             return (
               <article key={`${item.owner}/${item.repo}/${item.path}`} className="glass-card group relative flex min-w-0 flex-col rounded-2xl p-5 transition-transform hover:-translate-y-0.5 hover:border-shield-500/60 focus-within:border-shield-500/60">
                 <Link
                   href={githubTrustPath(item)}
-                  aria-label={`Open trust report for ${item.result.skillName}`}
+                  aria-label={`Open trust report for ${item.skillName}`}
                   className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-shield-500"
                 >
-                  <span className="sr-only">Open trust report for {item.result.skillName}</span>
+                  <span className="sr-only">Open trust report for {item.skillName}</span>
                 </Link>
                 <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wider text-shield-700">{item.vendor}</p><h2 className="mt-1 truncate text-lg font-bold text-on-surface">{item.result.skillName}</h2></div>
-                  <div className="text-right"><div className="text-3xl font-bold text-on-surface">{item.result.overallScore}</div><div className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}>{item.trust}</div></div>
+                  <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wider text-shield-700">{item.vendor}</p><h2 className="mt-1 truncate text-lg font-bold text-on-surface">{item.skillName}</h2></div>
+                  <div className="text-right"><div className="text-3xl font-bold text-on-surface">{item.overallScore}</div><div className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}>{item.trust}</div></div>
                 </div>
-                <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-on-surface-secondary">{item.result.source?.repositoryMeta?.description || decision.summary}</p>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.category}</span><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.result.findings.length} findings</span></div>
+                <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-on-surface-secondary">{item.description || `${item.skillName} by ${item.vendor}`}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.category}</span><span className="rounded-full bg-surface-secondary px-2.5 py-1 text-on-surface-secondary">{item.findingsCount} findings</span></div>
                 <p className="mt-4 truncate font-mono text-xs text-on-surface-secondary">{item.owner}/{item.repo}/{item.path || 'SKILL.md'}</p>
                 <div className="mt-5 flex items-center justify-between gap-3">
                   <span className="font-semibold text-shield-700 group-hover:text-shield-800">Open trust report</span>
-                  <Link href={`/validate/${encodeURIComponent(item.result.id)}#ai-review`} className="relative z-10 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:bg-secondary/80">AI Review</Link>
+                  <Link href={`/validate/${encodeURIComponent(item.resultId)}#ai-review`} className="relative z-10 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:bg-secondary/80">AI Review</Link>
                 </div>
               </article>
             )

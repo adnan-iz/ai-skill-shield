@@ -3,8 +3,39 @@ import type { ValidationResult } from '@/lib/validator/types'
 
 export type TrustBand = 'trusted' | 'caution' | 'restricted'
 
+export interface ExplorerMetaRow {
+  id: string
+  sourceOwner: string | null
+  sourceRepo: string | null
+  sourcePath: string | null
+  sourceType: string | null
+  skillName: string | null
+  overallScore: number | null
+  riskLevel: string | null
+  findingsCount: number | null
+  category: string | null
+  description: string | null
+  searchable: string | null
+}
+
 export interface ExplorerItem {
   result: ValidationResult
+  owner: string
+  repo: string
+  path: string
+  vendor: string
+  category: string
+  trust: TrustBand
+  searchable: string
+}
+
+export interface ExplorerMetaItem {
+  resultId: string
+  skillName: string
+  overallScore: number
+  riskLevel: string
+  findingsCount: number
+  description: string
   owner: string
   repo: string
   path: string
@@ -66,3 +97,27 @@ export function explorerItems(results: ValidationResult[]): ExplorerItem[] {
     return item ? [item] : []
   })
 }
+
+export function explorerItemFromMeta(row: ExplorerMetaRow): ExplorerMetaItem | null {
+  if (!row.sourceOwner || !row.sourceRepo || row.sourceType !== 'github') return null
+
+  const score = row.overallScore ?? 0
+  const rl = (row.riskLevel ?? 'safe') as ValidationResult['riskLevel']
+
+  return {
+    resultId: row.id,
+    skillName: row.skillName || '',
+    overallScore: score,
+    riskLevel: row.riskLevel || 'safe',
+    findingsCount: row.findingsCount ?? 0,
+    description: row.description || '',
+    owner: row.sourceOwner,
+    repo: row.sourceRepo,
+    path: row.sourcePath || '',
+    vendor: row.sourceOwner,
+    category: row.category || 'Developer Tools',
+    trust: trustBand(score, rl),
+    searchable: row.searchable || '',
+  }
+}
+

@@ -6,6 +6,17 @@ export const validationResults = pgTable('validation_results', {
   result: text('result').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   expiresAt: bigint('expires_at', { mode: 'number' }),
+  sourceOwner: text('source_owner'),
+  sourceRepo: text('source_repo'),
+  sourcePath: text('source_path'),
+  sourceType: text('source_type'),
+  skillName: text('skill_name'),
+  overallScore: integer('overall_score'),
+  riskLevel: text('risk_level'),
+  findingsCount: integer('findings_count'),
+  category: text('category'),
+  description: text('description'),
+  searchable: text('searchable'),
 })
 
 export const rateLimits = pgTable('rate_limits', {
