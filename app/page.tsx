@@ -344,7 +344,7 @@ export default function HomePage() {
 
               <div className="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between text-[11px] font-mono text-on-surface-variant opacity-75">
                 <span>Target: <strong className="text-on-surface font-semibold">{tab === 'url' ? 'remote_repository' : tab === 'paste' ? 'buffer_skill_md' : 'package_archive'}</strong></span>
-                <span>Engine: <strong className="text-primary font-semibold">v2.0.0-dev</strong></span>
+                <span>Engine: <strong className="text-primary font-semibold">v2.0.0</strong></span>
               </div>
 
               {loading && (

@@ -161,7 +161,7 @@ export default function RootLayout({
                 <img src="/support-engine-logo.png" alt="Support Engine" className="h-auto w-28" />
               </a>
               <span className="text-xs font-mono opacity-80">
-                Engine: <span className="text-primary font-semibold">v2.0.0-dev</span>
+                Engine: <span className="text-primary font-semibold">v2.0.0</span>
               </span>
             </div>
             <div className="flex items-center gap-4 text-xs font-mono">
