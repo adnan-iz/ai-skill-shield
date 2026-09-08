@@ -1,4 +1,5 @@
 import { processQueuedScanReviews } from '@/lib/review/queue'
+import { pollGitHubScanComments } from '@/lib/github/comment-polling'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    return Response.json({ ok: true, ...(await processQueuedScanReviews()) })
+    const polled = process.env.GITHUB_TOKEN?.trim() ? await pollGitHubScanComments() : undefined
+    return Response.json({ ok: true, polled, ...(await processQueuedScanReviews()) })
   } catch (error) {
     console.error(JSON.stringify({
       level: 'error',

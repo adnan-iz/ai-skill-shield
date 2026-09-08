@@ -48,7 +48,7 @@ The Compose configuration publishes the application on port `3000` and stores SQ
 
 ### GitHub App scan appeals
 
-Install the GitHub App on participating repositories with repository **Contents: Read** and **Issues: Read and write** permissions. Subscribe to the **Issue comment** event and configure its webhook URL as `/api/github/webhooks` (with `GITHUB_WEBHOOK_SECRET`). Configure a scheduled request to `/api/cron/scan-reviews` with the `CRON_SECRET` bearer token. The worker is idempotent and may be retried safely.
+Install the GitHub App on participating repositories with repository **Contents: Read** and **Issues: Read and write** permissions. Subscribe to the **Issue comment** event and configure its webhook URL as `/api/github/webhooks` (with `GITHUB_WEBHOOK_SECRET`). Alternatively, set `GITHUB_TOKEN` to a PAT with Issues read/write access; the same cron endpoint will poll tracked scan issues when no App webhook is used. Configure a scheduled request to `/api/cron/scan-reviews` with the `CRON_SECRET` bearer token. The worker is idempotent and may be retried safely.
 
 ## Storage
 

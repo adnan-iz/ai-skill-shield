@@ -95,3 +95,10 @@ export async function githubRequest(
   if (!token) throw new GitHubAppNotInstalledError(owner, repo)
   return githubFetch(path, token, init)
 }
+
+/** Personal-token API access for deployments that prefer polling over App webhooks. */
+export async function githubTokenRequest(path: string, init: RequestInit = {}): Promise<Response> {
+  const token = process.env.GITHUB_TOKEN?.trim()
+  if (!token) throw new Error('GITHUB_TOKEN is not configured')
+  return githubFetch(path, token, init)
+}
