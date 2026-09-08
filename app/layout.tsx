@@ -121,7 +121,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark', t ? t==='dark' : true);})();`,
+            __html: `(function(){var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark', t === 'dark');})();`,
           }}
         />
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-H3NN0HQLQW" />
