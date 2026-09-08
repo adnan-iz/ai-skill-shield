@@ -113,6 +113,13 @@ export interface TokenAnalysis {
   isUnderLimit: boolean
   limit: number
   breakdown: TokenBreakdownItem[]
+  cacheEfficiencyScore?: number
+  cacheRecommendations?: string[]
+  estimatedCostPer1kRuns?: {
+    claudeSonnet: number
+    gpt4o: number
+    geminiFlash: number
+  }
 }
 
 export interface TokenBreakdownItem {

@@ -1,6 +1,6 @@
 import { createPendingApproval } from '@/lib/approvals'
 import { getResult, saveResult } from '@/lib/store'
-import { getCachedResultId, scanCacheKey, setCachedResultId } from '@/lib/scan-cache'
+import { getCachedResultId, invalidateExploreCache, scanCacheKey, setCachedResultId } from '@/lib/scan-cache'
 import { logAuditEvent, triggerWebhooks } from '@/lib/webhooks'
 import { notifyGitHubRepositoryOwner } from '@/lib/github/notifications'
 import { runFullValidation, type OrchestratorOptions } from '@/lib/validator/orchestrator'
@@ -19,7 +19,12 @@ export async function validateAndSave(
     const cachedId = await getCachedResultId(cacheKey)
     if (cachedId) {
       const cached = await getResult(cachedId)
-      if (cached) return cached
+      if (cached) {
+        // A cached scan can still be a new Explore candidate after the Explore list was cached.
+        // Refresh that list on cache hits so GitHub-search scans appear without waiting for TTL.
+        await invalidateExploreCache()
+        return cached
+      }
     }
   }
 

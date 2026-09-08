@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { fetchWithTimeout, githubAuthError } from '@/app/api/github/route'
+import { fetchWithTimeout, githubAuthError } from '@/lib/github/fetch'
 
 afterEach(() => {
   vi.restoreAllMocks()

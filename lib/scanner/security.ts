@@ -4,6 +4,8 @@ import { scanForSecrets } from '@/lib/scanner/secrets'
 import { scanObfuscation } from '@/lib/scanner/obfuscation'
 import { runSemgrepScan } from '@/lib/semgrep'
 import { extractPermissionManifest, detectPermissionViolations } from '@/lib/permissions'
+import { scanFilesForMcp } from '@/lib/mcp'
+import { analyzeCapabilityDrift } from '@/lib/scanner/capability-drift'
 
 let findingCounter = 0
 
@@ -27,6 +29,15 @@ export function runSecurityScan(files: SkillFile[], _content: string): AxisResul
     const semgrepFindings = runSemgrepScan(file.content, file.path)
     findings.push(...semgrepFindings)
   }
+
+  // Scan files for MCP tool definitions and schema vulnerabilities
+  const mcpFindings = scanFilesForMcp(files)
+  findings.push(...mcpFindings)
+
+  // Analyze capability drift (declared permissions vs actual detected code behaviors)
+  const driftResult = analyzeCapabilityDrift(files, _content, findingCounter)
+  findingCounter = driftResult.nextId
+  findings.push(...driftResult.findings)
 
   const manifest = extractPermissionManifest(_content)
   if (manifest) {

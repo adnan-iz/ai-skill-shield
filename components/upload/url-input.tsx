@@ -90,10 +90,9 @@ export default function UrlInput({ onParse, resolutionHint, loading = false }: U
 
   return (
     <div>
-      <div className="home-url-glow flex gap-2 rounded-xl">
-        <div
-          className={`home-url-shell relative flex-1 ${!url && !focused ? 'home-url-shell-demo' : ''}`}
-        >
+      <div className="input-glow flex items-center gap-3 rounded-lg border border-outline-variant/50 bg-surface-container-lowest/80 p-2 transition-all duration-300">
+        <span className="material-symbols-outlined ml-2 text-primary opacity-80 text-xl">link</span>
+        <div className="relative flex-1">
           <input
             type="text"
             value={url}
@@ -103,10 +102,10 @@ export default function UrlInput({ onParse, resolutionHint, loading = false }: U
             onKeyDown={handleKeyDown}
             placeholder={focused || url ? "https://github.com/owner/repo or https://skills.sh/owner/repo/skill" : ""}
             aria-label="GitHub or skills.sh URL"
-            className="home-url-input flex-1 rounded-lg border border-outline bg-surface-container px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-secondary focus:border-shield-500 focus:outline-none"
+            className="w-full bg-transparent border-none font-mono text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-0"
           />
           {!url && !focused && (
-            <div aria-hidden="true" className="home-url-demo-text">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center font-mono text-sm text-on-surface-variant/40">
               https://github.com/lobehub/lobehub
             </div>
           )}
@@ -114,9 +113,12 @@ export default function UrlInput({ onParse, resolutionHint, loading = false }: U
         <button
           onClick={() => parseUrl(url)}
           disabled={!url.trim() || loading}
-          className="rounded-lg bg-shield-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_28px_rgba(34,197,94,0.18)] hover:bg-shield-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          className="flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-on-primary transition-all hover:bg-primary-fixed disabled:cursor-not-allowed disabled:bg-surface-container-high/60 disabled:text-on-surface-variant/40 disabled:border disabled:border-outline-variant/40 disabled:shadow-none shadow-[0_0_15px_-3px_rgba(75,226,119,0.4)]"
         >
-          {loading ? 'Scanning...' : 'Scan'}
+          {loading && (
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          )}
+          <span>{loading ? 'Scanning...' : 'Scan'}</span>
         </button>
       </div>
       {parsed && (

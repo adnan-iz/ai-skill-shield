@@ -2,7 +2,24 @@
 
 Notable changes to AI Skill Shield are documented here.
 
-## Unreleased
+## 2.0.0 - 2026-09-06
+
+### Added
+- **MCP Tool Schema Scanner** (`lib/mcp/`): Comprehensive tool poisoning scanner detecting system prompt injection, precedence hijacking, unconstrained dangerous parameter schemas, and implicit write actions.
+- **Capability Drift Analyzer** (`lib/scanner/capability-drift.ts`): Reconciles static frontmatter permissions against static code reality, surfacing undeclared filesystem, network, process execution, and sensitive env var operations.
+- **Token Economics & KV-Cache Profiler** (`lib/validator/token-economics.ts`): Multi-model cost estimator (Claude 3.5 Sonnet, GPT-4o, Gemini Flash) and KV-cache prefix alignment analyzer.
+- **Install Command Risk Analyzer** (`lib/scanner/command-analyzer.ts`, `/api/analyze-command`): Detects pipe-to-shell, elevated execution (`sudo`/`doas`), dangerous package flags, obfuscated payloads, and unsafe protocols.
+- **SkillBOM CycloneDX 1.5 Generator** (`lib/sbom/`): Generates machine-readable Software Bill of Materials in CycloneDX 1.5 JSON tailored for AI agent skills and tools.
+- **Token Economics & MCP Tool UI Cards** (`components/report/token-economics-card.tsx`, `components/report/mcp-tools-card.tsx`): Interactive dashboard visual components for cache efficiency and tool health.
+- **Adversarial Prompt Fuzzing Harness** (`lib/fuzzing/`): Automated 21-vector red-teaming harness testing instruction extraction, delimiter breakouts, roleplay overrides, and safety evasion.
+- **Language Server Protocol (LSP) Diagnostics & QuickFix Engine** (`lib/linter/`): LSP diagnostics with automated inline remediation quick fixes for IDEs (VS Code, Cursor, Zed).
+- **Runtime MCP Gateway Proxy & Interceptor** (`lib/proxy/`): Real-time interceptor evaluating `tools/call` requests with path traversal prevention, shell injection blocking, and DLP secret redaction.
+- **Ed25519 Cryptographic Signing & Verification Engine** (`lib/signing/`): Canonical SHA-256 package digests, asymmetric Ed25519 digital signatures, and tamper detection with `---signature` block support.
+- **Enterprise Governance & Multi-Role Approval Chain** (`lib/governance/`): Multi-signature state machine supporting Developer, Security Auditor, Compliance Officer, and Admin approval policies.
+- **Server-Sent Events (SSE) Live Scan Streaming Pipeline** (`lib/events/scan-stream.ts`, `/api/validate/stream`): Real-time progressive scan streaming emitting incremental progress and finding events.
+- **Runtime Sandbox Isolation Runner** (`lib/sandbox/`): Isolated context runtime environment intercepting network, filesystem writes, and process execution with memory and execution timeout limits.
+- **Skill Diff & Permission Escalation Engine** (`lib/diff/`): Granular semantic diff engine identifying risk deltas, score regression, permission escalation, and MCP schema modifications between skill versions.
+- **Golden Skill Registry & Enterprise Catalog API** (`lib/registry/`, `/api/registry`): Enterprise catalog supporting cryptographically verified publishing, semantic filtering, tagging, and lifecycle deprecation.
 
 ## 0.2.0 - 2026-08-02
 

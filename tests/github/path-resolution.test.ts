@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchSkillDirectory } from '@/app/api/github/route'
+import { matchSkillDirectory } from '@/lib/github/path-resolution'
 import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 
 describe('matchSkillDirectory', () => {

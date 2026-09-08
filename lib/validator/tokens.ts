@@ -1,4 +1,5 @@
 import { AxisResult, Finding, TokenAnalysis, TokenBreakdownItem } from '@/lib/validator/types'
+import { profileTokenEconomics } from '@/lib/validator/token-economics'
 
 const TOKEN_LIMIT = 5000
 const CHARS_PER_TOKEN = 4
@@ -60,6 +61,8 @@ export function analyzeTokens(
     tokens: estimateTokens(s.content),
   }))
 
+  const economics = profileTokenEconomics(total, frontmatterTokens, body || content)
+
   return {
     totalTokens: total,
     frontmatterTokens,
@@ -67,6 +70,9 @@ export function analyzeTokens(
     isUnderLimit: total <= TOKEN_LIMIT,
     limit: TOKEN_LIMIT,
     breakdown,
+    cacheEfficiencyScore: economics.cacheEfficiencyScore,
+    cacheRecommendations: economics.cacheRecommendations,
+    estimatedCostPer1kRuns: economics.estimatedCostPer1kRuns,
   }
 }
 
@@ -130,6 +136,23 @@ export function validateTokens(
         ruleId: 'tokens-large-section',
       })
     }
+  }
+
+  if (analysis.cacheEfficiencyScore !== undefined && analysis.cacheEfficiencyScore < 60) {
+    findings.push({
+      id: makeId(),
+      axis: 'tokens',
+      severity: 'info',
+      category: 'token-cache-optimization',
+      title: 'Suboptimal Prompt Caching Layout',
+      message: `Prompt cache efficiency score is ${analysis.cacheEfficiencyScore}/100. High-churn dynamic variables or disproportionate frontmatter reduce LLM prefix-caching hit rates.`,
+      filePath: 'SKILL.md',
+      lineNumber: 0,
+      column: 0,
+      snippet: '',
+      recommendation: 'Position static documentation and instructions early in the file and move dynamic inputs to the end.',
+      ruleId: 'tokens-cache-layout',
+    })
   }
 
   const score = analysis.isUnderLimit

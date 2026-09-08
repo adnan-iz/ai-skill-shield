@@ -216,28 +216,34 @@ export default function ReportPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="glass-card mb-8 flex items-center justify-between rounded-xl px-6 py-4">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-3xl text-shield-600">description</span>
+      {/* Stitch Breadcrumbs & Tactical Title */}
+      <div className="mb-6 flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-xs font-mono text-on-surface-secondary">
+          <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => router.push('/')}>AI Skill Shield</span>
+          <span className="text-outline-variant">/</span>
+          <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => router.push('/history')}>Reports</span>
+          <span className="text-outline-variant">/</span>
+          <span className="text-primary font-semibold">Scan #{result.id.slice(0, 8)}</span>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-on-surface">{result.skillName}</h1>
-            <p className="flex items-center gap-1 text-xs text-on-surface-secondary">
-              <span className="material-symbols-outlined text-[14px]">schedule</span>
-              Validated {new Date(result.timestamp).toLocaleString()}
-              <span className="mx-1">&middot;</span>
-              <span className="material-symbols-outlined text-[14px]">cloud</span>
-              {result.source?.type || 'direct'}
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary text-3xl">policy</span>
+              Deep-Scan Report: {result.skillName}
+            </h1>
+            <p className="mt-1 text-xs font-mono text-on-surface-secondary">
+              Target: <span className="text-on-surface font-semibold">{result.source?.url || result.skillName}</span> &middot; Validated {new Date(result.timestamp).toLocaleString()}
             </p>
           </div>
+          <span
+            className={`self-start sm:self-auto inline-flex items-center gap-1.5 rounded-md border border-outline-variant/60 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider ${
+              riskBadgeColor[result.riskLevel]
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">shield</span>
+            VERDICT: {result.riskLevel}
+          </span>
         </div>
-        <span
-          className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-            riskBadgeColor[result.riskLevel]
-          }`}
-        >
-          <span className="material-symbols-outlined text-[14px]">shield</span>
-          {result.riskLevel}
-        </span>
       </div>
 
       {sourceDetails.length > 0 && (
