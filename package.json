@@ -43,11 +43,13 @@
     "esbuild": "0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "fast-glob": "file:packages/lint-glob-compat",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
   },
   "overrides": {
+    "fast-glob": "$fast-glob",
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.0"
     },

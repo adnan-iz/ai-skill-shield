@@ -44,7 +44,7 @@ function reviewInput(overrides: Partial<{
     owner: overrides.owner ?? 'openai',
     repo: overrides.repo ?? 'skills',
     path: overrides.path ?? 'reviewer',
-    issueNumber: overrides.issueNumber ?? 42,
+    issueNumber: overrides.issueNumber ?? 100_000_000 + Math.floor(Math.random() * 100_000_000),
     target: 'openai/skills/reviewer',
     commitSha: '0123456789012345678901234567890123456789',
     originalScore: overrides.originalScore ?? 90,
@@ -209,9 +209,8 @@ test.skipIf(!testDatabaseUrl)('claims each due review once and persists an appli
 
     expect((await claimQueuedReviews()).map((review) => review.id)).toContain(reviewId)
     expect((await claimQueuedReviews()).map((review) => review.id)).not.toContain(reviewId)
-    await client.query("UPDATE scan_reviews SET status = 'awaiting_approval' WHERE id = $1", [reviewId])
-
     await (await import('@/lib/review/store')).replaceFindingReviews(reviewId, [{ ...decision(), decision: 'confirmed' }])
+    await client.query("UPDATE scan_reviews SET status = 'awaiting_approval' WHERE id = $1", [reviewId])
     const input = { reviewId, appliedBy: 'reviewer', reason: 'Approved evidence review.' }
     const first = await applyReviewDecisions(input)
     const duplicate = await applyReviewDecisions(input)
@@ -335,8 +334,9 @@ test.skipIf(!testDatabaseUrl)('returns the active review for a duplicate scan is
   const { client } = (await import('@/lib/db')).getDatabase()
 
   try {
-    const first = await createScanReview(reviewInput())
-    const duplicate = await createScanReview(reviewInput())
+    const input = reviewInput()
+    const first = await createScanReview(input)
+    const duplicate = await createScanReview(reviewInput({ issueNumber: input.issueNumber }))
     expect(duplicate).toBe(first)
   } finally {
     await client.end()

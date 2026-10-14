@@ -37,3 +37,47 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-file:
+          - tests/db/init.test.ts
+          - tests/trust/store.test.ts
+          - tests/review/store.test.ts
+          - tests/validator/redis.integration.test.ts
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: skillshield-test-only
+          POSTGRES_DB: skillshield_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Test with isolated PostgreSQL and Redis
+        run: npx vitest run ${{ matrix.test-file }} --testTimeout 30000
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:skillshield-test-only@localhost:5432/skillshield_test
+          REDIS_INTEGRATION_URL: redis://localhost:6379
