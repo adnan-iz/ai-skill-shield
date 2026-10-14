@@ -23,7 +23,14 @@ export function selectSkillEntryBlobs(tree: GitHubTreeNode[], maxSkills: number)
       .map((directory) => directory ? `${directory}/SKILL.md` : 'SKILL.md')
   )
 
-  return tree.filter((item) => item.type === 'blob' && skillPaths.has(item.path))
+  return tree.filter((item) => item.type === 'blob' && skillPaths.has(item.path.replace(/skill\.md$/i, 'SKILL.md')))
+}
+
+export function selectBatchValidationBlobs(tree: GitHubTreeNode[], allowedExtensions: Set<string>, maxSkills: number): GitHubTreeNode[] {
+  const manifests = selectSkillEntryBlobs(tree, maxSkills)
+  const manifestPaths = new Set(manifests.map(file => file.path))
+  const support = selectValidationBlobs(tree.filter(file => file.type === 'blob' && !manifestPaths.has(file.path)), { allowedExtensions, maxFiles: 300 })
+  return [...manifests, ...support]
 }
 
 export function scopeSkillBlobs(tree: GitHubTreeNode[], targetPath: string): GitHubTreeNode[] {

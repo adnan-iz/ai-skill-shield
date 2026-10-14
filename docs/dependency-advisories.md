@@ -1,0 +1,11 @@
+# Dependency advisory checks
+
+The validator sends discovered package names, ecosystems, and exact versions to [OSV's batch API](https://google.github.io/osv.dev/post-v1-querybatch/), then reads advisory records for IDs and reported fixed versions. File contents and source URLs are not sent.
+
+Supported inputs are npm `package-lock.json` (modern packages and legacy dependency entries), exact npm dependency/devDependency/optionalDependency values in `package.json`, exact `==` pins in requirements text files, and exact pins in the PEP 621 `[project]` dependency array in `pyproject.toml`. Version ranges, wildcards, local paths, URLs, and unresolved versions are skipped. Python Poetry tables, optional dependency groups, and other ecosystems are outside this check. Environment markers do not suppress a pinned dependency: it can be installed in another target environment.
+
+Results include the advisory ID, manifest path and line, dependency version, and fixed versions when OSV reports them. Unknown advisory severity is medium. Reported fixes can refer to multiple release branches; review the linked advisory and choose a compatible supported version. A complete result with zero checked packages means no supported exact versions were discovered, not that all dependencies are safe.
+
+The check is bounded to 100 matching manifests, 1 MiB of text per manifest, 2,000 dependency locations, 200 unique package versions, 100 advisory records, 2 MiB per API response, and a shared ten-second network deadline. Successful per-package results are cached in memory for one hour with a maximum of 1,000 entries. Empty successful responses are cached; failures are not. Cache lifetime is process-local.
+
+`status: unavailable` signals malformed JSON manifests, exceeded bounds, failed or malformed API responses, timeouts, or incomplete paginated results. Partial findings can still be returned. `checkedPackages` counts unique package versions for which batch result entries were received or cached; unavailable status must be considered alongside that count. Skipped range declarations and unsupported manifest formats are not part of the check. This is advisory evidence for known affected versions, not execution analysis or proof that a package is secure.

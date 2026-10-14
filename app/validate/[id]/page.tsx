@@ -11,6 +11,7 @@ import DashboardCards from '@/components/report/dashboard-cards'
 import FileTree from '@/components/report/file-tree'
 import RepositoryAuditCard from '@/components/report/repository-audit'
 import InstallVerdict from '@/components/report/install-verdict'
+import AdditionalChecks from '@/components/report/additional-checks'
 import SafetyFeedback from '@/components/trust/safety-feedback'
 import { useToast } from '@/components/ui/toast'
 import type { ValidationResult } from '@/lib/validator/types'
@@ -474,6 +475,8 @@ export default function ReportPage({
           <FindingsTable findings={result.findings} />
         </div>
       </div>
+
+      <div className="mb-8"><AdditionalChecks result={result} /></div>
 
       <div id="ai-review" className="mb-8 scroll-mt-6">
         <div className="glass-card rounded-xl p-4">

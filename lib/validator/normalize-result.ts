@@ -16,7 +16,8 @@ function normalizeFindings(findings: Finding[]): Finding[] {
         recommendation: 'Add a concrete usage example with an expected result',
       } : {}),
     }
-    const key = `${normalized.ruleId || normalized.category}|${normalized.title}|${normalized.filePath || ''}|${normalized.lineNumber || ''}`
+    const advisory = normalized.ruleId === 'dependency-vulnerability' ? normalized.message : ''
+    const key = `${normalized.ruleId || normalized.category}|${normalized.title}|${normalized.filePath || ''}|${normalized.lineNumber || ''}|${advisory}`
     if (seen.has(key)) return []
     seen.add(key)
     return [normalized]

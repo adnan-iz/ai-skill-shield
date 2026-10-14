@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "index:skills": "tsx scripts/index-public-skills.ts"
+    "index:skills": "tsx scripts/index-public-skills.ts",
+    "build:local-tools": "node scripts/build-local-tools.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

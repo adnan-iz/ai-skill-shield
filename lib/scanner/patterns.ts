@@ -106,6 +106,18 @@ interface PatternDef {
 }
 
 const patterns: PatternDef[] = [
+  {
+    id: 'PI-I18N-001', category: 'prompt-injection', severity: 'high',
+    name: 'Multilingual instruction override', description: 'Direct instruction overrides in Chinese, Japanese, and Korean',
+    detect: (content, filePath) => {
+      // shortcut: known direct phrases only, expand with labeled multilingual evidence.
+      const loc = locate(content, /^[ \t]*(?:[-*][ \t]*)?(?:忽略(?:之前|以前)的?(?:所有)?(?:指令|指示)|前の指示を無視してください|이전 지시를 모두 무시하세요)(?=[。。，,.!\s]|$)/m)
+      if (!loc) return null
+      return makeFinding('high', 'prompt-injection', 'Multilingual instruction override',
+        'The skill directly instructs the agent to discard prior instructions.', filePath, loc.line, loc.col, loc.snippet,
+        'Remove instruction overrides and keep the skill subordinate to the user and host policy.', 'PI-I18N-001')
+    },
+  },
   // ================================================================
   // COMMAND INJECTION (16 patterns)
   // ================================================================

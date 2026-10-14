@@ -40,9 +40,23 @@ export async function fetchWithTimeout(
           ...(options.headers || {}),
         },
       })
-      const body = response.status === 204 || response.status === 304
-        ? null
-        : await response.arrayBuffer()
+      const limit = host === 'raw' ? 3 * 1024 * 1024 : 15 * 1024 * 1024
+      const chunks: Uint8Array[] = []
+      let size = 0
+      const reader = response.body?.getReader()
+      if (reader) {
+        while (true) {
+          const chunk = await reader.read()
+          if (chunk.done) break
+          size += chunk.value.byteLength
+          if (size > limit) {
+            await reader.cancel()
+            throw new Error('GitHub response exceeds scan size limit')
+          }
+          chunks.push(chunk.value)
+        }
+      }
+      const body = response.status === 204 || response.status === 304 ? null : Buffer.concat(chunks)
       const headers = new Headers(response.headers)
       headers.delete('content-encoding')
       headers.delete('content-length')

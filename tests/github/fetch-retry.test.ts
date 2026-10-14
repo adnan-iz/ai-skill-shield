@@ -36,3 +36,8 @@ test('rejects requests to hosts outside the GitHub allowlist', async () => {
 
   expect(fetchMock).not.toHaveBeenCalled()
 })
+
+test('rejects oversized GitHub response streams before buffering all content', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(new Uint8Array(16 * 1024 * 1024)))
+  await expect(fetchWithTimeout('/repos/example/skill')).rejects.toThrow('GitHub response exceeds')
+})

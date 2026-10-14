@@ -132,6 +132,14 @@ export default function InstallVerdict({ result, approvalStatus }: InstallVerdic
           </div>
         ))}
       </div>
+      {!!result.coverage?.skippedFiles.length && (
+        <details className="mt-4 text-xs text-on-surface-secondary">
+          <summary className="cursor-pointer">View skipped files ({result.coverage.skippedFiles.length})</summary>
+          <ul className="mt-2 max-h-48 overflow-auto space-y-1">
+            {result.coverage.skippedFiles.map((file, index) => <li key={`${file.path}-${index}`}><code>{file.path}</code>: {file.reason}</li>)}
+          </ul>
+        </details>
+      )}
     </div>
   )
 }

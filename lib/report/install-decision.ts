@@ -41,6 +41,7 @@ function isPublishOnlyLifecycleFinding(finding: RepositoryAudit['findings'][numb
 }
 
 export function buildInstallDecision(result: ValidationResult, approval: ApprovalState): InstallDecision {
+  const incomplete = result.coverage?.status !== 'complete' || result.dependencyAdvisories?.status === 'unavailable'
   const repositoryAudit = result.source?.repositoryAudit
   const repositoryFindings = repositoryAudit?.findings.filter((finding) => !isPublishOnlyLifecycleFinding(finding)) ?? []
   const installFindingCount = countInstallFindings(result)
@@ -62,6 +63,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     finding.severity === 'medium' &&
     ['staged-malware', 'clickfix-attack', 'data-exfiltration', 'second-order-injection'].includes(finding.category)
   )
+  const hasVulnerableDependency = result.findings.some(finding => finding.ruleId === 'dependency-vulnerability')
 
   const reasons: InstallDecisionReason[] = []
   if (result.summary.criticalCount > 0) {
@@ -101,7 +103,15 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
     })
   }
 
+  if (incomplete) reasons.push({
+    label: 'Scan coverage needs review',
+    detail: result.dependencyAdvisories?.status === 'unavailable' ? 'Dependency vulnerability data was unavailable.' : result.coverage ? `${result.coverage.inspectedFiles}/${result.coverage.discoveredFiles} files inspected; review skipped or unsupported content.` : 'This older report does not record scan coverage. Run a new scan.',
+  })
+  if (hasVulnerableDependency) reasons.push({ label: 'Known vulnerable dependency', detail: 'Review the advisory and install a compatible fixed version before proceeding.' })
+
   const needsManualReview =
+    incomplete ||
+    hasVulnerableDependency ||
     hasCriticalStopSignal ||
     result.riskLevel === 'high' ||
     result.summary.highCount > 0 ||
@@ -125,6 +135,7 @@ export function buildInstallDecision(result: ValidationResult, approval: Approva
   const fileCount = countFileTree(result.skillPreview.fileTree) || 1
 
   const checklist: InstallChecklistItem[] = [
+    { label: 'Scan coverage', detail: result.coverage ? `${result.coverage.inspectedFiles}/${result.coverage.discoveredFiles} supplied or discovered files inspected (${result.coverage.status}).` : 'Coverage unknown; rescan required.', status: incomplete ? 'warn' : 'pass' },
     {
       label: result.batch ? 'Skill files parsed' : 'Skill file parsed',
       detail: `Validated ${fileCount.toLocaleString('en-US')} scanned file${fileCount === 1 ? '' : 's'}.`,

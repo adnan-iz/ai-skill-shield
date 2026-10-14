@@ -4,6 +4,8 @@ node_modules
 coverage
 data/*.db*
 graphify-out
+artifacts/skillspector-audit-source
+.tools
 *.log
 .env*
 !.env.example

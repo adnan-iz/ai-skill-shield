@@ -3,7 +3,8 @@ import { getResult } from '@/lib/store'
 import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound } from '@/lib/api-error'
-import { validateId } from '@/lib/security/input-validation'
+import { validateId, validatePayloadSize } from '@/lib/security/input-validation'
+import { compareRegistrySnapshots } from '@/lib/mcp/registry-diff'
 import type { Finding } from '@/lib/validator/types'
 
 function ipFromRequest(request: NextRequest): string {
@@ -22,11 +23,16 @@ export async function POST(request: NextRequest) {
     return addRateLimitHeaders(tooManyRequests(rl.resetAt), rl)
   }
 
-  let body: { scanAId?: string; scanBId?: string }
+  let body: { scanAId?: string; scanBId?: string; mode?: string; before?: unknown; after?: unknown }
   try {
-    body = await request.json()
+    const raw = await request.text()
+    const sizeError = validatePayloadSize(raw)
+    if (sizeError) return badRequest(sizeError)
+    body = JSON.parse(raw)
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return badRequest('Invalid comparison request')
+    if (body.mode === 'mcp-registry') return addRateLimitHeaders(Response.json(compareRegistrySnapshots(body.before, body.after)), rl)
   } catch {
-    return badRequest('Invalid JSON')
+    return badRequest('Invalid comparison input or registry snapshot')
   }
 
   const { scanAId, scanBId } = body

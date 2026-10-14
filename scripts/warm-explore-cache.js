@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// This restart helper runs as CommonJS.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const http = require('http')
 
 const PORT = process.env.PORT || 3008

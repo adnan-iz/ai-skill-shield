@@ -236,7 +236,9 @@ export function generateHtmlReport(result: ValidationResult): string {
           <a class="brand-url" href="${escapeHtml(SITE_URL)}">${escapeHtml(SITE_URL.replace(/^https?:\/\//, ''))}</a>
         </div>
       </div>
-      <div class="header-meta">
+    <p>${escapeHtml(result.coverage ? `Scan coverage: ${result.coverage.status}; ${result.coverage.inspectedFiles}/${result.coverage.discoveredFiles} files inspected.` : 'Scan coverage unknown; rescan required.')}</p>
+    <p>${escapeHtml(`Dependency advisory check: ${result.dependencyAdvisories?.status || 'not recorded'}`)}</p>
+    <div class="header-meta">
         <div class="header-meta-item">
           <span class="label">Skill Name</span>
           <span class="value">${escapeHtml(result.skillName)}</span>

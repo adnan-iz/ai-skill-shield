@@ -71,15 +71,19 @@ To use your local OpenCode installation, run `opencode serve --port 4096`, then 
 
 ## CLI (source only)
 
-The CLI is not published to npm yet. Run the included package from source:
+The CLI is not published to npm yet. Build the included shared scanner from the repository root:
 
 ```bash
-npm install --prefix packages/cli
-npm run build --prefix packages/cli
+npm ci
+npm run build:local-tools
 node packages/cli/dist/index.js scan ./path/to/skill
 ```
 
-The CLI uses a compact local rule set. The live web scanner provides the complete repository audit and 11-axis report.
+The CLI and GitHub Action now use the web security engine, including supporting-file scans, secrets, obfuscation, MCP schemas and permission drift. The web scanner also provides repository audits and the other validation axes. Local scans return an explicit install verdict and coverage evidence; add `--dependencies` for OSV advisories and `--fail-on-incomplete` for strict coverage policy. Run `node packages/cli/dist/index.js mcp` to expose the local `scan_skill` agent tool. See [CLI and baseline usage](docs/cli.md).
+
+Saved reports offer optional deep security scanning through pinned NVIDIA SkillSpector and opt-in source-based AI discovery. AI discovery can identify new issues even when static findings are empty; redacted source is sent only after explicit consent. [Deep scanner setup](docs/deep-scan.md) describes runtime pinning, bounded linked-source scans and separate evidence exports.
+
+GitHub batch scans include supporting files and record omitted, oversized, failed or unsupported content. Incomplete scans and historical reports with unknown coverage require review in reports, badges and Explorer. Exact dependency versions are checked against [OSV](docs/dependency-advisories.md); lookup failures require review rather than implying clean dependencies.
 
 ## Current scope
 
@@ -94,6 +98,7 @@ Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle ORM, and SQLite.
 - [Architecture](ARCHITECTURE.md)
 - [API reference](docs/api.md)
 - [CLI reference](docs/cli.md)
+- [Scanner depth, coverage and MCP registry comparison](docs/scanner-depth.md)
 - [GitHub Action](docs/github-action.md)
 - [Scoring model](docs/scoring.md)
 - [Deployment guide](docs/deployment.md)

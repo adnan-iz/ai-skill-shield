@@ -12,12 +12,25 @@ function baseResult(): ValidationResult {
     riskLevel: 'safe',
     summary: { totalChecks: 11, passed: 11, warnings: 0, failed: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, infoCount: 0 },
     axes: [],
+    coverage: { status: 'complete', discoveredFiles: 1, inspectedFiles: 1, skippedFiles: [] },
     findings: [],
     compatibility: { agents: [], overallCompatibility: 80 },
     tokenAnalysis: { totalTokens: 10, frontmatterTokens: 2, bodyTokens: 8, isUnderLimit: true, limit: 5000, breakdown: [] },
     skillPreview: { frontmatter: {}, body: '', fileTree: [] },
   }
 }
+
+it('requires review when scan coverage is unknown', () => {
+  const result = baseResult()
+  delete result.coverage
+  expect(buildInstallDecision(result, 'approved').label).toBe('Needs Manual Review')
+})
+
+it('requires review for a known vulnerable dependency even at moderate severity', () => {
+  const result = baseResult()
+  result.findings = [{ id: 'osv', ruleId: 'dependency-vulnerability', axis: 'dependencies', severity: 'medium', category: 'security', title: 'Vulnerable package', message: 'An OSV advisory affects this exact version.' }]
+  expect(buildInstallDecision(result, null).label).toBe('Needs Manual Review')
+})
 
 function resultWith(finding: Finding): ValidationResult {
   return {

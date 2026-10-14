@@ -17,6 +17,7 @@ export const validationResults = pgTable('validation_results', {
   category: text('category'),
   description: text('description'),
   searchable: text('searchable'),
+  scanComplete: boolean('scan_complete'),
 })
 
 export const rateLimits = pgTable('rate_limits', {

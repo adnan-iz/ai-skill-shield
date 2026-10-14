@@ -163,6 +163,7 @@ export default function HomePage() {
       }
       const result = await res.json() as {
         files?: SkillInput['files']
+        coverage?: SkillInput['coverage']
         owner: string
         repo: string
         path: string
@@ -200,6 +201,7 @@ export default function HomePage() {
       await validate({
         name: result.analyzeAllSkills ? `${result.owner}/${result.repo}` : undefined,
         files: result.files,
+        coverage: result.coverage,
         analyzeAllSkills: result.analyzeAllSkills,
         source: {
           type: 'github',

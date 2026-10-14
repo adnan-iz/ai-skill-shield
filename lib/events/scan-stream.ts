@@ -34,7 +34,7 @@ export interface ScanStepDefinition {
 
 export const SCAN_STEP_SEQUENCE: readonly ScanStepDefinition[] = [
   { step: 'init', progress: 0, message: 'Initializing scan engine and validating input...' },
-  { step: 'ast-parse', progress: 15, message: 'Parsing AST and skill frontmatter...' },
+  { step: 'ast-parse', progress: 15, message: 'Parsing skill frontmatter and file structure...' },
   { step: 'secrets', progress: 30, message: 'Scanning for hardcoded secrets and credentials...' },
   { step: 'obfuscation', progress: 45, message: 'Checking for obfuscation and hidden payloads...' },
   { step: 'mcp-schema', progress: 60, message: 'Validating Model Context Protocol schema definitions...' },
@@ -178,7 +178,7 @@ export async function runScanPipeline(
   controller.emitStep('init', 0, 'Initializing scan engine and validating input...')
 
   // 2. AST Parse (15%)
-  controller.emitStep('ast-parse', 15, 'Parsing AST and skill frontmatter...')
+  controller.emitStep('ast-parse', 15, 'Parsing skill frontmatter and file structure...')
 
   // 3. Secrets (30%)
   let secretCount = 0

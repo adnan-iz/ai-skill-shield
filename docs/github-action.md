@@ -1,48 +1,40 @@
 # GitHub Action
 
-The repository includes a local JavaScript action at `.github/actions/validate-skill`. It scans a skill directory already present in the workflow workspace.
-
-## Example workflow
+The Action at `.github/actions/validate-skill` uses the same security engine as the CLI and web scanner. Its committed bundle runs standalone with Node 20; consumers do not install repository dependencies. Rebuild the bundle after scanner changes using `node scripts/build-local-tools.mjs` from the repository root.
 
 ```yaml
-name: AI Skill Shield Scan
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
+name: Skill security
+on: [pull_request, push]
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan skill
-        uses: ./.github/actions/validate-skill
+      - uses: ./.github/actions/validate-skill
         with:
           skill-path: ./skills/my-skill
           fail-on: high
+          fail-on-incomplete: 'true'
 ```
 
-## Inputs
+| Input | Default | Behavior |
+| --- | --- | --- |
+| `skill-path` | required | Directory containing root `SKILL.md`. |
+| `fail-on` | `high` | Fail for active findings at or above critical/high/medium/low/info. |
+| `fail-on-incomplete` | `true` | Fail for partial local coverage or unavailable requested advisory checks. |
+| `output-format` | `json` | json, html, markdown or sarif. |
+| `baseline` | none | Reviewed baseline path relative to the workspace. |
+| `dependencies` | `false` | Opt in to OSV queries for exact dependency versions. |
 
-| Input | Required | Default | Description |
-| --- | --- | --- | --- |
-| `skill-path` | Yes | — | Path to the directory containing `SKILL.md`. |
-| `fail-on` | No | `high` | Requested failure severity: `critical`, `high`, `medium`, or `low`. |
-| `output-format` | No | `json` | Output format: `json` or `html`. |
-
-## Outputs
-
-| Output | Description |
+| Output | Meaning |
 | --- | --- |
-| `score` | Overall action score from `0` to `100`. |
-| `risk-level` | Highest detected risk level. |
-| `finding-count` | Number of files collected by the current action implementation. |
+| `score` | Shared security score, 0–100. |
+| `risk-level` | Highest original finding severity, or safe. |
+| `finding-count` | Number of actual findings, including accepted findings. |
+| `active-finding-count` | Number of findings not accepted by matching baseline. |
+| `coverage` | complete or partial. |
+| `verdict` | Do Not Install, Needs Manual Review or Safe to Review from active findings and check completeness. |
 
-## Behavior and limitations
+The Action emits escaped workflow annotations for active findings. JSON, Markdown and SARIF are written to the log; HTML is written to `skillshield-report.html` under `RUNNER_TEMP` (or the skill directory outside Actions). Upload reports separately if required.
 
-- The action emits workflow annotations for detected findings.
-- Critical results fail the job for every `fail-on` value. With the default `high` value, high results also fail the job. The current action accepts `medium` and `low` values but does not yet enforce those lower thresholds.
-- HTML output is written to `skillshield-report.html` in the scanned directory; upload it separately if it should be retained as a workflow artifact.
-- The action uses a compact local rule set. The web application's GitHub import route provides the complete repository metadata and install-surface audit.
+Local exclusions and baselines follow the [CLI contract](cli.md). A changed source or incompatible engine cannot silently inherit accepted findings. Coverage is partial for excluded dependency/generated directories, unreadable/binary/oversized files, symlinks and traversal limits. This is the shared security scan, not the web validator's entire multi-axis or repository review. It never executes scanned code.

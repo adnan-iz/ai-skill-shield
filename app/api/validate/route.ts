@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const body: SkillInput = JSON.parse(raw)
 
-    const filesError = validateFiles(body.files)
+    const filesError = validateFiles(body.files, body.analyzeAllSkills === true)
     if (filesError) {
       return badRequest(filesError)
     }

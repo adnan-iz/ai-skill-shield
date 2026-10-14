@@ -15,6 +15,7 @@ export interface SkillSource {
 }
 
 export interface SkillInput {
+  coverage?: ScanCoverage
   name?: string
   files: SkillFile[]
   directoryName?: string
@@ -28,6 +29,8 @@ export interface SkillFile {
 }
 
 export interface ValidationResult {
+  coverage?: ScanCoverage
+  dependencyAdvisories?: { status: 'complete' | 'unavailable'; checkedPackages: number }
   id: string
   timestamp: string
   skillName: string
@@ -41,6 +44,13 @@ export interface ValidationResult {
   skillPreview: SkillPreview
   source?: SkillSource
   batch?: SkillBatch
+}
+
+export interface ScanCoverage {
+  status: 'complete' | 'partial' | 'unknown'
+  discoveredFiles: number
+  inspectedFiles: number
+  skippedFiles: { path: string; reason: string }[]
 }
 
 export interface SkillBatch {

@@ -12,12 +12,15 @@ import { validateDependencies } from '@/lib/validator/dependencies'
 import { validateBestPractices } from '@/lib/validator/best-practices'
 import { validateInstallation } from '@/lib/validator/installation'
 import { normalizeValidationResult } from '@/lib/validator/normalize-result'
+import { scanCoverage } from '@/lib/validator/coverage'
+import { scanDependencyAdvisories } from '@/lib/validator/dependency-advisories'
 import {
   SkillFile, SkillInput, SkillPreview, FileTreeItem,
   ValidationResult, ValidationSummary, Finding, AxisResult,
   CompatibilityMatrix,
 } from '@/lib/validator/types'
 export interface OrchestratorOptions {
+  skipDependencyAdvisories?: boolean
   id?: string
   source?: SkillInput['source']
   rescan?: boolean
@@ -202,21 +205,35 @@ async function runAllSkillValidation(
   skillFiles: SkillFile[],
   options?: OrchestratorOptions
 ): Promise<ValidationResult> {
-  const validated = await Promise.all(skillFiles.map(async (skillFile) => {
+  const groups = new Map(skillFiles.map(file => [file.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/'), [] as SkillFile[]]))
+  const sharedFiles: SkillFile[] = []
+  for (const file of input.files) {
+    const path = file.path.replace(/\\/g, '/')
+    let directory = path.split('/').slice(0, -1).join('/')
+    while (directory && !groups.has(directory)) directory = directory.split('/').slice(0, -1).join('/')
+    const group = groups.get(directory)
+    if (group) group.push({ ...file, path: directory ? path.slice(directory.length + 1) : path })
+    else sharedFiles.push(file)
+  }
+  const validated: { path: string; result: ValidationResult }[] = []
+  for (let start = 0; start < skillFiles.length; start += 20) {
+  validated.push(...await Promise.all(skillFiles.slice(start, start + 20).map(async (skillFile) => {
     const normalizedPath = skillFile.path.replace(/\\/g, '/')
     const directory = normalizedPath.split('/').slice(0, -1).join('/')
     const source = input.source ? { ...input.source, path: directory } : undefined
+    const files = groups.get(directory)!
     const result = await runFullValidation({
-      files: [{ path: 'SKILL.md', content: skillFile.content }],
+      files,
       directoryName: directory.split('/').pop(),
       source,
       analyzeAllSkills: false,
-    }, { source })
+    }, { source, skipDependencyAdvisories: true })
 
     return { path: normalizedPath, result }
-  }))
+  })))
+  }
 
-  const findings = validated.flatMap(({ path, result }, skillIndex) =>
+  const findings: Finding[] = validated.flatMap(({ path, result }, skillIndex) =>
     result.findings.map((finding) => ({
       ...finding,
       id: `skill-${skillIndex}-${finding.id}`,
@@ -225,6 +242,10 @@ async function runAllSkillValidation(
         : `${path.slice(0, -'SKILL.md'.length)}${finding.filePath}`,
     }))
   )
+  const advisories = await scanDependencyAdvisories(input.files)
+  findings.push(...advisories.findings)
+  const sharedSecurity = sharedFiles.length ? runSecurityScan(sharedFiles, '') : undefined
+  if (sharedSecurity) findings.push(...sharedSecurity.findings)
 
   const axes = validated[0].result.axes.map((firstAxis) => {
     const matching = validated.map(({ result }) => result.axes.find((axis) => axis.key === firstAxis.key) || firstAxis)
@@ -246,6 +267,15 @@ async function runAllSkillValidation(
   })
 
   const riskLevel = determineRiskLevel(findings)
+  const dependency = axes.find(axis => axis.key === 'dependencies')!
+  mergeAdvisories(dependency, advisories)
+  if (sharedSecurity) {
+    const security = axes.find(axis => axis.key === 'security')!
+    security.score = Math.min(security.score, sharedSecurity.score)
+    if (sharedSecurity.status === 'fail' || security.status === 'fail') security.status = 'fail'
+    else if (sharedSecurity.status === 'warn' || security.status === 'warn') security.status = 'warn'
+    security.summary += `; ${sharedFiles.length} shared files inspected`
+  }
   const overallScore = calculateOverallScore(axes)
 
   const baseName = input.name || input.source?.repositoryMeta?.fullName || 'Repository'
@@ -273,10 +303,12 @@ async function runAllSkillValidation(
     skillPreview: {
       frontmatter: { batch: true, skillCount: validated.length },
       body: `Analyzed ${validated.length} SKILL.md files independently. See the skill results and findings above.`,
-      fileTree: buildFileTree(skillFiles),
-      files: skillFiles.map(({ path, content }) => ({ path, content })),
+      fileTree: buildFileTree(input.files),
+      files: input.files,
     },
     source: options?.source || input.source,
+    coverage: scanCoverage(input),
+    dependencyAdvisories: { status: advisories.status, checkedPackages: advisories.checkedPackages },
     batch: {
       totalSkills: validated.length,
       results: validated.map(({ path, result }) => ({
@@ -292,6 +324,13 @@ async function runAllSkillValidation(
   })
 }
 
+function mergeAdvisories(axis: AxisResult, result: Awaited<ReturnType<typeof scanDependencyAdvisories>>) {
+  axis.findings.push(...result.findings)
+  axis.score = Math.max(0, axis.score - result.findings.reduce((score, finding) => score + (finding.severity === 'critical' ? 50 : finding.severity === 'high' ? 25 : 10), 0))
+  axis.status = result.findings.length ? 'fail' : result.status === 'unavailable' ? 'warn' : axis.status
+  axis.summary += `; ${result.checkedPackages} exact dependency versions checked; advisory data ${result.status}`
+}
+
 export async function runFullValidation(
   input: SkillInput,
   options?: OrchestratorOptions
@@ -302,7 +341,7 @@ export async function runFullValidation(
   }
 
   const skillFile = input.files.find(f =>
-    f.path.replace(/\\/g, '/').endsWith('SKILL.md')
+    /(^|\/)SKILL\.md$/i.test(f.path.replace(/\\/g, '/'))
   )
 
   let content = ''
@@ -347,6 +386,8 @@ export async function runFullValidation(
   ])
 
   const compatibilityAxisResult = buildCompatibilityAxis(compatibilityResult)
+  const advisories = options?.skipDependencyAdvisories ? { findings: [], status: 'complete' as const, checkedPackages: 0 } : await scanDependencyAdvisories(input.files)
+  mergeAdvisories(dependencyResult, advisories)
 
   const axes: AxisResult[] = [
     frontmatterResult,
@@ -373,7 +414,7 @@ export async function runFullValidation(
     frontmatter,
     body,
     fileTree,
-    files: skillFile ? [{ path: skillFile.path, content: skillFile.content }] : [],
+    files: input.files,
   }
 
   const result: ValidationResult = {
@@ -389,6 +430,8 @@ export async function runFullValidation(
     tokenAnalysis: tokenAnalysisData,
     skillPreview,
     source: options?.source || input.source,
+    coverage: scanCoverage(input),
+    dependencyAdvisories: { status: advisories.status, checkedPackages: advisories.checkedPackages },
   }
 
   return finalizeValidationResult(result)

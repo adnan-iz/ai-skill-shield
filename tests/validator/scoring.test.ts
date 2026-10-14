@@ -40,7 +40,8 @@ describe('requiresApproval', () => {
   it('keeps severe scans review-gated without score caps', () => {
     expect(requiresApproval({ overallScore: 90, riskLevel: 'high' })).toBe(true)
     expect(requiresApproval({ overallScore: 90, riskLevel: 'critical' })).toBe(true)
-    expect(requiresApproval({ overallScore: 90, riskLevel: 'low' })).toBe(false)
+    expect(requiresApproval({ overallScore: 90, riskLevel: 'low', coverage: { status: 'complete', discoveredFiles: 1, inspectedFiles: 1, skippedFiles: [] } })).toBe(false)
+    expect(requiresApproval({ overallScore: 90, riskLevel: 'low' })).toBe(true)
   })
 })
 

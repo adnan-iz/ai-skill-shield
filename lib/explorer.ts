@@ -4,6 +4,7 @@ import type { ValidationResult } from '@/lib/validator/types'
 export type TrustBand = 'trusted' | 'caution' | 'restricted'
 
 export interface ExplorerMetaRow {
+  scanComplete?: boolean | null
   id: string
   sourceOwner: string | null
   sourceRepo: string | null
@@ -62,10 +63,10 @@ function textValue(value: unknown): string {
   return ''
 }
 
-export function trustBand(score: number, riskLevel: ValidationResult['riskLevel']): TrustBand {
+export function trustBand(score: number, riskLevel: ValidationResult['riskLevel'], complete = false): TrustBand {
   const scoreBand = score >= 80 ? 'trusted' : score >= 40 ? 'caution' : 'restricted'
   if (riskLevel === 'critical') return 'restricted'
-  return riskLevel === 'high' && scoreBand === 'trusted' ? 'caution' : scoreBand
+  return (!complete || riskLevel === 'high') && scoreBand === 'trusted' ? 'caution' : scoreBand
 }
 
 export function explorerItem(result: ValidationResult): ExplorerItem | null {
@@ -86,7 +87,7 @@ export function explorerItem(result: ValidationResult): ExplorerItem | null {
     ...target,
     vendor: target.owner,
     category,
-    trust: trustBand(result.overallScore, result.riskLevel),
+    trust: trustBand(result.overallScore, result.riskLevel, result.coverage?.status === 'complete' && result.dependencyAdvisories?.status !== 'unavailable'),
     searchable,
   }
 }
@@ -116,7 +117,7 @@ export function explorerItemFromMeta(row: ExplorerMetaRow): ExplorerMetaItem | n
     path: row.sourcePath || '',
     vendor: row.sourceOwner,
     category: row.category || 'Developer Tools',
-    trust: trustBand(score, rl),
+    trust: trustBand(score, rl, row.scanComplete === true),
     searchable: row.searchable || '',
   }
 }

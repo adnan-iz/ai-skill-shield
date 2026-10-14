@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { ValidationResult, FileTreeItem } from '@/lib/validator/types'
 
 interface FileTreeProps {
@@ -11,16 +11,11 @@ export default function FileTree({ result }: FileTreeProps) {
   const filesWithFindings = new Set(result.findings.map(f => f.filePath).filter(Boolean))
   const previewFiles = result.skillPreview.files ?? []
   const previewByPath = useMemo(
-    () => new Map(previewFiles.map((file) => [file.path, file.content])),
-    [previewFiles]
+    () => new Map((result.skillPreview.files ?? []).map((file) => [file.path, file.content])),
+    [result.skillPreview.files]
   )
-  const [selectedPath, setSelectedPath] = useState<string | null>(previewFiles[0]?.path ?? null)
-
-  useEffect(() => {
-    if (!selectedPath || !previewByPath.has(selectedPath)) {
-      setSelectedPath(previewFiles[0]?.path ?? null)
-    }
-  }, [previewByPath, previewFiles, selectedPath])
+  const [selection, setSelectedPath] = useState<string | null>(previewFiles[0]?.path ?? null)
+  const selectedPath = selection && previewByPath.has(selection) ? selection : previewFiles[0]?.path ?? null
 
   const selectedContent = selectedPath ? previewByPath.get(selectedPath) : undefined
 

@@ -68,6 +68,7 @@ export async function saveResult(result: ValidationResult): Promise<void> {
     category,
     description,
     searchable,
+    scanComplete: normalized.coverage?.status === 'complete' && normalized.dependencyAdvisories?.status !== 'unavailable',
   })
   await invalidateExploreCache()
 }
@@ -191,6 +192,7 @@ export async function getRecentExplorerItems(): Promise<ExplorerMetaItem[]> {
       category: validationResults.category,
       description: validationResults.description,
       searchable: validationResults.searchable,
+      scanComplete: validationResults.scanComplete,
     })
     .from(validationResults)
     .where(

@@ -20,6 +20,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "artifacts/**",
+    ".tools/**",
+    ".worktrees/**",
+    "packages/cli/dist/**",
+    ".github/actions/validate-skill/index.js",
   ]),
 ]);
 

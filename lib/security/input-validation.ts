@@ -22,27 +22,32 @@ export function validateId(id: string): string | null {
 }
 
 export function validatePayloadSize(body: string): string | null {
-  if (body.length > MAX_TOTAL_SIZE) return `Payload too large (max ${MAX_TOTAL_SIZE / 1024 / 1024}MB)`
+  if (Buffer.byteLength(body) > MAX_TOTAL_SIZE) return `Payload too large (max ${MAX_TOTAL_SIZE / 1024 / 1024}MB)`
   return null
 }
 
 export function validateFiles(
-  files: { path: string; content: string }[]
+  files: { path: string; content: string }[],
+  analyzeAllSkills = false,
 ): string | null {
   if (!Array.isArray(files)) return 'files must be an array'
   if (files.length === 0) return 'Provide at least one file'
   const allSkillFiles = files.every((file) => typeof file.path === 'string' && /(^|\/)SKILL\.md$/i.test(file.path.replace(/\\/g, '/')))
-  const maxFiles = allSkillFiles ? MAX_BATCH_SKILLS : MAX_FILES
+  const maxFiles = allSkillFiles ? MAX_BATCH_SKILLS : analyzeAllSkills ? MAX_BATCH_SKILLS + 300 : MAX_FILES
   if (files.length > maxFiles) return `Too many files (max ${maxFiles})`
 
+  const paths = new Set<string>()
   for (const file of files) {
     if (typeof file.path !== 'string' || typeof file.content !== 'string') {
       return 'Invalid file format'
     }
-    if (file.path.includes('..') || file.path.startsWith('/')) {
+    if (file.path.includes('..') || /^[\\/]|^[A-Za-z]:/.test(file.path) || file.path.includes('\0')) {
       return 'Invalid file path'
     }
-    if (file.content.length > MAX_FILE_SIZE) {
+    const path = file.path.replace(/\\/g, '/')
+    if (paths.has(path)) return `Duplicate file path: ${path}`
+    paths.add(path)
+    if (Buffer.byteLength(file.content) > MAX_FILE_SIZE) {
       return `File too large: ${file.path} (max ${MAX_FILE_SIZE / 1024 / 1024}MB)`
     }
     if (isBinaryContent(file.content)) {

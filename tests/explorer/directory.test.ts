@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { explorerItem, trustBand } from '@/lib/explorer'
+import { explorerItem, explorerItemFromMeta, trustBand } from '@/lib/explorer'
 import type { ValidationResult } from '@/lib/validator/types'
 
 function result(score: number, riskLevel: ValidationResult['riskLevel'] = 'low'): ValidationResult {
@@ -7,6 +7,7 @@ function result(score: number, riskLevel: ValidationResult['riskLevel'] = 'low')
     id: 'scan-1', timestamp: '2026-08-03T00:00:00.000Z', skillName: 'browser-audit', overallScore: score, riskLevel,
     summary: { totalChecks: 1, passed: 1, warnings: 0, failed: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, infoCount: 0 },
     axes: [], findings: [], compatibility: { agents: [], overallCompatibility: 100 },
+    coverage: { status: 'complete', discoveredFiles: 1, inspectedFiles: 1, skippedFiles: [] },
     tokenAnalysis: { totalTokens: 1, frontmatterTokens: 1, bodyTokens: 0, isUnderLimit: true, limit: 5000, breakdown: [] },
     skillPreview: { frontmatter: { name: 'browser-audit' }, body: '', fileTree: [] },
     source: {
@@ -24,6 +25,12 @@ test('normalizes public skills for directory filters', () => {
   expect(trustBand(39, 'low')).toBe('restricted')
   expect(trustBand(90, 'high')).toBe('caution')
   expect(trustBand(90, 'critical')).toBe('restricted')
+  expect(trustBand(90, 'low')).toBe('caution')
+  expect(trustBand(90, 'low', true)).toBe('trusted')
+})
+
+test('does not label coverage-unknown explorer metadata trusted', () => {
+  expect(explorerItemFromMeta({ id: 'scan', sourceOwner: 'acme', sourceRepo: 'skills', sourceType: 'github', sourcePath: '', skillName: 'demo', overallScore: 95, riskLevel: 'low', findingsCount: 0, category: null, description: null, searchable: null })?.trust).toBe('caution')
 })
 
 test('constructs ExplorerMetaItem from ExplorerMetaRow', async () => {
@@ -36,6 +43,7 @@ test('constructs ExplorerMetaItem from ExplorerMetaRow', async () => {
     sourceType: 'github',
     skillName: 'deploy-agent',
     overallScore: 85,
+    scanComplete: true,
     riskLevel: 'low',
     findingsCount: 2,
     category: 'DevOps',

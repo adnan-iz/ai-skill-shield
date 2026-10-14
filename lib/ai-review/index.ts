@@ -39,13 +39,13 @@ const SECRET_PATTERNS: RegExp[] = [
   /sk-[A-Za-z0-9]{32,}/g,
   /(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}/g,
   /AKIA[0-9A-Z]{16}/g,
-  /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/g,
+  /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/g,
 ]
 
 export function redactSecrets(content: string): string {
   let result = content
   for (const pattern of SECRET_PATTERNS) {
-    result = result.replace(pattern, '[REDACTED]')
+    result = result.replace(pattern, match => '[REDACTED]' + '\n'.repeat((match.match(/\n/g) || []).length))
   }
   return result
 }

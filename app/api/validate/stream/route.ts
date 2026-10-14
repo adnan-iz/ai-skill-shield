@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           throw new Error('Invalid JSON payload')
         }
 
-        const filesError = validateFiles(body?.files)
+        const filesError = validateFiles(body?.files, body?.analyzeAllSkills === true)
         if (filesError) {
           throw new Error(filesError)
         }

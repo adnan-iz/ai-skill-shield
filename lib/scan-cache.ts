@@ -5,7 +5,7 @@ import type { SkillInput, ValidationResult } from '@/lib/validator/types'
 import type { ExplorerMetaItem } from '@/lib/explorer'
 
 const EXPLORE_CACHE_KEY = 'skillshield:explore:public-results'
-const EXPLORE_ITEMS_CACHE_KEY = 'skillshield:explore:public-items'
+const EXPLORE_ITEMS_CACHE_KEY = 'skillshield:explore:public-items:v3'
 const IN_MEMORY_TTL_MS = 5 * 60 * 1000
 
 interface MemoryCacheEntry<T> {
@@ -53,7 +53,7 @@ async function getClient() {
 
 export function scanCacheKey(input: SkillInput): string {
   const files = [...input.files].sort((a, b) => a.path.localeCompare(b.path))
-  const fingerprint = JSON.stringify({ ...input, files, cacheVersion: 2 })
+  const fingerprint = JSON.stringify({ ...input, files, cacheVersion: 3 })
   return `skillshield:scan:${createHash('sha256').update(fingerprint).digest('hex')}`
 }
 

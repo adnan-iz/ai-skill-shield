@@ -5,10 +5,10 @@ import { checkRateLimit } from '@/lib/security/rate-limit'
 import { addRateLimitHeaders } from '@/lib/security/rate-limit-headers'
 import { badRequest, tooManyRequests, notFound, serverError } from '@/lib/api-error'
 import { auditRepositoryTree, isRepositoryAuditCandidatePath, type GitHubTreeNode } from '@/lib/github/repository-audit'
-import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectSkillEntryBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectBatchValidationBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
 import { matchSkillDirectory } from '@/lib/github/path-resolution'
 import { fetchWithTimeout, githubAuthError } from '@/lib/github/fetch'
-import type { RepositoryMeta } from '@/lib/validator/types'
+import type { RepositoryMeta, ScanCoverage } from '@/lib/validator/types'
 import { validateAndSave } from '@/lib/validator/service'
 
 const FETCH_TIMEOUT = 15_000
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       repositoryMeta,
       analyzeAllSkills,
       discoveredSkillCount: skillDirectories.length,
+      treeTruncated: Boolean(data.truncated),
     })
 
     if (analyzeAllSkills && response.ok) {
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
         path: string
         repositoryAudit?: ReturnType<typeof auditRepositoryTree>
         repositoryMeta?: RepositoryMeta
+        coverage?: ScanCoverage
       }
       const source = {
         type: 'github' as const,
@@ -139,6 +141,7 @@ export async function POST(request: NextRequest) {
         files: payload.files,
         source,
         analyzeAllSkills: true,
+        coverage: payload.coverage as ScanCoverage,
       }, { source, rescan: rescan === true })
 
       return addRateLimitHeaders(Response.json({
@@ -250,6 +253,7 @@ async function fetchFiles(
     repositoryMeta?: RepositoryMeta | undefined
     analyzeAllSkills?: boolean
     discoveredSkillCount?: number
+    treeTruncated?: boolean
   }
 ) {
   const {
@@ -261,12 +265,13 @@ async function fetchFiles(
     repositoryMeta,
     analyzeAllSkills = false,
     discoveredSkillCount = 0,
+    treeTruncated = false,
   } = options || {}
 
   const textExtensions = new Set([
     '.md', '.json', '.yaml', '.yml', '.txt', '.ts', '.tsx', '.js', '.jsx',
     '.py', '.rb', '.go', '.rs', '.java', '.c', '.h', '.cpp', '.hpp',
-    '.css', '.html', '.sh', '.bash', '.zsh', '.toml', '.ini', '.cfg',
+    '.css', '.html', '.sh', '.bash', '.zsh', '.ps1', '.psm1', '.bat', '.cmd', '.mjs', '.cjs', '.toml', '.ini', '.cfg',
     '.env', '.env.example', '.gitignore', '.dockerfile', '.sql',
     '.xml', '.svg', '.proto', '.gradle', '.lock',
   ])
@@ -282,7 +287,7 @@ async function fetchFiles(
 
   const normalizedTreePath = treePath.replace(/^\/+/, '').replace(/\/+$/, '')
   const scoped = analyzeAllSkills
-    ? selectSkillEntryBlobs(treeData.tree || [], MAX_BATCH_SKILLS)
+    ? (treeData.tree || []).filter(item => item.type === 'blob')
     : scopeSkillBlobs(treeData.tree || [], normalizedTreePath)
   const filtered = scoped.filter(item => !shouldIgnore(item.path, ignorePaths))
 
@@ -294,52 +299,66 @@ async function fetchFiles(
   }
 
   const relevant = analyzeAllSkills
-    ? filtered
+    ? selectBatchValidationBlobs(filtered, extensions, MAX_BATCH_SKILLS)
     : selectValidationBlobs(filtered, {
         allowedExtensions: extensions,
         maxFiles: MAX_VALIDATION_FILES,
       })
 
-  const results: PromiseSettledResult<{ path: string; content: string } | null>[] = []
+  const files: { path: string; content: string }[] = []
+  let totalSize = 0
+  let sizeTruncated = false
+  const startedAt = Date.now()
+  const skippedFiles: ScanCoverage['skippedFiles'] = []
+  const selectedPaths = new Set(relevant.map(file => file.path))
+  for (const file of scoped) {
+    if (!selectedPaths.has(file.path)) skippedFiles.push({ path: file.path, reason: shouldIgnore(file.path, ignorePaths) ? 'policy-excluded' : 'unsupported-or-file-limit' })
+  }
+  if (treeTruncated) skippedFiles.push({ path: '(repository tree)', reason: 'incomplete-tree' })
   // ponytail: bounded batches avoid a custom queue; paginate if repositories exceed 1,000 skills.
-  for (let index = 0; index < relevant.length; index += 40) {
+  for (let index = 0; index < relevant.length; index += 8) {
+    if (Date.now() - startedAt > 60_000 || totalSize >= MAX_TOTAL_SIZE) {
+      for (const file of relevant.slice(index)) skippedFiles.push({ path: file.path, reason: totalSize >= MAX_TOTAL_SIZE ? 'total-size-limit' : 'fetch-time-limit' })
+      sizeTruncated = true
+      break
+    }
     const batch = await Promise.allSettled(
-      relevant.slice(index, index + 40).map(async (blob: GitHubTreeNode) => {
+      relevant.slice(index, index + 8).map(async (blob: GitHubTreeNode) => {
       const ext = '.' + blob.path.split('.').pop()?.toLowerCase()
-      if (!extensions.has(ext) && !blob.path.endsWith('SKILL.md')) return null
+      if (!extensions.has(ext) && !/(^|\/)SKILL\.md$/i.test(blob.path) && !isRepositoryAuditCandidatePath(blob.path)) {
+        skippedFiles.push({ path: blob.path, reason: 'unsupported-format' }); return null
+      }
 
       const rawRes = await fetchWithTimeout(
         `/${owner}/${repo}/${ref}/${blob.path}`, {}, FETCH_TIMEOUT, 'raw'
       )
-      if (!rawRes.ok) return null
+      if (!rawRes.ok) { skippedFiles.push({ path: blob.path, reason: `fetch-http-${rawRes.status}` }); return null }
       const text = await rawRes.text()
-      if (text.length > 3 * 1024 * 1024) return null
+      if (Buffer.byteLength(text) > 3 * 1024 * 1024) { skippedFiles.push({ path: blob.path, reason: 'file-size-limit' }); return null }
+      if (text.includes('\0')) { skippedFiles.push({ path: blob.path, reason: 'binary-content' }); return null }
       return { path: blob.path, content: text }
       })
     )
-    results.push(...batch)
-  }
-
-  let totalSize = 0
-  let sizeTruncated = false
-
-  const files = results
-    .filter((r): r is PromiseFulfilledResult<{ path: string; content: string }> => r.status === 'fulfilled' && r.value !== null)
-    .map(r => r.value)
-    .filter(file => {
-      if (totalSize + file.content.length > MAX_TOTAL_SIZE) {
-        sizeTruncated = true
-        return false
+    batch.forEach((result, offset) => {
+      if (result.status === 'rejected') skippedFiles.push({ path: relevant[index + offset].path, reason: 'fetch-failed' })
+      else if (result.value) {
+        const bytes = Buffer.byteLength(result.value.content)
+        if (totalSize + bytes > MAX_TOTAL_SIZE) {
+          sizeTruncated = true
+          skippedFiles.push({ path: result.value.path, reason: 'total-size-limit' })
+        } else {
+          files.push(result.value)
+          totalSize += bytes
+        }
       }
-      totalSize += file.content.length
-      return true
     })
+  }
 
   const fileCountTrimmed = analyzeAllSkills
     ? discoveredSkillCount > relevant.length
     : filtered.length > relevant.length
   const truncated = fileCountTrimmed || sizeTruncated
-  if (analyzeAllSkills && files.length !== discoveredSkillCount) {
+  if (analyzeAllSkills && files.filter(file => /(^|\/)SKILL\.md$/i.test(file.path)).length !== discoveredSkillCount) {
     return serverError(`Could not fetch all ${discoveredSkillCount} discovered skills. Try again.`)
   }
   const response: Record<string, unknown> = {
@@ -353,7 +372,8 @@ async function fetchFiles(
     repositoryAudit,
     repositoryMeta,
     analyzeAllSkills,
-    skillCount: files.length,
+    skillCount: files.filter(file => /(^|\/)SKILL\.md$/i.test(file.path)).length,
+    coverage: { status: skippedFiles.length ? 'partial' : 'complete', discoveredFiles: scoped.length, inspectedFiles: files.length, skippedFiles },
   }
   if (fileCountTrimmed && sizeTruncated) {
     response.warning = `Large repository detected. Validation used the top ${relevant.length} relevant text files and trimmed oversized content. Repository install-surface audit still covered the full tree.`

@@ -1,5 +1,5 @@
 name: 'AI Skill Shield Validate'
-description: 'Validate agent skills for security, quality, and compatibility'
+description: 'Scan agent skills with the shared AI Skill Shield security engine'
 author: 'AI Skill Shield'
 
 inputs:
@@ -7,21 +7,35 @@ inputs:
     description: 'Path to the skill directory containing SKILL.md'
     required: true
   fail-on:
-    description: 'Minimum severity to fail the check (critical, high, medium, low)'
+    description: 'Minimum severity to fail the check (critical, high, medium, low, info)'
     required: false
     default: 'high'
   output-format:
-    description: 'Report output format (json, html)'
+    description: 'Report output format (json, html, markdown, sarif)'
     required: false
     default: 'json'
+  fail-on-incomplete:
+    description: 'Fail when files were excluded or unreadable'
+    default: 'true'
+  baseline:
+    description: 'Optional accepted baseline JSON path relative to the workspace'
+  dependencies:
+    description: 'Opt in to live OSV checks for exact dependency versions'
+    default: 'false'
 
 outputs:
   score:
-    description: 'Overall validation score (0-100)'
+    description: 'Shared security scan score (0-100)'
   risk-level:
-    description: 'Risk level (safe, low, medium, high, critical)'
+    description: 'Highest finding severity (safe, info, low, medium, high, critical)'
   finding-count:
     description: 'Total number of findings'
+  active-finding-count:
+    description: 'Findings not accepted by a matching baseline'
+  coverage:
+    description: 'Local inspection coverage: complete or partial'
+  verdict:
+    description: 'Do Not Install, Needs Manual Review or Safe to Review based on active findings and coverage'
 
 runs:
   using: 'node20'

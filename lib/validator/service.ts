@@ -6,8 +6,8 @@ import { notifyGitHubRepositoryOwner } from '@/lib/github/notifications'
 import { runFullValidation, type OrchestratorOptions } from '@/lib/validator/orchestrator'
 import type { SkillInput, ValidationResult } from '@/lib/validator/types'
 
-export function requiresApproval(result: Pick<ValidationResult, 'overallScore' | 'riskLevel'>): boolean {
-  return result.overallScore < 70 || result.riskLevel === 'critical' || result.riskLevel === 'high'
+export function requiresApproval(result: Pick<ValidationResult, 'overallScore' | 'riskLevel' | 'coverage' | 'dependencyAdvisories'>): boolean {
+  return result.coverage?.status !== 'complete' || result.dependencyAdvisories?.status === 'unavailable' || result.overallScore < 70 || result.riskLevel === 'critical' || result.riskLevel === 'high'
 }
 
 export async function validateAndSave(
@@ -19,7 +19,9 @@ export async function validateAndSave(
     const cachedId = await getCachedResultId(cacheKey)
     if (cachedId) {
       const cached = await getResult(cachedId)
-      if (cached) {
+      const advisories = cached?.dependencyAdvisories
+      const freshAdvisories = !advisories?.checkedPackages || Date.now() - Date.parse(cached!.timestamp) < 3_600_000
+      if (cached && advisories?.status !== 'unavailable' && freshAdvisories) {
         // A cached scan can still be a new Explore candidate after the Explore list was cached.
         // Refresh that list on cache hits so GitHub-search scans appear without waiting for TTL.
         await invalidateExploreCache()

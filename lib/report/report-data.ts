@@ -98,6 +98,7 @@ export function generateReportData(result: ValidationResult): {
   const summary = `Skill "${result.skillName}" scored ${result.overallScore}/100 (${scoreLabel}); its highest finding severity is ${result.riskLevel.toUpperCase()}. ${result.findings.length} total findings: ${result.summary.criticalCount} critical, ${result.summary.highCount} high, ${result.summary.mediumCount} medium, ${result.summary.lowCount} low, ${result.summary.infoCount} info. ${result.summary.passed} axes passed, ${result.summary.warnings} warnings, ${result.summary.failed} failed.`
 
   const sections: ReportSection[] = [
+    { id: 'scan-coverage', title: 'Scan Coverage', order: 1, content: result.coverage ? `Status: ${result.coverage.status}\n\n${result.coverage.inspectedFiles}/${result.coverage.discoveredFiles} files inspected.\n\n${result.coverage.skippedFiles.map(file => `- ${file.path}: ${file.reason}`).join('\n')}` : 'This report predates coverage tracking. Run a new scan.' },
     {
       id: 'executive-summary',
       title: 'Executive Summary',
@@ -105,6 +106,8 @@ export function generateReportData(result: ValidationResult): {
 
 **Static Score:** ${result.overallScore}/100 (${scoreLabel})
 **Highest Finding Severity:** ${riskLabel}
+**Scan Coverage:** ${result.coverage ? `${result.coverage.status}; ${result.coverage.inspectedFiles}/${result.coverage.discoveredFiles} files inspected` : 'Unknown; rescan required'}
+**Dependency Advisory Check:** ${result.dependencyAdvisories?.status || 'Not recorded'}
 **Total Findings:** ${result.findings.length}
 **Validated At:** ${new Date(result.timestamp).toLocaleString()}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectSkillEntryBlobs, selectValidationBlobs } from '@/lib/github/file-selection'
+import { listSkillDirectories, normalizeSkillDirectoryPath, scopeSkillBlobs, selectSkillEntryBlobs, selectValidationBlobs, selectBatchValidationBlobs } from '@/lib/github/file-selection'
 import type { GitHubTreeNode } from '@/lib/github/repository-audit'
 
 describe('selectValidationBlobs', () => {
@@ -32,6 +32,13 @@ describe('selectValidationBlobs', () => {
 })
 
 describe('skill directory selection', () => {
+  it('includes supporting code in a batch import', () => {
+    const tree: GitHubTreeNode[] = [
+      { path: 'a/SKILL.md', type: 'blob' }, { path: 'a/install.py', type: 'blob' },
+      { path: 'b/skill.md', type: 'blob' }, { path: 'b/install.sh', type: 'blob' },
+    ]
+    expect(selectBatchValidationBlobs(tree, new Set(['.py', '.sh']), 10).map(file => file.path).sort()).toEqual(tree.map(file => file.path).sort())
+  })
   it('lists every skill and normalizes direct SKILL.md targets to their directory', () => {
     const tree: GitHubTreeNode[] = [
       { path: 'SKILL.md', type: 'blob' },

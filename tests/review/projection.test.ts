@@ -22,6 +22,7 @@ function originalResult(): ValidationResult {
   return {
     id: '00000000-0000-4000-8000-000000000001',
     timestamp: '2026-09-05T00:00:00.000Z',
+    coverage: { status: 'complete', discoveredFiles: 1, inspectedFiles: 1, skippedFiles: [] },
     skillName: 'reviewer',
     overallScore: 42,
     riskLevel: 'critical',

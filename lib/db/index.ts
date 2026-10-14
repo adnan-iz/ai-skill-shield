@@ -59,6 +59,7 @@ export async function ensureDatabase(): Promise<void> {
       await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS category TEXT`)
       await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS description TEXT`)
       await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS searchable TEXT`)
+      await client.query(`ALTER TABLE validation_results ADD COLUMN IF NOT EXISTS scan_complete BOOLEAN`)
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_vr_explore
           ON validation_results (created_at DESC)

@@ -80,7 +80,7 @@ function buildResults(findings: Finding[]): SarifResultItem[] {
 function buildInvocations(result: ValidationResult): SarifInvocation[] {
   return [
     {
-      executionSuccessful: result.riskLevel !== 'critical',
+      executionSuccessful: result.coverage?.status === 'complete' && result.dependencyAdvisories?.status !== 'unavailable',
       startTimeUtc: result.timestamp,
       endTimeUtc: new Date().toISOString(),
       properties: {
@@ -91,6 +91,8 @@ function buildInvocations(result: ValidationResult): SarifInvocation[] {
         passed: result.summary.passed,
         failed: result.summary.failed,
         warnings: result.summary.warnings,
+        coverage: result.coverage || { status: 'unknown' },
+        dependencyAdvisories: result.dependencyAdvisories,
       },
     },
   ]
