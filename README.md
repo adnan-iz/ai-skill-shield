@@ -2,6 +2,12 @@
 
 **Check an AI agent skill before you trust it.**
 
+[![AI Skill Shield launch video: import a skill, inspect security checks, and review the evidence](docs/media/skill-shield-launch.gif)](docs/media/skill-shield-launch.mp4)
+
+[Watch or download the 20-second launch video with sound](docs/media/skill-shield-launch.mp4).
+
+The video shows a saved public report from August 8, 2026; its findings are automated scan results, not independently confirmed vulnerabilities.
+
 [Try the live scanner](https://ai-skill-shield.suppeng.com/) - no installation, account, or API key required for the standard scan.
 
 AI Skill Shield reviews `SKILL.md` packages and GitHub repositories for prompt injection, exposed secrets, dangerous commands, install scripts, dependency risks, and other software supply-chain signals before an agent runs or installs them.
